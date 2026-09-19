@@ -1,0 +1,44 @@
+name: Feature request
+description: Propose a new capability or an improvement
+title: '[feat] '
+labels: [enhancement]
+body:
+    - type: markdown
+      attributes:
+          value: |
+              Not sure yet? Start a [discussion](https://github.com/frappeforge/frappeforge/discussions) instead — it is easier to shape an idea there.
+    - type: dropdown
+      id: package
+      attributes:
+          label: Package
+          options:
+              - '@frappeforge/client'
+              - '@frappeforge/codegen'
+              - New package
+              - Repository tooling / CI
+      validations:
+          required: true
+    - type: textarea
+      id: problem
+      attributes:
+          label: Problem
+          description: What are you trying to do that is hard or impossible today?
+      validations:
+          required: true
+    - type: textarea
+      id: proposal
+      attributes:
+          label: Proposed solution
+          description: What should the API or behavior look like? Include a code sketch if you can.
+          render: ts
+      validations:
+          required: true
+    - type: textarea
+      id: alternatives
+      attributes:
+          label: Alternatives considered
+    - type: input
+      id: frappe-reference
+      attributes:
+          label: Related Frappe API
+          description: Link to the Frappe endpoint, whitelisted method, or docs this maps to, if any.

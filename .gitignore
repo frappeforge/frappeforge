@@ -1,0 +1,33 @@
+# Dependencies and build artifacts
+node_modules/
+dist/
+*.tgz
+*.tsbuildinfo
+
+# Logs
+logs/
+*.log
+npm-debug.log*
+pnpm-debug.log*
+
+# Secrets and local overrides
+.env
+.env.*
+!.env.example
+*.local
+
+# Editor / OS (shared VS Code recommendations and settings are tracked)
+.vscode/*
+!.vscode/extensions.json
+!.vscode/settings.json
+.idea/
+.DS_Store
+*.swp
+
+# Test output and caches
+coverage/
+test-results/
+.cache/
+
+# API Extractor scratch output (etc/*.api.md is tracked)
+temp/

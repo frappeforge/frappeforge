@@ -1,0 +1,6 @@
+# Every path requires review from a code owner before merge (enforced by the main ruleset).
+* @dhiashalabi
+
+/.github/ @dhiashalabi
+/packages/client/ @dhiashalabi
+/packages/codegen/ @dhiashalabi

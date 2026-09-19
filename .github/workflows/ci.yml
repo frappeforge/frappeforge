@@ -1,0 +1,118 @@
+name: CI
+
+on:
+    push:
+        branches: [main]
+    pull_request:
+    merge_group:
+
+concurrency:
+    group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+    cancel-in-progress: true
+
+permissions:
+    contents: read
+
+env:
+    HUSKY: '0'
+
+jobs:
+    build:
+        name: build (${{ matrix.os }}, node ${{ matrix.node }})
+        runs-on: ${{ matrix.os }}
+        timeout-minutes: 20
+        strategy:
+            fail-fast: false
+            matrix:
+                os: [ubuntu-latest]
+                node: [22, 24, 26]
+                include:
+                    - os: windows-latest
+                      node: 24
+        steps:
+            - name: Checkout
+              uses: actions/checkout@v7.0.1
+              with:
+                  persist-credentials: false
+
+            - name: Setup pnpm
+              uses: pnpm/action-setup@v6.1.0
+
+            - name: Setup Node.js
+              uses: actions/setup-node@v7.0.0
+              with:
+                  node-version: ${{ matrix.node }}
+                  cache: pnpm
+
+            - name: Install dependencies
+              run: pnpm install --frozen-lockfile
+
+            - name: Audit dependencies
+              run: pnpm audit --audit-level high
+
+            - name: Typecheck
+              run: pnpm typecheck
+
+            - name: Lint
+              run: pnpm lint
+
+            - name: Check formatting
+              run: pnpm format:check
+
+            - name: Lint dependency graph
+              run: pnpm lint:deps
+
+            - name: Lint workspace manifests (sherif)
+              run: pnpm lint:workspace
+
+            - name: Find unused files, exports and dependencies (knip)
+              run: pnpm knip
+
+            - name: Check lockfile is deduplicated
+              run: pnpm dedupe:check
+
+            - name: Test
+              run: pnpm test
+
+            - name: Build
+              run: pnpm build
+
+            - name: Check public API surface
+              run: pnpm api:check
+
+            - name: Check package.json and exports (publint)
+              run: pnpm publint
+
+            - name: Check type resolution across module systems (attw)
+              run: pnpm attw
+
+            - name: Verify packed consumers
+              run: pnpm verify:packed
+
+            - name: Upload coverage
+              if: matrix.os == 'ubuntu-latest' && matrix.node == 24
+              uses: actions/upload-artifact@v7.0.1
+              with:
+                  name: coverage
+                  path: packages/*/coverage/lcov.info
+                  if-no-files-found: ignore
+                  retention-days: 7
+
+    workflows:
+        name: workflows (zizmor)
+        runs-on: ubuntu-latest
+        timeout-minutes: 5
+        permissions:
+            contents: read
+            security-events: write # upload SARIF to the Security tab
+        steps:
+            - name: Checkout
+              uses: actions/checkout@v7.0.1
+              with:
+                  persist-credentials: false
+
+            - name: Lint GitHub Actions workflows
+              uses: zizmorcore/zizmor-action@v0.6.4
+              with:
+                  min-severity: low
+                  advanced-security: true

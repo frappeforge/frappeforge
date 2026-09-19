@@ -1,0 +1,7 @@
+node_modules/
+dist/
+coverage/
+temp/
+pnpm-lock.yaml
+CHANGELOG.md
+packages/*/etc/*.api.md

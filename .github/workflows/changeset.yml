@@ -1,0 +1,57 @@
+name: Changeset
+
+# Separate from CI so that adding or removing the `skip-changeset` label re-runs only this
+# check, not the whole build matrix.
+on:
+    pull_request:
+        types: [opened, synchronize, reopened, labeled, unlabeled]
+    # The main ruleset requires this check, and the merge queue evaluates required checks on
+    # merge_group events: the job must run there too. It passes trivially — the PR itself was
+    # already checked — because the enforcing step is guarded on pull_request.
+    merge_group:
+
+concurrency:
+    group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+    cancel-in-progress: true
+
+permissions:
+    contents: read
+
+env:
+    HUSKY: '0'
+
+jobs:
+    changeset:
+        name: changeset
+        runs-on: ubuntu-latest
+        timeout-minutes: 5
+        steps:
+            - name: Checkout
+              uses: actions/checkout@v7.0.1
+              with:
+                  fetch-depth: 0
+                  persist-credentials: false
+
+            - name: Setup pnpm
+              uses: pnpm/action-setup@v6.1.0
+
+            - name: Setup Node.js
+              uses: actions/setup-node@v7.0.0
+              with:
+                  node-version: 24
+                  cache: pnpm
+
+            - name: Install dependencies
+              run: pnpm install --frozen-lockfile
+
+            - name: Require a changeset for package changes
+              if: ${{ github.event_name == 'pull_request' && !contains(join(github.event.pull_request.labels.*.name, ','), 'skip-changeset') && !startsWith(github.head_ref, 'changeset-release/') }}
+              env:
+                  BASE_REF: ${{ github.base_ref }}
+              run: |
+                  git fetch --no-tags origin "$BASE_REF"
+                  if git diff --quiet "origin/$BASE_REF"...HEAD -- packages/; then
+                    echo "No package changes; changeset not required."
+                    exit 0
+                  fi
+                  pnpm changeset status --since="origin/$BASE_REF"
