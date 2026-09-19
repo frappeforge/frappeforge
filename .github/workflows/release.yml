@@ -24,11 +24,27 @@ jobs:
             pull-requests: write # open / update the "Version Packages" PR
             id-token: write # npm provenance (OIDC)
         steps:
+            # Events created with the default GITHUB_TOKEN never start workflows, so a
+            # "Version Packages" PR opened with it would have no CI checks and could never
+            # satisfy the main ruleset. A GitHub App token (installed on this repo) does.
+            - name: Create release app token
+              id: app-token
+              uses: actions/create-github-app-token@v3.2.0
+              with:
+                  app-id: ${{ secrets.RELEASE_APP_ID }}
+                  private-key: ${{ secrets.RELEASE_APP_PRIVATE_KEY }}
+                  # Scope the token to exactly what changesets/action needs, regardless of
+                  # what the app installation was granted.
+                  permission-contents: write
+                  permission-pull-requests: write
+
             - name: Checkout
               uses: actions/checkout@v7.0.1
               with:
                   fetch-depth: 0
-                  # changesets/action pushes the version branch, so the token must stay.
+                  # changesets/action pushes the version branch with this token, so it must
+                  # be the app token and must persist for the push.
+                  token: ${{ steps.app-token.outputs.token }}
                   persist-credentials: true
 
             - name: Setup pnpm
@@ -50,13 +66,13 @@ jobs:
             - name: Create version PR or publish
               uses: changesets/action@v2.1.2
               with:
-                  version: pnpm version-packages
-                  publish: pnpm release
-                  commit: 'chore(release): version packages'
-                  title: 'chore(release): version packages'
-                  createGithubReleases: true
+                  version-script: pnpm version-packages
+                  publish-script: pnpm release
+                  commit-message: 'chore(release): version packages'
+                  pr-title: 'chore(release): version packages'
+                  create-github-releases: true
+                  github-token: ${{ steps.app-token.outputs.token }}
               env:
-                  GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
                   # Phase 1: granular publish token. Phase 2 (after npm trusted publishing is
                   # enabled for both packages): delete the secret and the line below; the
                   # id-token permission above is then sufficient.

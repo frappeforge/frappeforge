@@ -9,6 +9,11 @@ const config: ViteUserConfig = defineConfig({
     test: {
         environment: 'node',
         include: ['tests/**/*.test.ts'],
+        // Type-level tests (`expectTypeOf`) run through tsc alongside the runtime suite.
+        typecheck: {
+            enabled: true,
+            include: ['tests/**/*.test-d.ts'],
+        },
         coverage: {
             provider: 'v8',
             include: ['src/**/*.ts'],

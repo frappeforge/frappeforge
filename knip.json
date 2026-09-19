@@ -6,7 +6,7 @@
             "project": ["scripts/**"]
         },
         "packages/*": {
-            "entry": ["scripts/*.mjs"],
+            "entry": ["scripts/*.mjs", "tests/**/*.test-d.ts"],
             "project": ["src/**", "tests/**", "scripts/**"]
         }
     }

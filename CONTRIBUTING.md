@@ -77,8 +77,9 @@ git add packages/*/etc/*.api.md
 ## Releases
 
 Merging to `main` runs the release workflow. Pending changesets are collected into a
-"Version Packages" pull request; merging that PR publishes the affected packages to npm with
-provenance and creates GitHub releases. Maintainers never publish from a laptop.
+"Version Packages" pull request, opened by the `frappeforge-release` GitHub App so that it
+gets the same CI checks as any other PR; merging it publishes the affected packages to npm
+with provenance and creates GitHub releases. Maintainers never publish from a laptop.
 
 ## Questions
 

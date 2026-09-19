@@ -2,10 +2,12 @@
     "extends": "../../tsconfig.base.json",
     "compilerOptions": {
         "rootDir": ".",
-        // The client targets every runtime that has `fetch`: the DOM lib supplies the
-        // Fetch/AbortController/FormData types that Node, browsers and workers all share.
+        // The published source compiles against web-standard globals ONLY (no Node types):
+        // `fetch`, `AbortController`, `FormData`, `Headers` come from the DOM lib and exist in
+        // Node, browsers, workers and edge runtimes alike. A `process`, `Buffer` or `node:`
+        // import here is a portability bug and must fail to type-check.
         "lib": ["ES2022", "DOM", "DOM.Iterable"],
-        "types": ["node"]
+        "types": []
     },
-    "include": ["src", "tests", "tsdown.config.ts", "vitest.config.ts"]
+    "include": ["src"]
 }

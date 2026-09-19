@@ -5,9 +5,13 @@ name: Changeset
 on:
     pull_request:
         types: [opened, synchronize, reopened, labeled, unlabeled]
+    # The main ruleset requires this check, and the merge queue evaluates required checks on
+    # merge_group events: the job must run there too. It passes trivially — the PR itself was
+    # already checked — because the enforcing step is guarded on pull_request.
+    merge_group:
 
 concurrency:
-    group: ${{ github.workflow }}-${{ github.event.pull_request.number }}
+    group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
     cancel-in-progress: true
 
 permissions:
@@ -41,7 +45,7 @@ jobs:
               run: pnpm install --frozen-lockfile
 
             - name: Require a changeset for package changes
-              if: ${{ !contains(join(github.event.pull_request.labels.*.name, ','), 'skip-changeset') && !startsWith(github.head_ref, 'changeset-release/') }}
+              if: ${{ github.event_name == 'pull_request' && !contains(join(github.event.pull_request.labels.*.name, ','), 'skip-changeset') && !startsWith(github.head_ref, 'changeset-release/') }}
               env:
                   BASE_REF: ${{ github.base_ref }}
               run: |

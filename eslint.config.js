@@ -58,6 +58,8 @@ export function createConfig(tsconfigRootDir, overrides = []) {
             rules: {
                 'vitest/no-focused-tests': 'error',
                 'vitest/no-disabled-tests': 'error',
+                // Type-level tests assert with `expectTypeOf` / `assertType`, not `expect`.
+                'vitest/expect-expect': ['error', { assertFunctionNames: ['expect', 'expectTypeOf', 'assertType'] }],
             },
         },
         {
