@@ -1,0 +1,8 @@
+* text=auto eol=lf
+*.png binary
+*.jpg binary
+*.gif binary
+*.ico binary
+*.woff2 binary
+packages/*/etc/*.api.md whitespace=cr-at-eol
+pnpm-lock.yaml -diff linguist-generated

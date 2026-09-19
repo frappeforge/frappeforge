@@ -1,0 +1,42 @@
+name: Scorecard
+
+on:
+    push:
+        branches: [main]
+    schedule:
+        - cron: '30 4 * * 1' # Mondays 04:30 UTC
+    workflow_dispatch:
+
+concurrency:
+    group: ${{ github.workflow }}
+    cancel-in-progress: true
+
+permissions:
+    contents: read
+
+jobs:
+    analysis:
+        name: OpenSSF Scorecard
+        runs-on: ubuntu-latest
+        timeout-minutes: 10
+        permissions:
+            contents: read
+            security-events: write # upload SARIF to the Security tab
+            id-token: write # publish results to the Scorecard API (badge)
+        steps:
+            - name: Checkout
+              uses: actions/checkout@v7.0.1
+              with:
+                  persist-credentials: false
+
+            - name: Run analysis
+              uses: ossf/scorecard-action@v2.4.4
+              with:
+                  results_file: results.sarif
+                  results_format: sarif
+                  publish_results: true
+
+            - name: Upload results
+              uses: github/codeql-action/upload-sarif@v4.38.1
+              with:
+                  sarif_file: results.sarif

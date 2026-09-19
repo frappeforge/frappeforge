@@ -1,0 +1,85 @@
+name: Bug report
+description: Something is broken or behaves unexpectedly
+title: '[bug] '
+labels: [bug]
+body:
+    - type: markdown
+      attributes:
+          value: |
+              Thanks for the report. Please search [existing issues](https://github.com/frappeforge/frappeforge/issues?q=is%3Aissue) first.
+              For usage questions, use [Discussions](https://github.com/frappeforge/frappeforge/discussions).
+    - type: checkboxes
+      id: checks
+      attributes:
+          label: Checks
+          options:
+              - label: I searched existing issues and this is not a duplicate
+                required: true
+              - label: I am on the latest version of the package
+                required: true
+    - type: dropdown
+      id: package
+      attributes:
+          label: Package
+          options:
+              - '@frappeforge/client'
+              - '@frappeforge/codegen'
+              - Repository tooling / CI
+      validations:
+          required: true
+    - type: input
+      id: package-version
+      attributes:
+          label: Package version
+          placeholder: e.g. 0.3.1
+      validations:
+          required: true
+    - type: dropdown
+      id: frappe-version
+      attributes:
+          label: Frappe Framework version
+          options:
+              - v14
+              - v15
+              - v16
+              - develop
+              - Not applicable
+      validations:
+          required: true
+    - type: dropdown
+      id: runtime
+      attributes:
+          label: Runtime
+          options:
+              - Node.js
+              - Browser
+              - Edge / worker runtime
+              - Bun / Deno
+              - Not applicable
+      validations:
+          required: true
+    - type: input
+      id: runtime-version
+      attributes:
+          label: Runtime version
+          placeholder: e.g. Node 24.11.0, Chrome 140
+    - type: textarea
+      id: description
+      attributes:
+          label: What happened?
+          description: What you expected, and what actually happened.
+      validations:
+          required: true
+    - type: textarea
+      id: reproduction
+      attributes:
+          label: Reproduction
+          description: Minimal code or steps. Redact site URLs, API keys, and cookies.
+          render: ts
+      validations:
+          required: true
+    - type: textarea
+      id: logs
+      attributes:
+          label: Error output
+          render: shell

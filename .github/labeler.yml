@@ -1,0 +1,29 @@
+'pkg: client':
+    - changed-files:
+          - any-glob-to-any-file: packages/client/**
+
+'pkg: codegen':
+    - changed-files:
+          - any-glob-to-any-file: packages/codegen/**
+
+ci:
+    - changed-files:
+          - any-glob-to-any-file:
+                - .github/**
+                - scripts/**
+
+docs:
+    - changed-files:
+          - any-glob-to-any-file:
+                - docs/**
+                - '**/*.md'
+
+deps:
+    - changed-files:
+          - any-glob-to-any-file:
+                - pnpm-lock.yaml
+                - pnpm-workspace.yaml
+                - '**/package.json'
+
+release:
+    - head-branch: ['^changeset-release/']

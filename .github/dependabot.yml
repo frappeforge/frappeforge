@@ -1,0 +1,52 @@
+version: 2
+updates:
+    - package-ecosystem: npm
+      directory: /
+      schedule:
+          interval: weekly
+          day: monday
+      open-pull-requests-limit: 10
+      labels: [deps]
+      commit-message:
+          prefix: 'chore(deps)'
+      ignore:
+          # @types/node must track the MINIMUM supported Node (engines.node), not the newest.
+          # Bump it by hand together with engines.node when the baseline moves.
+          - dependency-name: '@types/node'
+            update-types: ['version-update:semver-major']
+      groups:
+          eslint:
+              patterns: ['eslint*', '@eslint/*', 'typescript-eslint', '@vitest/eslint-plugin', 'globals']
+          typescript:
+              patterns: ['typescript']
+          vitest:
+              patterns: ['vitest', '@vitest/*']
+          build:
+              patterns:
+                  [
+                      'tsdown',
+                      'rolldown*',
+                      'publint',
+                      '@arethetypeswrong/*',
+                      '@microsoft/api-extractor',
+                      'dependency-cruiser',
+                  ]
+          changesets:
+              patterns: ['@changesets/*']
+          git-hooks:
+              patterns: ['husky', 'lint-staged', '@commitlint/*']
+          hygiene:
+              patterns: ['knip', 'sherif']
+
+    - package-ecosystem: github-actions
+      directory: /
+      schedule:
+          interval: weekly
+          day: monday
+      open-pull-requests-limit: 5
+      labels: [ci]
+      commit-message:
+          prefix: 'chore(ci)'
+      groups:
+          github-actions:
+              patterns: ['*']

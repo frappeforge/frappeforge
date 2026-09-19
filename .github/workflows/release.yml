@@ -1,0 +1,64 @@
+name: Release
+
+on:
+    push:
+        branches: [main]
+
+concurrency:
+    group: release
+    cancel-in-progress: false
+
+permissions:
+    contents: read
+
+env:
+    HUSKY: '0'
+
+jobs:
+    release:
+        name: release
+        runs-on: ubuntu-latest
+        timeout-minutes: 30
+        permissions:
+            contents: write # version PR commit and GitHub releases
+            pull-requests: write # open / update the "Version Packages" PR
+            id-token: write # npm provenance (OIDC)
+        steps:
+            - name: Checkout
+              uses: actions/checkout@v7.0.1
+              with:
+                  fetch-depth: 0
+                  # changesets/action pushes the version branch, so the token must stay.
+                  persist-credentials: true
+
+            - name: Setup pnpm
+              uses: pnpm/action-setup@v6.1.0
+
+            - name: Setup Node.js
+              uses: actions/setup-node@v7.0.0
+              with:
+                  node-version: 24
+                  cache: pnpm
+                  registry-url: https://registry.npmjs.org
+
+            - name: Install dependencies
+              run: pnpm install --frozen-lockfile
+
+            - name: Gate
+              run: pnpm gate
+
+            - name: Create version PR or publish
+              uses: changesets/action@v2.1.2
+              with:
+                  version: pnpm version-packages
+                  publish: pnpm release
+                  commit: 'chore(release): version packages'
+                  title: 'chore(release): version packages'
+                  createGithubReleases: true
+              env:
+                  GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+                  # Phase 1: granular publish token. Phase 2 (after npm trusted publishing is
+                  # enabled for both packages): delete the secret and the line below; the
+                  # id-token permission above is then sufficient.
+                  NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+                  NPM_CONFIG_PROVENANCE: 'true'

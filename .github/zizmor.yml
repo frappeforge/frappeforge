@@ -1,0 +1,10 @@
+# zizmor configuration — https://docs.zizmor.sh/configuration/
+#
+# Actions are referenced by version tag (`owner/repo@vX.Y.Z`), not by commit SHA, so that
+# `uses:` lines stay readable and Dependabot bumps are reviewable as version changes.
+# zizmor's default policy demands SHA pins; this keeps the audit on but accepts a tag.
+rules:
+    unpinned-uses:
+        config:
+            policies:
+                '*': ref-pin

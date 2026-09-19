@@ -1,0 +1,27 @@
+name: Labeler
+
+on:
+    pull_request_target:
+        types: [opened, synchronize, reopened]
+
+concurrency:
+    group: ${{ github.workflow }}-${{ github.event.pull_request.number }}
+    cancel-in-progress: true
+
+permissions:
+    contents: read
+
+jobs:
+    label:
+        name: label
+        runs-on: ubuntu-latest
+        timeout-minutes: 5
+        permissions:
+            contents: read
+            pull-requests: write # apply and sync labels on the PR
+        steps:
+            # No checkout: pull_request_target runs with write access, and the labeler only
+            # needs the config file, which it reads from the base branch via the API.
+            - uses: actions/labeler@v7.0.0
+              with:
+                  sync-labels: true

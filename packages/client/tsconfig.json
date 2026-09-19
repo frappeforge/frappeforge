@@ -1,0 +1,11 @@
+{
+    "extends": "../../tsconfig.base.json",
+    "compilerOptions": {
+        "rootDir": ".",
+        // The client targets every runtime that has `fetch`: the DOM lib supplies the
+        // Fetch/AbortController/FormData types that Node, browsers and workers all share.
+        "lib": ["ES2022", "DOM", "DOM.Iterable"],
+        "types": ["node"]
+    },
+    "include": ["src", "tests", "tsdown.config.ts", "vitest.config.ts"]
+}
