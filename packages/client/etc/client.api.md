@@ -5,6 +5,145 @@
 ```ts
 
 // @public
+export class AuthenticationError extends FrappeError {
+    constructor(message: string, options?: FrappeErrorOptions);
+}
+
+// @public
+export class CancelledError extends FrappeError {
+    constructor(message: string, options?: FrappeErrorOptions);
+}
+
+// @public
+export class ConfigurationError extends FrappeError {
+    constructor(message: string, options?: FrappeErrorOptions);
+}
+
+// @public
+export type DocOf<D, K extends string> = K extends keyof D ? (D[K] extends FrappeDoc ? D[K] : FrappeDoc) : FrappeDoc;
+
+// @public
+export type DocTypeMap = Record<string, FrappeDoc>;
+
+// @public
+export type FieldOf<T> = Extract<keyof T, string>;
+
+// @public
+export type FilterOperator = "=" | "!=" | ">" | "<" | ">=" | "<=" | "like" | "not like" | "in" | "not in" | "is" | "between";
+
+// @public
+export type Filters<T> = Partial<Record<FieldOf<T>, FilterValue>> | readonly FilterTuple<T>[];
+
+// @public
+export type FilterTuple<T> = readonly [field: FieldOf<T>, operator: FilterOperator, value: FilterValue];
+
+// @public
+export type FilterValue = string | number | boolean | null | readonly (string | number)[];
+
+// @public
+export interface FrappeDoc {
+    creation: string;
+    docstatus: 0 | 1 | 2;
+    doctype: string;
+    idx: number;
+    modified: string;
+    modified_by: string;
+    name: string;
+    owner: string;
+    parent?: string;
+    parentfield?: string;
+    parenttype?: string;
+}
+
+// @public
+export class FrappeError extends Error {
+    constructor(message: string, options?: FrappeErrorOptions);
+    readonly exception: string | undefined;
+    readonly request: FrappeRequestContext | undefined;
+    readonly serverMessages: readonly ServerMessage[];
+    readonly status: number;
+}
+
+// @public
+export interface FrappeErrorOptions {
+    cause?: unknown;
+    exception?: string;
+    request?: FrappeRequestContext;
+    serverMessages?: readonly ServerMessage[];
+    status?: number;
+}
+
+// @public
+export interface FrappeRequestContext {
+    method: string;
+    url: string;
+}
+
+// @public
+export interface ListArgs<T> {
+    fields?: readonly FieldOf<T>[];
+    filters?: Filters<T>;
+    groupBy?: FieldOf<T>;
+    limit?: number;
+    offset?: number;
+    orderBy?: OrderBy<T>;
+    orFilters?: Filters<T>;
+    parent?: string;
+}
+
+// @public
+export class NetworkError extends FrappeError {
+    constructor(message: string, options?: FrappeErrorOptions);
+}
+
+// @public
+export class NotFoundError extends FrappeError {
+    constructor(message: string, options?: FrappeErrorOptions);
+}
+
+// @public
+export interface OrderBy<T> {
+    field: FieldOf<T>;
+    order?: "asc" | "desc";
+}
+
+// @public
+export class PermissionError extends FrappeError {
+    constructor(message: string, options?: FrappeErrorOptions);
+}
+
+// @public
+export interface RequestOptions {
+    headers?: Record<string, string>;
+    signal?: AbortSignal;
+    timeout?: number;
+}
+
+// @public
+export class ServerError extends FrappeError {
+    constructor(message: string, options?: FrappeErrorOptions);
+}
+
+// @public
+export interface ServerMessage {
+    indicator?: string;
+    message: string;
+    title?: string;
+}
+
+// @public
+export class TimeoutError extends FrappeError {
+    constructor(message: string, options?: FrappeErrorOptions);
+}
+
+// @public
+export class ValidationError extends FrappeError {
+    constructor(message: string, options?: FrappeErrorOptions);
+}
+
+// @public
 export const VERSION: string;
+
+// (No @packageDocumentation comment for this package)
 
 ```
