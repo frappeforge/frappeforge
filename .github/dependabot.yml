@@ -14,6 +14,10 @@ updates:
           # Bump it by hand together with engines.node when the baseline moves.
           - dependency-name: '@types/node'
             update-types: ['version-update:semver-major']
+          # TypeScript stays on 6.x until typescript-eslint supports 7.x (it refuses to run
+          # against TS 7.0 today). Bump by hand once that lands.
+          - dependency-name: 'typescript'
+            update-types: ['version-update:semver-major']
       groups:
           eslint:
               patterns: ['eslint*', '@eslint/*', 'typescript-eslint', '@vitest/eslint-plugin', 'globals']
