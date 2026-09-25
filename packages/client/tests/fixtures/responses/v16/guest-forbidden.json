@@ -1,0 +1,20 @@
+{
+    "recordedFrom": "Frappe 16.35.0",
+    "request": {
+        "method": "GET",
+        "path": "/api/method/frappe.auth.get_logged_user"
+    },
+    "response": {
+        "status": 403,
+        "headers": {
+            "content-type": "application/json"
+        },
+        "body": "{\"exc_type\":\"PermissionError\",\"_server_messages\":\"[\\\"{\\\\\\\"message\\\\\\\":\\\\\\\"You are not permitted to access this resource. Login to accessFunction <strong>frappe.auth.get_logged_user</strong> is not whitelisted.\\\\\\\",\\\\\\\"as_table\\\\\\\":false,\\\\\\\"title\\\\\\\":\\\\\\\"Method Not Allowed\\\\\\\",\\\\\\\"indicator\\\\\\\":\\\\\\\"red\\\\\\\",\\\\\\\"raise_exception\\\\\\\":1,\\\\\\\"__frappe_exc_id\\\\\\\":\\\\\\\"a208868082ecf96f8453ce89b5b8083d294dd4c50e4d60cb7ee2a9d7\\\\\\\"}\\\"]\"}"
+    },
+    "expected": {
+        "name": "PermissionError",
+        "status": 403,
+        "exception": "PermissionError",
+        "message": "You are not permitted to access this resource. Login to accessFunction frappe.auth.get_logged_user is not whitelisted."
+    }
+}

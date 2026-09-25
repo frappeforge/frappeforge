@@ -32,7 +32,7 @@ const subclasses: readonly (readonly [string, FrappeErrorSubclass])[] = [
     ['ServerError', ServerError],
 ]
 
-const request = { method: 'GET', url: 'https://erp.example.com/api/resource/Task/TASK-0001' }
+const request = { method: 'GET', url: 'https://example.com/api/resource/Task/TASK-0001' }
 
 describe('FrappeError', () => {
     it('defaults every field that was not supplied', () => {
@@ -54,7 +54,7 @@ describe('FrappeError', () => {
             status: 417,
             serverMessages: [{ message: 'Subject is mandatory', title: 'Missing field', indicator: 'red' }],
             exception: 'frappe.exceptions.ValidationError',
-            request: { method: 'POST', url: 'https://erp.example.com/api/resource/Task' },
+            request: { method: 'POST', url: 'https://example.com/api/resource/Task' },
             cause,
         })
 
@@ -63,7 +63,7 @@ describe('FrappeError', () => {
             { message: 'Subject is mandatory', title: 'Missing field', indicator: 'red' },
         ])
         expect(error.exception).toBe('frappe.exceptions.ValidationError')
-        expect(error.request).toEqual({ method: 'POST', url: 'https://erp.example.com/api/resource/Task' })
+        expect(error.request).toEqual({ method: 'POST', url: 'https://example.com/api/resource/Task' })
         expect(error.cause).toBe(cause)
     })
 
@@ -71,11 +71,11 @@ describe('FrappeError', () => {
         const error = new FrappeError('not permitted', {
             request: {
                 method: 'GET',
-                url: 'https://api:secret@erp.example.com/api/resource/Task?filters=[["owner","=","a@example.com"]]#top',
+                url: 'https://api:secret@example.com/api/resource/Task?filters=[["owner","=","a@example.com"]]#top',
             },
         })
 
-        expect(error.request).toEqual({ method: 'GET', url: 'https://erp.example.com/api/resource/Task' })
+        expect(error.request).toEqual({ method: 'GET', url: 'https://example.com/api/resource/Task' })
         expect(JSON.stringify(error)).not.toMatch(/secret|owner|top/)
     })
 
@@ -116,11 +116,11 @@ describe('error subclasses', () => {
         it(`${name} forwards the options it is given`, () => {
             const error = new Subclass('boom', {
                 status: 503,
-                request: { method: 'GET', url: 'https://erp.example.com/api/method/ping' },
+                request: { method: 'GET', url: 'https://example.com/api/method/ping' },
             })
 
             expect(error.status).toBe(503)
-            expect(error.request?.url).toBe('https://erp.example.com/api/method/ping')
+            expect(error.request?.url).toBe('https://example.com/api/method/ping')
         })
     }
 

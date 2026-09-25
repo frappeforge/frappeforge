@@ -1,0 +1,20 @@
+{
+    "recordedFrom": "Frappe 15.121.1",
+    "request": {
+        "method": "GET",
+        "path": "/api/nope"
+    },
+    "response": {
+        "status": 404,
+        "headers": {
+            "content-type": "application/json"
+        },
+        "body": "{\"exc_type\":\"DoesNotExistError\"}"
+    },
+    "expected": {
+        "name": "NotFoundError",
+        "status": 404,
+        "exception": "DoesNotExistError",
+        "message": "Request failed with status 404 (GET /api/nope)"
+    }
+}

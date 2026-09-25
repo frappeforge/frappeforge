@@ -48,10 +48,24 @@ pnpm add @frappeforge/client
 ```
 
 ```ts
-import { VERSION } from '@frappeforge/client'
+import { createClient, PermissionError } from '@frappeforge/client'
 
-console.log(VERSION) // the client API lands here as it is built
+const frappe = createClient({ url: 'https://example.com' })
+
+const { message } = await frappe.request<{ message: string }>({ path: '/api/method/frappe.ping' })
+console.log(message) // "pong"
+
+try {
+    await frappe.request({ path: '/api/resource/ToDo' }) // not signed in: a guest cannot read ToDos
+} catch (error) {
+    if (error instanceof PermissionError)
+        console.log(error.message) // the server's own message, as plain text
+    else throw error
+}
 ```
+
+Options, authentication, errors, timeouts and cancellation: see the
+[client README](packages/client/README.md).
 
 ## Contributing
 

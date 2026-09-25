@@ -1,5 +1,6 @@
-import { describe, expectTypeOf, it } from 'vitest'
+import { assertType, describe, expectTypeOf, it } from 'vitest'
 
+import { createClient, type FrappeClient } from '../src/index.js'
 import type {
     AbsentColumn,
     ChildFilterTuple,
@@ -16,6 +17,8 @@ import type {
     ListArgs,
     ListFieldOf,
     ListRow,
+    QueryValue,
+    RawRequest,
     RegisteredDocTypes,
     TableFieldOf,
     UnknownDoc,
@@ -43,14 +46,14 @@ interface Task extends FrappeDoc {
     depends_on: TaskDependsOn[]
 }
 
-// A hand-written interface with an `any` field.
+// An interface written by hand, with an `any` field.
 interface Note extends FrappeDoc {
     doctype: 'Note'
     // eslint-disable-next-line @typescript-eslint/no-explicit-any -- the case under test
     meta?: any
 }
 
-// An interface, not a type alias: it has no implicit index signature (T3).
+// An interface, not a type alias: it has no implicit index signature.
 interface DocTypes {
     Task: Task
     'Task Depends On': TaskDependsOn
@@ -63,13 +66,13 @@ describe('DocOf', () => {
         expectTypeOf<DocOf<DocTypes, 'Task'>>().toEqualTypeOf<Task>()
     })
 
-    it('T2: falls back to a loose document for a DocType that was not generated', () => {
+    it('falls back to a loose document for a DocType that was not generated', () => {
         expectTypeOf<Loose>().toEqualTypeOf<UnknownDoc>()
         expectTypeOf<Loose['name']>().toEqualTypeOf<string>()
         expectTypeOf<Loose['custom_field']>().toEqualTypeOf<unknown>()
     })
 
-    it('T2: accepts any field of a DocType that was not generated', () => {
+    it('accepts any field of a DocType that was not generated', () => {
         const args = {
             fields: ['name', 'custom_field'],
             filters: { custom_field: 1 },
@@ -81,7 +84,7 @@ describe('DocOf', () => {
 })
 
 describe('DocTypeName', () => {
-    it('T3: accepts a DocType map declared as an interface', () => {
+    it('accepts a DocType map declared as an interface', () => {
         expectTypeOf<'Task'>().toExtend<DocTypeName<DocTypes>>()
         expectTypeOf<'Task Depends On'>().toExtend<DocTypeName<DocTypes>>()
     })
@@ -90,7 +93,7 @@ describe('DocTypeName', () => {
         expectTypeOf<'Note'>().toExtend<DocTypeName<DocTypes>>()
     })
 
-    it('T7: resolves to object when no generated types are registered', () => {
+    it('resolves to object when no generated types are registered', () => {
         expectTypeOf<RegisteredDocTypes>().toEqualTypeOf<object>()
         expectTypeOf<DocOf<RegisteredDocTypes, 'Task'>>().toEqualTypeOf<UnknownDoc>()
     })
@@ -102,7 +105,7 @@ describe('fields', () => {
         expectTypeOf<'modified'>().toExtend<FieldOf<Task>>()
     })
 
-    it('T6: TableFieldOf finds the child-table fields', () => {
+    it('TableFieldOf finds the child-table fields', () => {
         expectTypeOf<TableFieldOf<Task>>().toEqualTypeOf<'depends_on'>()
         expectTypeOf<TableFieldOf<Loose>>().toEqualTypeOf<never>()
     })
@@ -123,13 +126,13 @@ describe('fields', () => {
         expectTypeOf<'_assign'>().not.toExtend<ListFieldOf<TaskDependsOn>>()
     })
 
-    it('T6: ListFieldOf leaves out tables and doctype, which are not columns', () => {
+    it('ListFieldOf leaves out tables and doctype, which are not columns', () => {
         expectTypeOf<'subject'>().toExtend<ListFieldOf<Task>>()
         expectTypeOf<'depends_on'>().not.toExtend<ListFieldOf<Task>>()
         expectTypeOf<'doctype'>().not.toExtend<ListFieldOf<Task>>()
     })
 
-    it('T8: the optional standard columns can be requested', () => {
+    it('the optional standard columns can be requested', () => {
         expectTypeOf<'_assign'>().toExtend<ListFieldOf<Task>>()
         expectTypeOf<'_user_tags'>().toExtend<ListFieldOf<Task>>()
     })
@@ -148,7 +151,7 @@ describe('ListArgs', () => {
         expectTypeOf(args).toExtend<ListArgs<Task>>()
     })
 
-    it('T8: accepts several sort fields', () => {
+    it('accepts several sort fields', () => {
         const args = {
             orderBy: [{ field: 'priority', order: 'desc' }, { field: 'modified' }],
         } satisfies ListArgs<Task>
@@ -156,7 +159,7 @@ describe('ListArgs', () => {
         expectTypeOf(args).toExtend<ListArgs<Task>>()
     })
 
-    it('T8: accepts every column with *', () => {
+    it('accepts every column with *', () => {
         const args = { fields: ['*'] } satisfies ListArgs<Task>
 
         expectTypeOf(args).toExtend<ListArgs<Task>>()
@@ -183,7 +186,7 @@ describe('ListArgs', () => {
         expectTypeOf(args).toExtend<ListArgs<Task>>()
     })
 
-    it('T6: rejects a table field in fields, orderBy and groupBy', () => {
+    it('rejects a table field in fields, orderBy and groupBy', () => {
         // @ts-expect-error lists never return child rows
         const fields: ListArgs<Task> = { fields: ['depends_on'] }
         // @ts-expect-error a table is not a column to sort by
@@ -206,7 +209,7 @@ describe('ListArgs', () => {
         expectTypeOf(assign).toExtend<ListArgs<TaskDependsOn>>()
     })
 
-    it('T6: rejects doctype, which is not a column', () => {
+    it('rejects doctype, which is not a column', () => {
         // @ts-expect-error `doctype` is not stored in the table
         const args: ListArgs<Task> = { fields: ['doctype'] }
 
@@ -214,8 +217,8 @@ describe('ListArgs', () => {
     })
 })
 
-// Stage 07's `list` signature. Its `['name']` default only compiles because `FieldSelection` admits
-// `'name'` while `K` is still generic.
+// A generic `list` signature, as a client method declares it. Its `['name']` default only compiles
+// because `FieldSelection` admits `'name'` while `K` is still generic.
 declare function list<
     K extends DocTypeName<DocTypes>,
     const F extends FieldSelection<DocOf<DocTypes, K>> = readonly ['name'],
@@ -242,7 +245,7 @@ describe('FieldSelection', () => {
 })
 
 describe('ListRow', () => {
-    it('T7: narrows to the requested fields; standard columns are present, empty ones as null', () => {
+    it('narrows to the requested fields; standard columns are present, empty ones as null', () => {
         expectTypeOf<ListRow<Task, readonly ['name', 'subject', 'status', 'details', '_assign']>>().toEqualTypeOf<{
             name: string
             subject: string
@@ -258,14 +261,14 @@ describe('ListRow', () => {
         expectTypeOf<Pick<ListRow<Task, readonly ['*']>, 'salary'>>().toEqualTypeOf<{ salary?: number }>()
     })
 
-    it('T7: gives a loose row for a DocType that was not generated', () => {
+    it('gives a loose row for a DocType that was not generated', () => {
         expectTypeOf<ListRow<Loose, readonly ['name', 'custom_field']>>().toEqualTypeOf<{
             name: string
             custom_field: unknown
         }>()
     })
 
-    it('T8: with *, every column appears except tables and doctype', () => {
+    it('with *, every column appears except tables and doctype', () => {
         type Row = ListRow<Task, readonly ['*']>
 
         expectTypeOf<Row['subject']>().toEqualTypeOf<string>()
@@ -279,7 +282,7 @@ describe('ListRow', () => {
         expectTypeOf<Pick<Row, 'status'>>().toEqualTypeOf<{ status?: 'Open' | 'Working' | 'Completed' | null }>()
     })
 
-    it('T8: with *, child rows have parent…, and no row has _user_tags, _comments, _assign or _liked_by', () => {
+    it('with *, child rows have parent…, and no row has _user_tags, _comments, _assign or _liked_by', () => {
         type ParentRow = ListRow<Task, readonly ['*']>
         type ChildRow = ListRow<TaskDependsOn, readonly ['*']>
 
@@ -291,20 +294,20 @@ describe('ListRow', () => {
         expectTypeOf<'_assign' extends keyof ChildRow ? true : false>().toEqualTypeOf<false>()
     })
 
-    it('T8: _assign and the like come back when asked for by name', () => {
+    it('_assign and the like come back when asked for by name', () => {
         expectTypeOf<ListRow<Task, readonly ['_assign', '_liked_by']>>().toEqualTypeOf<{
             _assign: string | null
             _liked_by: string | null
         }>()
     })
 
-    it('T8: with * on a DocType that was not generated, _assign and the like are not promised', () => {
+    it('with * on a DocType that was not generated, _assign and the like are not promised', () => {
         type Row = ListRow<Loose, readonly ['*']>
 
         expectTypeOf<Row['_assign']>().toEqualTypeOf<unknown>()
     })
 
-    it('T8: with * on a DocType that was not generated, standard columns keep their types', () => {
+    it('with * on a DocType that was not generated, standard columns keep their types', () => {
         type Row = ListRow<Loose, readonly ['*']>
 
         expectTypeOf<Row['name']>().toEqualTypeOf<string>()
@@ -326,7 +329,7 @@ describe('Filters — object form', () => {
         expectTypeOf(filters).toExtend<FilterObject<Task>>()
     })
 
-    it('T1: accepts [operator, value], including in with an array', () => {
+    it('accepts [operator, value], including in with an array', () => {
         const filters = {
             status: ['in', ['Open', 'Working']],
             priority: ['>', 2],
@@ -335,7 +338,7 @@ describe('Filters — object form', () => {
         expectTypeOf(filters).toExtend<FilterObject<Task>>()
     })
 
-    it('T1: rejects a bare array, which Frappe reads as [operator, value]', () => {
+    it('rejects a bare array, which Frappe reads as [operator, value]', () => {
         // @ts-expect-error Frappe would read `Open` as the operator
         const filters: Filters<Task> = { status: ['Open', 'Completed'] }
 
@@ -358,7 +361,7 @@ describe('Filters — object form', () => {
         expectTypeOf(unknownField).toExtend<Filters<Task>>()
     })
 
-    it('T6: rejects a table field', () => {
+    it('rejects a table field', () => {
         // @ts-expect-error a table is not a column to filter on
         const filters: Filters<Task> = { depends_on: 'TASK-0001' }
 
@@ -388,7 +391,7 @@ describe('Filters — tuple form', () => {
         expectTypeOf(filters).toExtend<Filters<Task>>()
     })
 
-    it('T4: accepts every operator with the value it expects', () => {
+    it('accepts every operator with the value it expects', () => {
         const filters = [
             ['status', '=', 'Open'],
             ['status', '!=', 'Completed'],
@@ -410,7 +413,7 @@ describe('Filters — tuple form', () => {
         expectTypeOf(filters).toExtend<Filters<Task>>()
     })
 
-    it('T4: rejects a value that does not fit the operator', () => {
+    it('rejects a value that does not fit the operator', () => {
         // @ts-expect-error `is` takes `set` or `not set`
         const is: FilterTuple<Task> = ['subject', 'is', 'maybe']
         // @ts-expect-error `between` takes a pair
@@ -425,7 +428,7 @@ describe('Filters — tuple form', () => {
         expectTypeOf([is, between, inList, timespan, notEqual]).toExtend<FilterTuple<Task>[]>()
     })
 
-    it('T5: accepts child-table 4-tuples', () => {
+    it('accepts child-table 4-tuples', () => {
         const filters = [
             ['Task Depends On', 'task', '=', 'TASK-0001'],
             ['status', '=', 'Open'],
@@ -448,7 +451,7 @@ describe('Filters — tuple form', () => {
         expectTypeOf(filter).toExtend<FilterTuple<Task>>()
     })
 
-    it('T5: rejects an unknown child field or a DocType that is not a child table', () => {
+    it('rejects an unknown child field or a DocType that is not a child table', () => {
         // @ts-expect-error `nope` is not a field of Task Depends On
         const field: FilterTuple<Task> = ['Task Depends On', 'nope', '=', 1]
         // @ts-expect-error `Note` is not a child table of Task
@@ -457,7 +460,7 @@ describe('Filters — tuple form', () => {
         expectTypeOf([field, doctype]).toExtend<FilterTuple<Task>[]>()
     })
 
-    it('T5: accepts any 3- or 4-tuple for a DocType that was not generated', () => {
+    it('accepts any 3- or 4-tuple for a DocType that was not generated', () => {
         const filters = [
             ['custom_field', '=', 1],
             ['Some Child', 'field', 'is', 'set'],
@@ -466,7 +469,7 @@ describe('Filters — tuple form', () => {
         expectTypeOf(filters).toExtend<Filters<Loose>>()
     })
 
-    it('T6: rejects a table field', () => {
+    it('rejects a table field', () => {
         // @ts-expect-error a table is not a column to filter on
         const filters: Filters<Task> = [['depends_on', '=', 'TASK-0001']]
 
@@ -475,7 +478,7 @@ describe('Filters — tuple form', () => {
 })
 
 describe('DocInput', () => {
-    it('T7: accepts every field as optional, with child rows in the same shape', () => {
+    it('accepts every field as optional, with child rows in the same shape', () => {
         const input = {
             subject: 'Ship 1.0',
             status: null,
@@ -487,7 +490,7 @@ describe('DocInput', () => {
         expectTypeOf({} satisfies DocInput<Task>).toExtend<DocInput<Task>>()
     })
 
-    it('T7: rejects server-assigned fields and docstatus', () => {
+    it('rejects server-assigned fields and docstatus', () => {
         // @ts-expect-error `modified` is assigned by the server
         const modified: DocInput<Task> = { modified: '2026-01-01 00:00:00' }
         // @ts-expect-error `docstatus` changes through submit and cancel
@@ -498,7 +501,7 @@ describe('DocInput', () => {
         expectTypeOf([modified, docstatus, parent]).toExtend<DocInput<Task>[]>()
     })
 
-    it('T7: rejects wrong values, unknown fields and undefined', () => {
+    it('rejects wrong values, unknown fields and undefined', () => {
         // @ts-expect-error child row values are checked
         const child: DocInput<Task> = { depends_on: [{ task: 5 }] }
         // @ts-expect-error `subjct` is not a field of Task
@@ -513,5 +516,38 @@ describe('DocInput', () => {
         const input = { custom_field: 1, name: 'NOTE-1' } satisfies DocInput<Loose>
 
         expectTypeOf(input).toExtend<DocInput<Loose>>()
+    })
+})
+
+describe('request', () => {
+    const frappe = createClient({ url: 'https://example.com' })
+
+    it('returns Promise<unknown> by default and Promise<T> when asked', () => {
+        expectTypeOf(createClient).returns.toEqualTypeOf<FrappeClient>()
+        expectTypeOf(frappe.request({ path: '/api/method/frappe.ping' })).toEqualTypeOf<Promise<unknown>>()
+        expectTypeOf(frappe.request<Task>({ path: '/api/resource/Task/T-1' })).toEqualTypeOf<Promise<Task>>()
+    })
+
+    it('accepts only the methods Frappe routes', () => {
+        expectTypeOf<NonNullable<RawRequest['method']>>().toEqualTypeOf<'GET' | 'POST' | 'PUT' | 'DELETE'>()
+        // @ts-expect-error Frappe has no PATCH route
+        void frappe.request({ method: 'PATCH', path: '/api/resource/Task/T-1' })
+        // @ts-expect-error path is required
+        void frappe.request({ method: 'GET' })
+    })
+
+    it('accepts every documented query value', () => {
+        const query = {
+            text: 'a',
+            count: 1,
+            flag: true,
+            none: null,
+            missing: undefined,
+            list: ['name', 'status'],
+            filters: { status: 'Open' },
+        } satisfies Record<string, QueryValue>
+        expectTypeOf(query).toExtend<RawRequest['query']>()
+        // @ts-expect-error a symbol cannot be encoded
+        assertType<QueryValue>(Symbol('x'))
     })
 })

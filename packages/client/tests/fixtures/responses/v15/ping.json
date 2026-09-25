@@ -1,0 +1,19 @@
+{
+    "recordedFrom": "Frappe 15.121.1",
+    "request": {
+        "method": "GET",
+        "path": "/api/method/frappe.ping"
+    },
+    "response": {
+        "status": 200,
+        "headers": {
+            "content-type": "application/json"
+        },
+        "body": "{\"message\":\"pong\"}"
+    },
+    "expected": {
+        "value": {
+            "message": "pong"
+        }
+    }
+}
