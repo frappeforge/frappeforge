@@ -1,0 +1,7 @@
+{
+    // For editors only: they pick the nearest tsconfig.json, and the package's own covers `src`
+    // alone, so tests would otherwise be checked with default options (no
+    // `exactOptionalPropertyTypes`, which some type tests rely on). This is `tsconfig.test.json`
+    // unchanged — its include and exclude stay relative to the package folder.
+    "extends": "../tsconfig.test.json"
+}
