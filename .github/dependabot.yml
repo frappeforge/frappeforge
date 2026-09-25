@@ -6,6 +6,9 @@ updates:
           interval: weekly
           day: monday
       open-pull-requests-limit: 10
+      # Longer than pnpm's 24 h minimumReleaseAge, so every proposed version is installable.
+      cooldown:
+          default-days: 3
       labels: [deps]
       commit-message:
           prefix: 'chore(deps)'
@@ -26,21 +29,13 @@ updates:
           vitest:
               patterns: ['vitest', '@vitest/*']
           build:
-              patterns:
-                  [
-                      'tsdown',
-                      'rolldown*',
-                      'publint',
-                      '@arethetypeswrong/*',
-                      '@microsoft/api-extractor',
-                      'dependency-cruiser',
-                  ]
+              patterns: ['tsdown', 'rolldown*', 'publint', '@arethetypeswrong/*', '@microsoft/api-extractor']
           changesets:
               patterns: ['@changesets/*']
           git-hooks:
-              patterns: ['husky', 'lint-staged', '@commitlint/*']
+              patterns: ['husky', 'lint-staged']
           hygiene:
-              patterns: ['knip', 'sherif']
+              patterns: ['knip']
 
     - package-ecosystem: github-actions
       directory: /
@@ -48,6 +43,8 @@ updates:
           interval: weekly
           day: monday
       open-pull-requests-limit: 5
+      cooldown:
+          default-days: 3
       labels: [ci]
       commit-message:
           prefix: 'chore(ci)'

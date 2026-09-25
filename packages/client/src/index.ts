@@ -1,9 +1,4 @@
-/**
- * `@frappeforge/client` — a zero-dependency, fetch-native TypeScript client for the
- * Frappe Framework REST API.
- *
- * @packageDocumentation
- */
+// Public entry point. The package documentation comes from package.json via the tsdown banner.
 
 export * from './errors.js'
 export * from './types.js'

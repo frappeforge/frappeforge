@@ -17,8 +17,56 @@ env:
     HUSKY: '0'
 
 jobs:
-    build:
-        name: build (${{ matrix.os }}, node ${{ matrix.node }})
+    # Everything that does not depend on the Node version or the OS runs once.
+    checks:
+        name: checks
+        runs-on: ubuntu-latest
+        timeout-minutes: 20
+        steps:
+            - name: Checkout
+              uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+              with:
+                  persist-credentials: false
+
+            - name: Setup pnpm
+              uses: pnpm/action-setup@ea17c68df8912ef543352723c149a84f56e3d413 # v6.1.0
+
+            - name: Setup Node.js
+              uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+              with:
+                  node-version: 24
+                  cache: pnpm
+
+            - name: Install dependencies
+              run: pnpm install --frozen-lockfile
+
+            - name: Build
+              run: pnpm build
+
+            - name: Typecheck
+              run: pnpm typecheck
+
+            - name: Lint
+              run: pnpm lint
+
+            - name: Check formatting
+              run: pnpm format:check
+
+            - name: Find unused files, exports and dependencies (knip)
+              run: pnpm knip
+
+            - name: Check public API surface
+              run: pnpm api:check
+
+            - name: Check package.json and exports (publint)
+              run: pnpm publint
+
+            - name: Check type resolution across module systems (attw)
+              run: pnpm attw
+
+    # Only what the runtime and OS affect runs across the matrix.
+    test:
+        name: test (${{ matrix.os }}, node ${{ matrix.node }})
         runs-on: ${{ matrix.os }}
         timeout-minutes: 20
         strategy:
@@ -31,15 +79,15 @@ jobs:
                       node: 24
         steps:
             - name: Checkout
-              uses: actions/checkout@v7.0.1
+              uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
               with:
                   persist-credentials: false
 
             - name: Setup pnpm
-              uses: pnpm/action-setup@v6.1.0
+              uses: pnpm/action-setup@ea17c68df8912ef543352723c149a84f56e3d413 # v6.1.0
 
             - name: Setup Node.js
-              uses: actions/setup-node@v7.0.0
+              uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
               with:
                   node-version: ${{ matrix.node }}
                   cache: pnpm
@@ -47,56 +95,40 @@ jobs:
             - name: Install dependencies
               run: pnpm install --frozen-lockfile
 
-            - name: Audit dependencies
-              run: pnpm audit --audit-level high
-
-            - name: Typecheck
-              run: pnpm typecheck
-
-            - name: Lint
-              run: pnpm lint
-
-            - name: Check formatting
-              run: pnpm format:check
-
-            - name: Lint dependency graph
-              run: pnpm lint:deps
-
-            - name: Lint workspace manifests (sherif)
-              run: pnpm lint:workspace
-
-            - name: Find unused files, exports and dependencies (knip)
-              run: pnpm knip
-
-            - name: Check lockfile is deduplicated
-              run: pnpm dedupe:check
+            - name: Build
+              run: pnpm build
 
             - name: Test
               run: pnpm test
 
-            - name: Build
-              run: pnpm build
-
-            - name: Check public API surface
-              run: pnpm api:check
-
-            - name: Check package.json and exports (publint)
-              run: pnpm publint
-
-            - name: Check type resolution across module systems (attw)
-              run: pnpm attw
-
             - name: Verify packed consumers
               run: pnpm verify:packed
 
-            - name: Upload coverage
-              if: matrix.os == 'ubuntu-latest' && matrix.node == 24
-              uses: actions/upload-artifact@v7.0.1
+    # One job, so a new advisory reports once instead of failing every matrix job.
+    audit:
+        name: audit
+        runs-on: ubuntu-latest
+        timeout-minutes: 5
+        steps:
+            - name: Checkout
+              uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
               with:
-                  name: coverage
-                  path: packages/*/coverage/lcov.info
-                  if-no-files-found: ignore
-                  retention-days: 7
+                  persist-credentials: false
+
+            - name: Setup pnpm
+              uses: pnpm/action-setup@ea17c68df8912ef543352723c149a84f56e3d413 # v6.1.0
+
+            - name: Setup Node.js
+              uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+              with:
+                  node-version: 24
+                  cache: pnpm
+
+            - name: Install dependencies
+              run: pnpm install --frozen-lockfile
+
+            - name: Audit dependencies
+              run: pnpm audit --audit-level high
 
     workflows:
         name: workflows (zizmor)
@@ -107,12 +139,12 @@ jobs:
             security-events: write # upload SARIF to the Security tab
         steps:
             - name: Checkout
-              uses: actions/checkout@v7.0.1
+              uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
               with:
                   persist-credentials: false
 
             - name: Lint GitHub Actions workflows
-              uses: zizmorcore/zizmor-action@v0.6.4
+              uses: zizmorcore/zizmor-action@cc914d7f3750a2d13d75c7f184a1060aa0e9d482 # v0.6.4
               with:
                   min-severity: low
                   advanced-security: true

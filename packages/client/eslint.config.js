@@ -12,4 +12,23 @@ export default createConfig(import.meta.dirname, [
             },
         },
     },
+    {
+        // The zero-dependency promise, enforced: published code imports only its own modules. Every
+        // tool is installed at the workspace root, so nothing else would catch a stray bare import.
+        files: ['src/**/*.ts'],
+        rules: {
+            'no-restricted-imports': [
+                'error',
+                {
+                    patterns: [
+                        {
+                            regex: '^(?!\\.{1,2}/)',
+                            message:
+                                '@frappeforge/client has zero runtime dependencies: src/ imports only its own modules.',
+                        },
+                    ],
+                },
+            ],
+        },
+    },
 ])

@@ -4,13 +4,6 @@ packages:
 # Supply-chain guard: never install a version published less than 24h ago.
 minimumReleaseAge: 1440
 
-# Only these packages may run install scripts. Everything else is blocked.
-allowBuilds:
-    esbuild: true
-    rolldown: true
-    '@swc/core': true
-
-# eslint-plugin-tsdoc tilde-pins an older @typescript-eslint/utils whose peer range predates
-# TypeScript 6. Align it with the typescript-eslint version the workspace already uses.
-overrides:
-    '@typescript-eslint/utils': '^8.70.0'
+# Supply-chain guard: no dependency may run install scripts. None of the installed packages needs one;
+# add an entry here only for a real dependency that does, with a comment saying why.
+allowBuilds: {}

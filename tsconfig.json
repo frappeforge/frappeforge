@@ -1,0 +1,13 @@
+{
+    // Type-checks the repository's own tooling: shared configs and the release-critical scripts.
+    // Packages have their own tsconfig files and are excluded here.
+    "extends": "./tsconfig.base.json",
+    "compilerOptions": {
+        "types": ["node"],
+        "declaration": false,
+        "isolatedDeclarations": false,
+        "allowJs": true,
+        "checkJs": true
+    },
+    "include": ["*.ts", "*.js", "scripts/**/*.mjs"]
+}
