@@ -1,0 +1,20 @@
+{
+    "recordedFrom": "Frappe 16.35.0",
+    "request": {
+        "method": "POST",
+        "path": "/api/resource/Role"
+    },
+    "response": {
+        "status": 409,
+        "headers": {
+            "content-type": "application/json"
+        },
+        "body": "{\"exception\":\"frappe.exceptions.DuplicateEntryError: ('Role', 'System Manager', IntegrityError(1062, \\\"Duplicate entry 'System Manager' for key 'PRIMARY'\\\"))\",\"exc_type\":\"DuplicateEntryError\",\"_server_messages\":\"[\\\"{\\\\\\\"message\\\\\\\":\\\\\\\"Role <strong>System Manager</strong> already exists\\\\\\\",\\\\\\\"as_table\\\\\\\":false,\\\\\\\"title\\\\\\\":\\\\\\\"Duplicate Name\\\\\\\",\\\\\\\"indicator\\\\\\\":\\\\\\\"red\\\\\\\"}\\\"]\"}"
+    },
+    "expected": {
+        "name": "ConflictError",
+        "status": 409,
+        "exception": "DuplicateEntryError",
+        "message": "Role System Manager already exists"
+    }
+}

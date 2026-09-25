@@ -1,0 +1,20 @@
+{
+    "recordedFrom": "Frappe 16.35.0",
+    "request": {
+        "method": "POST",
+        "path": "/api/resource/ToDo"
+    },
+    "response": {
+        "status": 417,
+        "headers": {
+            "content-type": "application/json"
+        },
+        "body": "{\"exception\":\"frappe.exceptions.MandatoryError: [ToDo, 3e3rtdedk9]: description\",\"exc_type\":\"MandatoryError\",\"_server_messages\":\"[\\\"{\\\\\\\"message\\\\\\\":\\\\\\\"Error: Value missing for ToDo: Description\\\\\\\",\\\\\\\"as_table\\\\\\\":false,\\\\\\\"title\\\\\\\":\\\\\\\"Message\\\\\\\"}\\\"]\"}"
+    },
+    "expected": {
+        "name": "ValidationError",
+        "status": 417,
+        "exception": "MandatoryError",
+        "message": "Error: Value missing for ToDo: Description"
+    }
+}

@@ -23,6 +23,15 @@ export class CancelledError extends FrappeError {
 export type ChildFilterTuple<T> = string extends FieldOf<T> ? readonly [childDocType: string, field: string, ...condition: FilterCondition] : { [K in TableFieldOf<T>]-?: NonNullable<T[K]> extends readonly (infer C extends FrappeDoc)[] ? readonly [childDocType: C["doctype"], field: ListFieldOf<C>, ...condition: FilterCondition] : never; }[TableFieldOf<T>];
 
 // @public
+export interface ClientOptions {
+    fetch?: (request: Request) => Promise<Response>;
+    headers?: Record<string, string>;
+    siteName?: string;
+    timeout?: number;
+    url: string;
+}
+
+// @public
 export class ConfigurationError extends FrappeError {
     override readonly name: "ConfigurationError";
 }
@@ -31,6 +40,9 @@ export class ConfigurationError extends FrappeError {
 export class ConflictError extends FrappeError {
     override readonly name: "ConflictError";
 }
+
+// @public
+export function createClient(options: ClientOptions): FrappeClient;
 
 // @public
 export type DocInput<T> = { [K in keyof T as K extends ServerField ? never : K]?: NonNullable<T[K]> extends readonly (infer C extends FrappeDoc)[] ? readonly DocInput<C>[] : T[K]; };
@@ -63,6 +75,13 @@ export type Filters<T> = FilterObject<T> | readonly FilterTuple<T>[];
 export type FilterTuple<T> = readonly [field: ListFieldOf<T>, ...condition: FilterCondition] | (T extends {
     doctype: infer N extends string;
 } ? readonly [docType: N, field: ListFieldOf<T>, ...condition: FilterCondition] : never) | ChildFilterTuple<T>;
+
+// @public
+export interface FrappeClient {
+    readonly request: <T = unknown>(init: RawRequest, options?: RequestOptions) => Promise<T>;
+    readonly siteName: string | undefined;
+    readonly url: string;
+}
 
 // @public
 export interface FrappeDoc {
@@ -159,6 +178,9 @@ export class PermissionError extends FrappeError {
 }
 
 // @public
+export type QueryValue = string | number | boolean | null | undefined | readonly unknown[] | object;
+
+// @public
 export class RateLimitError extends FrappeError {
     constructor(message: string, options?: RateLimitErrorOptions);
     override readonly name: "RateLimitError";
@@ -171,6 +193,14 @@ export class RateLimitError extends FrappeError {
 // @public
 export interface RateLimitErrorOptions extends FrappeErrorOptions {
     retryAfter?: number;
+}
+
+// @public
+export interface RawRequest {
+    body?: unknown;
+    method?: "GET" | "POST" | "PUT" | "DELETE";
+    path: string;
+    query?: Readonly<Record<string, QueryValue>>;
 }
 
 // @public

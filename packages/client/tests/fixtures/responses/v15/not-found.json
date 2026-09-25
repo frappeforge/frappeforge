@@ -1,0 +1,20 @@
+{
+    "recordedFrom": "Frappe 15.121.1",
+    "request": {
+        "method": "GET",
+        "path": "/api/resource/ToDo/does-not-exist"
+    },
+    "response": {
+        "status": 404,
+        "headers": {
+            "content-type": "application/json"
+        },
+        "body": "{\"exc_type\":\"DoesNotExistError\",\"_server_messages\":\"[\\\"{\\\\\\\"message\\\\\\\": \\\\\\\"ToDo does-not-exist not found\\\\\\\", \\\\\\\"title\\\\\\\": \\\\\\\"Message\\\\\\\", \\\\\\\"indicator\\\\\\\": \\\\\\\"red\\\\\\\", \\\\\\\"raise_exception\\\\\\\": 1, \\\\\\\"__frappe_exc_id\\\\\\\": \\\\\\\"258298feda32e1023883389979ce6b1d8e0b830b2ae4dc7e63535f78\\\\\\\"}\\\"]\"}"
+    },
+    "expected": {
+        "name": "NotFoundError",
+        "status": 404,
+        "exception": "DoesNotExistError",
+        "message": "ToDo does-not-exist not found"
+    }
+}

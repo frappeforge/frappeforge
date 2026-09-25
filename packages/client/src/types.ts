@@ -368,3 +368,30 @@ export interface RequestOptions {
     /** Headers merged over the client's own for this request only. */
     headers?: Record<string, string>
 }
+
+/**
+ * A value accepted in {@link RawRequest.query}. Strings are sent as they are, numbers via
+ * `String`, booleans as `1` / `0`, and arrays and objects as JSON; `null` and `undefined` are
+ * left out of the query string. A `Date` is an object too, so it would be sent as quoted JSON:
+ * pass dates as strings, such as `'2026-01-31'`.
+ */
+export type QueryValue = string | number | boolean | null | undefined | readonly unknown[] | object
+
+/** A request to any Frappe endpoint, sent through the client's pipeline by `request()`. */
+export interface RawRequest {
+    /** HTTP method. Default `GET`. */
+    method?: 'GET' | 'POST' | 'PUT' | 'DELETE'
+    /**
+     * Absolute path on the site, starting with `/`, e.g. `/api/method/frappe.ping`. Put
+     * parameters in `query`, never in the path: a `?` or `#` here is rejected, as are
+     * whitespace, `\` and `.` or `..` segments, which the URL parser would rewrite.
+     */
+    path: string
+    /** Encoded as the query string, as described for {@link QueryValue}. */
+    query?: Readonly<Record<string, QueryValue>>
+    /**
+     * Plain values are sent as JSON; `FormData` is sent as multipart. Any other `fetch` body
+     * (`Blob`, `URLSearchParams`, binary data, a stream) is rejected.
+     */
+    body?: unknown
+}

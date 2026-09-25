@@ -7,7 +7,7 @@ interface Task extends FrappeDoc {
     subject: string
 }
 
-// An interface, as codegen may emit: no implicit index signature (T3).
+// An interface, as codegen may emit: no implicit index signature.
 interface DocTypes {
     Task: Task
 }
@@ -18,18 +18,18 @@ declare module '../../src/index.js' {
     }
 }
 
-// The shape Stage 07 gives `createClient`: typed from Register with no generics at the call site.
+// A `createClient` typed from Register, with no generics at the call site.
 declare function createClient<D extends object = RegisteredDocTypes>(): {
     get<K extends DocTypeName<D>>(doctype: K, name: string): DocOf<D, K>
 }
 
 describe('Register', () => {
-    it('T7: the augmentation becomes the registered DocType map', () => {
+    it('the augmentation becomes the registered DocType map', () => {
         expectTypeOf<RegisteredDocTypes>().toEqualTypeOf<DocTypes>()
         expectTypeOf<'Task'>().toExtend<DocTypeName<RegisteredDocTypes>>()
     })
 
-    it('T7: types a call from the DocType name alone', () => {
+    it('types a call from the DocType name alone', () => {
         const frappe = createClient()
 
         expectTypeOf(frappe.get('Task', 'TASK-0001')).toEqualTypeOf<Task>()
@@ -38,7 +38,7 @@ describe('Register', () => {
         }>()
     })
 
-    it('T2: keeps DocTypes that were not generated loose', () => {
+    it('keeps DocTypes that were not generated loose', () => {
         expectTypeOf(createClient().get('Note', 'NOTE-1')).toEqualTypeOf<UnknownDoc>()
     })
 })
