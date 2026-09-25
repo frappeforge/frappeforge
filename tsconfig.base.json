@@ -27,6 +27,9 @@
         "isolatedModules": true,
         "esModuleInterop": true,
         "resolveJsonModule": true,
+        // Config files import the shared root helpers by their real `.ts` path, which Node's type
+        // stripping and every config loader require. Safe because nothing is emitted by tsc.
+        "allowImportingTsExtensions": true,
         "forceConsistentCasingInFileNames": true,
         "skipLibCheck": true,
         "noEmit": true

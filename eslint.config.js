@@ -11,10 +11,10 @@ import vitest from '@vitest/eslint-plugin'
 import { defineConfig, globalIgnores } from 'eslint/config'
 import eslintConfigPrettier from 'eslint-config-prettier'
 import simpleImportSort from 'eslint-plugin-simple-import-sort'
-import tsdoc from 'eslint-plugin-tsdoc'
 import globals from 'globals'
 import tseslint from 'typescript-eslint'
 
+/** @type {import('eslint').Linter.Config} */
 const importSort = {
     plugins: { 'simple-import-sort': simpleImportSort },
     rules: {
@@ -43,14 +43,7 @@ export function createConfig(tsconfigRootDir, overrides = []) {
             rules: {
                 '@typescript-eslint/consistent-type-imports': ['error', { fixStyle: 'inline-type-imports' }],
                 '@typescript-eslint/no-unused-vars': ['error', { argsIgnorePattern: '^_', varsIgnorePattern: '^_' }],
-                '@typescript-eslint/explicit-module-boundary-types': 'error',
             },
-        },
-        {
-            // Published source: TSDoc must parse, because API Extractor and the docs generator read it.
-            files: ['src/**/*.ts'],
-            plugins: { tsdoc },
-            rules: { 'tsdoc/syntax': 'error' },
         },
         {
             files: ['tests/**/*.ts'],

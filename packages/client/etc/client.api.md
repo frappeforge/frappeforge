@@ -144,6 +144,4 @@ export class ValidationError extends FrappeError {
 // @public
 export const VERSION: string;
 
-// (No @packageDocumentation comment for this package)
-
 ```

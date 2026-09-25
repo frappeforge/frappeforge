@@ -39,7 +39,6 @@ body:
       attributes:
           label: Frappe Framework version
           options:
-              - v14
               - v15
               - v16
               - develop

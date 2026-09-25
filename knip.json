@@ -2,11 +2,11 @@
     "$schema": "https://unpkg.com/knip@latest/schema.json",
     "workspaces": {
         ".": {
-            "entry": ["scripts/*.mjs"],
-            "project": ["scripts/**"]
+            "entry": ["scripts/*.mjs", "*.shared.ts"],
+            "project": ["scripts/**", "*.shared.ts"]
         },
         "packages/*": {
-            "entry": ["scripts/*.mjs", "tests/**/*.test-d.ts"],
+            "entry": ["src/index.ts", "scripts/*.mjs", "tests/**/*.test-d.ts"],
             "project": ["src/**", "tests/**", "scripts/**"]
         }
     }

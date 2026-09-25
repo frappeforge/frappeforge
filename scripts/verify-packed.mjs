@@ -23,8 +23,15 @@ const node = process.execPath
 const pnpmScript = process.env['npm_execpath']
 
 assert.ok(pnpmScript, 'verify-packed must be run through pnpm (`pnpm verify:packed`)')
-const pnpm = /\.[cm]?js$/.test(pnpmScript) ? [node, pnpmScript] : [pnpmScript]
+// pnpm is either a JS entry point (run it with node) or a native binary.
+const [pnpmBin, ...pnpmArgs] = /\.[cm]?js$/.test(pnpmScript) ? [node, pnpmScript] : [pnpmScript]
 
+/**
+ * Runs a command and returns its stdout.
+ * @param {string} file
+ * @param {string[]} args
+ * @param {string} [cwd]
+ */
 function run(file, args, cwd = fixture) {
     return execFileSync(file, args, {
         cwd,
@@ -46,7 +53,7 @@ assert.ok(packages.length > 0, 'no packages found under packages/')
 
 try {
     for (const pkg of packages) {
-        run(pnpm[0], [...pnpm.slice(1), '--dir', pkg.dir, 'pack', '--pack-destination', fixture])
+        run(pnpmBin, [...pnpmArgs, '--dir', pkg.dir, 'pack', '--pack-destination', fixture])
     }
     const tarballs = readdirSync(fixture)
         .filter((name) => name.endsWith('.tgz'))

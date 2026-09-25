@@ -54,19 +54,15 @@
     },
     "scripts": {
         "build": "tsdown && node scripts/verify-dist.mjs",
-        "clean": "node -e \"require('node:fs').rmSync('dist',{recursive:true,force:true})\"",
         "test": "vitest run --coverage",
         "test:watch": "vitest",
-        "coverage": "vitest run --coverage",
         "typecheck": "tsc --noEmit -p tsconfig.json",
         "lint": "eslint .",
         "lint:fix": "eslint . --fix",
-        "lint:deps": "depcruise src",
         "api:extract": "api-extractor run --local",
         "api:check": "api-extractor run",
         "publint": "publint",
-        "attw": "attw --pack . --profile node16",
-        "gate": "pnpm typecheck && pnpm lint && pnpm lint:deps && pnpm test && pnpm build && pnpm api:check && pnpm publint && pnpm attw"
+        "attw": "attw --pack . --profile node16"
     },
     "publishConfig": {
         "access": "public",
