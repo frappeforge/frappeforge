@@ -21,13 +21,13 @@ export interface BuildPackage {
 export function createTsdownConfig(pkg: BuildPackage, overrides: UserConfig = {}): UserConfig {
     return {
         entry: { index: 'src/index.ts' },
-        format: ['esm', 'cjs'],
+        format: ['esm'],
         // Runs anywhere `fetch` runs: Node, browsers, workers, edge. Never assume a runtime.
         platform: 'neutral',
         target: 'es2022',
         dts: true,
-        // `.js` (ESM) + `.cjs` (CJS) inside a `type: module` package. Explicit because tsdown flips this
-        // default per platform, and the `exports` maps depend on these exact names.
+        // `.js` + `.d.ts` inside a `type: module` package. Explicit because tsdown switches to `.mjs` for
+        // `platform: 'node'`, and the `exports` maps depend on these exact names.
         fixedExtension: false,
         sourcemap: true,
         clean: true,

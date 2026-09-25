@@ -1,8 +1,8 @@
 #!/usr/bin/env node
 /**
- * Post-build check against the real artifacts in dist/: every `exports` target exists, and
- * both module formats load and agree on the package version. Runs after every build so a
- * broken bundle never reaches `pnpm pack`.
+ * Post-build check against the real artifacts in dist/: every `exports` target exists, and the
+ * ES module loads through both `import` and `require()` (Node 22.12+), as the same instance and
+ * with the package version. Runs after every build so a broken bundle never reaches `pnpm pack`.
  */
 import assert from 'node:assert/strict'
 import { execFileSync } from 'node:child_process'
@@ -26,11 +26,13 @@ for (const target of exportTargets(pkg.exports)) {
     assert.ok(existsSync(path.join(pkgDir, target)), `exports target is missing after build: ${target}`)
 }
 
-const esm = await import(pathToFileURL(path.join(pkgDir, 'dist/index.js')).href)
-const cjs = createRequire(import.meta.url)(path.join(pkgDir, 'dist/index.cjs'))
+const entry = path.join(pkgDir, 'dist/index.js')
+const esm = await import(pathToFileURL(entry).href)
+const required = createRequire(import.meta.url)(entry)
 
 assert.equal(esm.VERSION, pkg.version, 'ESM: VERSION must equal package.json version')
-assert.equal(cjs.VERSION, pkg.version, 'CJS: VERSION must equal package.json version')
+// One module instance for both loaders: no dual-package hazard, so `instanceof` works everywhere.
+assert.equal(required, esm, 'require(esm) must return the same module namespace as import()')
 
 // The CLI must be executable as `node dist/cli.js --version` (the `bin` entry) and print the version.
 for (const bin of Object.values(pkg.bin)) {
@@ -41,4 +43,4 @@ for (const bin of Object.values(pkg.bin)) {
     assert.equal(out, pkg.version, `CLI --version must print the package version, got: ${out}`)
 }
 
-console.log(`verify-dist: ok (${pkg.name}@${pkg.version}, ESM + CJS + CLI)`)
+console.log(`verify-dist: ok (${pkg.name}@${pkg.version}, ESM + require(esm) + CLI)`)

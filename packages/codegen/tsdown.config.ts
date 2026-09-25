@@ -5,10 +5,9 @@ import pkg from './package.json' with { type: 'json' }
 
 const config: UserConfig[] = [
     createTsdownConfig(pkg, { platform: 'node', target: 'node22' }),
-    // The CLI is ESM-only: it is executed, never imported, so no CJS build and no types.
+    // The CLI is executed, never imported: no declarations.
     createTsdownConfig(pkg, {
         entry: { cli: 'src/cli.ts' },
-        format: ['esm'],
         platform: 'node',
         target: 'node22',
         dts: false,

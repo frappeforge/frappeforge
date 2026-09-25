@@ -29,7 +29,7 @@ updates:
           vitest:
               patterns: ['vitest', '@vitest/*']
           build:
-              patterns: ['tsdown', 'rolldown*', 'publint', '@arethetypeswrong/*', '@microsoft/api-extractor']
+              patterns: ['tsdown', 'rolldown*', 'publint', '@microsoft/api-extractor']
           changesets:
               patterns: ['@changesets/*']
           git-hooks:

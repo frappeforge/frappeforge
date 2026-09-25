@@ -1,8 +1,9 @@
 #!/usr/bin/env node
 /**
  * Installs every workspace package from its packed tarball into throwaway consumers and
- * verifies what a real user gets: an ESM consumer, a CommonJS consumer, the CLI binaries,
- * and the published type declarations under `moduleResolution: NodeNext`.
+ * verifies what a real user gets: an ESM consumer, a CommonJS consumer (`require(esm)`, Node
+ * 22.12+), the CLI binaries, and the published type declarations under `NodeNext` (ESM and CJS
+ * files) and under `moduleResolution: bundler` (Vite, webpack, esbuild).
  *
  * Nothing here uses the workspace's own node_modules for the packages under test — only
  * the tarballs — so a missing `files` entry or a wrong `exports` target fails here, not in
@@ -76,14 +77,16 @@ try {
     )
     run(node, ['esm.mjs'])
 
-    // CommonJS consumer: the `require` condition must resolve and agree.
+    // CommonJS consumer: `require()` loads the ES module, and `import()` returns the same instance —
+    // one copy of every class per process. A rejected check exits non-zero as an unhandled rejection.
     writeFileSync(
         join(fixture, 'cjs.cjs'),
         packages
             .map(
                 (pkg, i) =>
-                    `const { VERSION: v${i} } = require('${pkg.name}')\n` +
-                    `if (v${i} !== '${pkg.version}') throw new Error('CJS: ${pkg.name} VERSION is ' + v${i})\n`,
+                    `const v${i} = require('${pkg.name}')\n` +
+                    `if (v${i}.VERSION !== '${pkg.version}') throw new Error('CJS: ${pkg.name} VERSION is ' + v${i}.VERSION)\n` +
+                    `import('${pkg.name}').then((m) => { if (m !== v${i}) throw new Error('CJS: ${pkg.name} loaded twice') })\n`,
             )
             .join(''),
     )
@@ -97,33 +100,37 @@ try {
         }
     }
 
-    // Type declarations: a strict NodeNext consumer compiles against the packed .d.ts / .d.cts.
-    writeFileSync(
-        join(fixture, 'consumer.mts'),
-        packages.map((pkg, i) => `import { VERSION as v${i} } from '${pkg.name}'\nv${i} satisfies string\n`).join(''),
-    )
-    writeFileSync(
-        join(fixture, 'consumer.cts'),
-        packages.map((pkg, i) => `import { VERSION as v${i} } from '${pkg.name}'\nv${i} satisfies string\n`).join(''),
-    )
+    // Type declarations: strict consumers compile against the packed .d.ts. NodeNext covers an ESM and
+    // a CommonJS file (TypeScript 5.8+ types `require(esm)`); bundler is what Vite, webpack and esbuild
+    // users get. Without declarations in the tarball, all three fail with TS7016.
+    const consumer = packages
+        .map((pkg, i) => `import { VERSION as v${i} } from '${pkg.name}'\nv${i} satisfies string\n`)
+        .join('')
+    const compilerOptions = { target: 'ES2022', strict: true, noEmit: true, skipLibCheck: false, types: [] }
+    const tsc = join(root, 'node_modules', 'typescript', 'bin', 'tsc')
+    for (const file of ['consumer.mts', 'consumer.cts', 'consumer.bundler.ts']) {
+        writeFileSync(join(fixture, file), consumer)
+    }
     writeFileSync(
         join(fixture, 'tsconfig.json'),
         JSON.stringify({
-            compilerOptions: {
-                module: 'NodeNext',
-                moduleResolution: 'NodeNext',
-                target: 'ES2022',
-                strict: true,
-                noEmit: true,
-                skipLibCheck: false,
-                types: [],
-            },
+            compilerOptions: { ...compilerOptions, module: 'NodeNext', moduleResolution: 'NodeNext' },
             include: ['consumer.mts', 'consumer.cts'],
         }),
     )
-    run(node, [join(root, 'node_modules', 'typescript', 'bin', 'tsc'), '-p', 'tsconfig.json'])
+    writeFileSync(
+        join(fixture, 'tsconfig.bundler.json'),
+        JSON.stringify({
+            compilerOptions: { ...compilerOptions, module: 'ESNext', moduleResolution: 'bundler' },
+            include: ['consumer.bundler.ts'],
+        }),
+    )
+    run(node, [tsc, '-p', 'tsconfig.json'])
+    run(node, [tsc, '-p', 'tsconfig.bundler.json'])
 
-    console.log(`verify-packed: ok (${packages.map((p) => p.name).join(', ')} — ESM, CJS, CLI, NodeNext types)`)
+    console.log(
+        `verify-packed: ok (${packages.map((p) => p.name).join(', ')} — ESM, require(esm), CLI, NodeNext + bundler types)`,
+    )
 } finally {
     rmSync(fixture, { recursive: true, force: true })
 }

@@ -11,6 +11,9 @@ Zero-dependency, `fetch`-native TypeScript client for the Frappe Framework REST 
 pnpm add @frappeforge/client
 ```
 
+Published as an ES module only. CommonJS code can still `require('@frappeforge/client')` on Node.js 22.12+
+(22.12 itself prints a one-time experimental warning; 22.13+ does not).
+
 ## License
 
 [MIT](./LICENSE). FrappeForge is an independent community project, not affiliated with

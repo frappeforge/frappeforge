@@ -5,7 +5,8 @@ pass, and how releases work. It applies to every package in the repository.
 
 ## Prerequisites
 
-- **Node.js 22 or newer** (`.nvmrc` pins 24, the current Active LTS, for local work).
+- **Node.js 22.18 or newer** to build the repository (`.nvmrc` pins 24, the current Active LTS). The
+  published packages need only Node.js 22.12+; CI tests them on exactly 22.12.0.
 - **pnpm 12**, managed by Corepack: `corepack enable` once, then pnpm is picked up from
   `packageManager` in `package.json` automatically.
 
@@ -25,18 +26,17 @@ it must be green before you open a pull request.
 
 `pnpm gate` runs, in order, exactly what CI runs:
 
-| Step                 | What it checks                                                                                                                           |
-| -------------------- | ---------------------------------------------------------------------------------------------------------------------------------------- |
-| `pnpm typecheck`     | `tsc` for the root tooling (shared configs, `scripts/`), then per package with the strict base config                                    |
-| `pnpm lint`          | ESLint (type-aware) for the root and per package; published `src/` may import only its own modules (plus `node:` built-ins in codegen)   |
-| `pnpm format:check`  | Prettier                                                                                                                                 |
-| `pnpm knip`          | unused files, exports and dependencies, in default and production mode                                                                   |
-| `pnpm test`          | Vitest with **100% coverage per file** (thresholds fail the run)                                                                         |
-| `pnpm build`         | tsdown, then `scripts/verify-dist.mjs` smoke-tests the real `dist/` artifacts                                                            |
-| `pnpm api:check`     | API Extractor: the public surface matches the committed `etc/*.api.md` report, every public symbol is documented, and its TSDoc is valid |
-| `pnpm publint`       | `package.json` and `exports` correctness                                                                                                 |
-| `pnpm attw`          | Types resolve under `node16` ESM, `node16` CJS and `bundler`                                                                             |
-| `pnpm verify:packed` | Installs the packed tarballs into ESM and CJS consumers and compiles against them                                                        |
+| Step                 | What it checks                                                                                                                                                            |
+| -------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `pnpm build`         | tsdown, then `scripts/verify-dist.mjs` checks the real `dist/` artifacts load through `import` and `require()`; `api:check`, `publint` and `verify:packed` use this build |
+| `pnpm typecheck`     | `tsc` for the root tooling (shared configs, `scripts/`), then per package with the strict base config                                                                     |
+| `pnpm lint`          | ESLint (type-aware) for the root and per package; published `src/` may import only its own modules (plus `node:` built-ins in codegen)                                    |
+| `pnpm format:check`  | Prettier                                                                                                                                                                  |
+| `pnpm knip`          | unused files, exports and dependencies, in default and production mode                                                                                                    |
+| `pnpm test`          | Vitest with **100% coverage per file** (thresholds fail the run)                                                                                                          |
+| `pnpm api:check`     | API Extractor: the public surface matches the committed `etc/*.api.md` report, every public symbol is documented, and its TSDoc is valid                                  |
+| `pnpm publint`       | `package.json` and `exports` correctness                                                                                                                                  |
+| `pnpm verify:packed` | Installs the packed tarballs, then runs ESM, `require()` and CLI consumers and compiles NodeNext (ESM + CJS) and `bundler` type consumers                                 |
 
 Run a single step while iterating, for example `pnpm --filter @frappeforge/client test:watch`.
 
@@ -71,8 +71,8 @@ that is new in the project's TypeScript version.
    commit messages are not checked). Scopes: `client`, `codegen`, `realtime`, `react`, `deps`, `ci`,
    `docs`, `repo`, `release`. Example: `feat(client): add cookie auth strategy`.
 5. Open a pull request. CI runs the Node-independent checks once, the tests and packed-consumer
-   checks on Node 22, 24, 26 (Linux) and 24 (Windows), a dependency audit, and zizmor on the workflows
-   themselves. One approving review from a code owner is required; PRs are squash-merged.
+   checks on Node 22.12.0 (the consumer floor, built on 24), 24, 26 (Linux) and 24 (Windows), a
+   dependency audit, and zizmor on the workflows themselves. One approving review from a code owner is required; PRs are squash-merged.
 
 ## Repository conventions
 
@@ -82,8 +82,14 @@ that is new in the project's TypeScript version.
 
 ## Package conventions
 
-- ESM-first, dual-published: `dist/index.js` + `.d.ts` (ESM) and `dist/index.cjs` + `.d.cts` (CJS).
-  Every `exports` entry lists `types` before `default`.
+- ESM only: `dist/index.js` + `dist/index.d.ts`, and every `exports` entry lists `types` before
+  `default`. A single build means a single copy of each class per process, so `instanceof` checks on
+  errors always work. CommonJS users `require()` the ES module natively on Node 22.12+.
+- Two Node floors: packages declare `engines.node >=22.12` (what users need); the root declares
+  `>=22.18` (what the build tools need).
+- `build` runs first so that a package depending on another is checked against its **built** output,
+  exactly what users install. For watch mode, run `pnpm --filter @frappeforge/client exec tsdown --watch` in a second
+  terminal.
 - `@frappeforge/client` has **zero runtime dependencies**. Do not add one without a discussion first.
 - No hidden network calls: nothing in a package contacts a server unless the caller asked for it.
 - Errors are typed and documented; a user should never have to string-match a message.
