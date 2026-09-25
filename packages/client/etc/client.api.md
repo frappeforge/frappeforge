@@ -5,47 +5,74 @@
 ```ts
 
 // @public
+export type AbsentColumn<T> = string extends FieldOf<T> ? never : [T] extends [{
+    parent: string;
+}] ? "_user_tags" | "_comments" | "_assign" | "_liked_by" : "parent" | "parentfield" | "parenttype";
+
+// @public
 export class AuthenticationError extends FrappeError {
-    constructor(message: string, options?: FrappeErrorOptions);
+    override readonly name: "AuthenticationError";
 }
 
 // @public
 export class CancelledError extends FrappeError {
-    constructor(message: string, options?: FrappeErrorOptions);
+    override readonly name: "CancelledError";
 }
+
+// @public
+export type ChildFilterTuple<T> = string extends FieldOf<T> ? readonly [childDocType: string, field: string, ...condition: FilterCondition] : { [K in TableFieldOf<T>]-?: NonNullable<T[K]> extends readonly (infer C extends FrappeDoc)[] ? readonly [childDocType: C["doctype"], field: ListFieldOf<C>, ...condition: FilterCondition] : never; }[TableFieldOf<T>];
 
 // @public
 export class ConfigurationError extends FrappeError {
-    constructor(message: string, options?: FrappeErrorOptions);
+    override readonly name: "ConfigurationError";
 }
 
 // @public
-export type DocOf<D, K extends string> = K extends keyof D ? (D[K] extends FrappeDoc ? D[K] : FrappeDoc) : FrappeDoc;
+export class ConflictError extends FrappeError {
+    override readonly name: "ConflictError";
+}
 
 // @public
-export type DocTypeMap = Record<string, FrappeDoc>;
+export type DocInput<T> = { [K in keyof T as K extends ServerField ? never : K]?: NonNullable<T[K]> extends readonly (infer C extends FrappeDoc)[] ? readonly DocInput<C>[] : T[K]; };
+
+// @public
+export type DocOf<D extends object, K extends string> = K extends keyof D ? D[K] extends FrappeDoc ? D[K] : UnknownDoc : UnknownDoc;
+
+// @public
+export type DocTypeName<D extends object> = Extract<keyof D, string> | (string & {});
+
+// @public
+export type EqualityValue<V> = unknown extends V ? string | number | boolean | null : [NonNullable<V>] extends [0 | 1] ? 0 | 1 | boolean : Exclude<V, undefined> | null;
 
 // @public
 export type FieldOf<T> = Extract<keyof T, string>;
 
 // @public
-export type FilterOperator = "=" | "!=" | ">" | "<" | ">=" | "<=" | "like" | "not like" | "in" | "not in" | "is" | "between";
+export type FieldSelection<T> = readonly (ListFieldOf<T> | "name")[] | readonly ["*"];
 
 // @public
-export type Filters<T> = Partial<Record<FieldOf<T>, FilterValue>> | readonly FilterTuple<T>[];
+export type FilterCondition = readonly ["=" | "!=" | ">" | "<" | ">=" | "<=" | "like" | "not like", string | number | boolean | null] | readonly ["in" | "not in", readonly (string | number)[]] | readonly ["is", "set" | "not set"] | readonly ["between", readonly [string | number, string | number]] | readonly ["timespan", Timespan] | readonly ["descendants of" | "not descendants of" | "ancestors of" | "not ancestors of", string];
 
 // @public
-export type FilterTuple<T> = readonly [field: FieldOf<T>, operator: FilterOperator, value: FilterValue];
+export type FilterObject<T> = string extends FieldOf<T> ? { readonly [K in Exclude<keyof FrappeDoc, "doctype">]?: EqualityValue<FrappeDoc[K]> | FilterCondition; } & Readonly<Record<string, EqualityValue<unknown> | FilterCondition>> : { readonly [K in ListFieldOf<T>]?: EqualityValue<T[K]> | FilterCondition; };
 
 // @public
-export type FilterValue = string | number | boolean | null | readonly (string | number)[];
+export type Filters<T> = FilterObject<T> | readonly FilterTuple<T>[];
+
+// @public
+export type FilterTuple<T> = readonly [field: ListFieldOf<T>, ...condition: FilterCondition] | (T extends {
+    doctype: infer N extends string;
+} ? readonly [docType: N, field: ListFieldOf<T>, ...condition: FilterCondition] : never) | ChildFilterTuple<T>;
 
 // @public
 export interface FrappeDoc {
+    _assign?: string | null;
+    _comments?: string | null;
     creation: string;
     docstatus: 0 | 1 | 2;
     doctype: string;
     idx: number;
+    _liked_by?: string | null;
     modified: string;
     modified_by: string;
     name: string;
@@ -53,15 +80,28 @@ export interface FrappeDoc {
     parent?: string;
     parentfield?: string;
     parenttype?: string;
+    _user_tags?: string | null;
 }
 
 // @public
 export class FrappeError extends Error {
     constructor(message: string, options?: FrappeErrorOptions);
     readonly exception: string | undefined;
+    override readonly name: string;
     readonly request: FrappeRequestContext | undefined;
     readonly serverMessages: readonly ServerMessage[];
     readonly status: number;
+    toJSON(): FrappeErrorJSON;
+}
+
+// @public
+export interface FrappeErrorJSON {
+    exception: string | undefined;
+    message: string;
+    name: string;
+    request: FrappeRequestContext | undefined;
+    serverMessages: readonly ServerMessage[];
+    status: number;
 }
 
 // @public
@@ -80,37 +120,66 @@ export interface FrappeRequestContext {
 }
 
 // @public
-export interface ListArgs<T> {
-    fields?: readonly FieldOf<T>[];
+export interface ListArgs<T, F extends FieldSelection<T> = FieldSelection<T>> {
+    fields?: F;
     filters?: Filters<T>;
-    groupBy?: FieldOf<T>;
+    groupBy?: ListFieldOf<T>;
     limit?: number;
     offset?: number;
-    orderBy?: OrderBy<T>;
+    orderBy?: OrderBy<T> | readonly OrderBy<T>[];
     orFilters?: Filters<T>;
     parent?: string;
 }
 
 // @public
+export type ListFieldOf<T> = Exclude<FieldOf<T>, TableFieldOf<T> | "doctype" | AbsentColumn<T>>;
+
+// @public
+export type ListRow<T, F extends FieldSelection<T>> = (F extends readonly ["*"] ? ListFieldOf<T> : F[number] & ListFieldOf<T>) extends (infer C extends string) ? Exclude<C & keyof FrappeDoc, "doctype" | (F extends readonly ["*"] ? "_user_tags" | "_comments" | "_assign" | "_liked_by" : never)> extends (infer S extends keyof FrappeDoc) ? (string extends FieldOf<T> ? Record<Exclude<C, keyof FrappeDoc>, unknown> & Pick<FrappeDoc, S> : { [P in keyof T as P extends Exclude<C, keyof FrappeDoc> ? P : never]: T[P]; } & { [P in S]: Exclude<(T & FrappeDoc)[P], undefined>; }) extends (infer R) ? { [K in keyof R]: R[K]; } : never : never : never;
+
+// @public
 export class NetworkError extends FrappeError {
-    constructor(message: string, options?: FrappeErrorOptions);
+    override readonly name: "NetworkError";
 }
 
 // @public
 export class NotFoundError extends FrappeError {
-    constructor(message: string, options?: FrappeErrorOptions);
+    override readonly name: "NotFoundError";
 }
 
 // @public
 export interface OrderBy<T> {
-    field: FieldOf<T>;
+    field: ListFieldOf<T>;
     order?: "asc" | "desc";
 }
 
 // @public
 export class PermissionError extends FrappeError {
-    constructor(message: string, options?: FrappeErrorOptions);
+    override readonly name: "PermissionError";
 }
+
+// @public
+export class RateLimitError extends FrappeError {
+    constructor(message: string, options?: RateLimitErrorOptions);
+    override readonly name: "RateLimitError";
+    readonly retryAfter: number | undefined;
+    override toJSON(): FrappeErrorJSON & {
+        retryAfter: number | undefined;
+    };
+}
+
+// @public
+export interface RateLimitErrorOptions extends FrappeErrorOptions {
+    retryAfter?: number;
+}
+
+// @public
+export interface Register {}
+
+// @public
+export type RegisteredDocTypes = Register extends {
+    docTypes: infer D extends object;
+} ? D : object;
 
 // @public
 export interface RequestOptions {
@@ -121,8 +190,11 @@ export interface RequestOptions {
 
 // @public
 export class ServerError extends FrappeError {
-    constructor(message: string, options?: FrappeErrorOptions);
+    override readonly name: "ServerError";
 }
+
+// @public
+export type ServerField = "doctype" | "owner" | "creation" | "modified" | "modified_by" | "idx" | "docstatus" | "parent" | "parentfield" | "parenttype" | "_user_tags" | "_comments" | "_assign" | "_liked_by";
 
 // @public
 export interface ServerMessage {
@@ -132,13 +204,22 @@ export interface ServerMessage {
 }
 
 // @public
+export type TableFieldOf<T> = { [K in FieldOf<T>]-?: 0 extends 1 & T[K] ? never : NonNullable<T[K]> extends readonly FrappeDoc[] ? K : never; }[FieldOf<T>];
+
+// @public
 export class TimeoutError extends FrappeError {
-    constructor(message: string, options?: FrappeErrorOptions);
+    override readonly name: "TimeoutError";
 }
 
 // @public
+export type Timespan = "last 7 days" | "last 14 days" | "last 30 days" | "last 90 days" | "last week" | "last month" | "last quarter" | "last 6 months" | "last year" | "yesterday" | "today" | "tomorrow" | "this week" | "this month" | "this quarter" | "this year" | "next 7 days" | "next 14 days" | "next 30 days" | "next week" | "next month" | "next quarter" | "next 6 months" | "next year";
+
+// @public
+export type UnknownDoc = FrappeDoc & Record<string, unknown>;
+
+// @public
 export class ValidationError extends FrappeError {
-    constructor(message: string, options?: FrappeErrorOptions);
+    override readonly name: "ValidationError";
 }
 
 // @public

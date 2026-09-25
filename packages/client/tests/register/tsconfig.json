@@ -1,0 +1,7 @@
+{
+    // An isolated program: the Register augmentation in this folder applies to the whole program it
+    // is part of, so it must not share one with the other tests. `pnpm typecheck` runs it.
+    "extends": "../../tsconfig.test.json",
+    "include": [".", "../../src"],
+    "exclude": []
+}

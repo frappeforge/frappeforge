@@ -2,13 +2,14 @@ import { createConfig } from '../../eslint.config.js'
 
 export default createConfig(import.meta.dirname, [
     {
-        // Two projects: `tsconfig.json` (published `src/`, web globals only) and
-        // `tsconfig.test.json` (tests and configs, Node types). Type-aware rules need both.
+        // Three projects: `tsconfig.json` (published `src/`, web globals only),
+        // `tsconfig.test.json` (tests and configs, Node types) and `tests/register` (the isolated
+        // Register augmentation). Type-aware rules need all of them.
         files: ['**/*.ts', '**/*.mts', '**/*.cts'],
         languageOptions: {
             parserOptions: {
                 projectService: false,
-                project: ['./tsconfig.json', './tsconfig.test.json'],
+                project: ['./tsconfig.json', './tsconfig.test.json', './tests/register/tsconfig.json'],
             },
         },
     },

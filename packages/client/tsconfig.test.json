@@ -4,5 +4,7 @@
         // Tests, build and test configs run under Node and may use its types.
         "types": ["node"]
     },
-    "include": ["src", "tests", "tsdown.config.ts", "vitest.config.ts"]
+    "include": ["src", "tests", "tsdown.config.ts", "vitest.config.ts"],
+    // Its own program: see tests/register/tsconfig.json.
+    "exclude": ["tests/register"]
 }
