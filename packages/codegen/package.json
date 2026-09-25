@@ -7,7 +7,7 @@
     "type": "module",
     "sideEffects": false,
     "engines": {
-        "node": ">=22"
+        "node": ">=22.12"
     },
     "keywords": [
         "frappe",
@@ -37,18 +37,10 @@
     "bin": {
         "frappeforge-codegen": "./dist/cli.js"
     },
-    "main": "./dist/index.cjs",
-    "types": "./dist/index.d.ts",
     "exports": {
         ".": {
-            "import": {
-                "types": "./dist/index.d.ts",
-                "default": "./dist/index.js"
-            },
-            "require": {
-                "types": "./dist/index.d.cts",
-                "default": "./dist/index.cjs"
-            }
+            "types": "./dist/index.d.ts",
+            "default": "./dist/index.js"
         },
         "./package.json": "./package.json"
     },
@@ -61,8 +53,7 @@
         "lint:fix": "eslint . --fix",
         "api:extract": "api-extractor run --local",
         "api:check": "api-extractor run",
-        "publint": "publint",
-        "attw": "attw --pack . --profile node16"
+        "publint": "publint"
     },
     "publishConfig": {
         "access": "public",

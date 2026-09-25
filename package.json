@@ -6,7 +6,7 @@
     "type": "module",
     "packageManager": "pnpm@12.4.2",
     "engines": {
-        "node": ">=22",
+        "node": ">=22.18",
         "pnpm": ">=12"
     },
     "homepage": "https://github.com/frappeforge/frappeforge#readme",
@@ -31,15 +31,13 @@
         "api:extract": "pnpm -r --filter=./packages/* run api:extract",
         "api:check": "pnpm -r --filter=./packages/* run api:check",
         "publint": "pnpm -r --filter=./packages/* run publint",
-        "attw": "pnpm -r --filter=./packages/* run attw",
         "verify:packed": "node scripts/verify-packed.mjs",
-        "gate": "pnpm typecheck && pnpm lint && pnpm format:check && pnpm knip && pnpm test && pnpm build && pnpm api:check && pnpm publint && pnpm attw && pnpm verify:packed",
+        "gate": "pnpm build && pnpm typecheck && pnpm lint && pnpm format:check && pnpm knip && pnpm test && pnpm api:check && pnpm publint && pnpm verify:packed",
         "changeset": "changeset",
         "version-packages": "changeset version",
         "release": "pnpm build && changeset publish"
     },
     "devDependencies": {
-        "@arethetypeswrong/cli": "^0.18.5",
         "@changesets/changelog-github": "^1.0.1",
         "@changesets/cli": "^3.0.3",
         "@eslint/js": "^10.0.1",

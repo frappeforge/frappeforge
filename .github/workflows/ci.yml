@@ -61,9 +61,6 @@ jobs:
             - name: Check package.json and exports (publint)
               run: pnpm publint
 
-            - name: Check type resolution across module systems (attw)
-              run: pnpm attw
-
     # Only what the runtime and OS affect runs across the matrix.
     test:
         name: test (${{ matrix.os }}, node ${{ matrix.node }})
@@ -73,8 +70,11 @@ jobs:
             fail-fast: false
             matrix:
                 os: [ubuntu-latest]
-                node: [22, 24, 26]
+                node: ['22.12.0', 24, 26]
                 include:
+                    # The consumer floor is below the development floor: build on 24, then test on the floor.
+                    - node: '22.12.0'
+                      build-node: 24
                     - os: windows-latest
                       node: 24
         steps:
@@ -89,7 +89,7 @@ jobs:
             - name: Setup Node.js
               uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
               with:
-                  node-version: ${{ matrix.node }}
+                  node-version: ${{ matrix.build-node || matrix.node }}
                   cache: pnpm
 
             - name: Install dependencies
@@ -97,6 +97,12 @@ jobs:
 
             - name: Build
               run: pnpm build
+
+            - name: Switch to the consumer floor
+              if: matrix.build-node
+              uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+              with:
+                  node-version: ${{ matrix.node }}
 
             - name: Test
               run: pnpm test

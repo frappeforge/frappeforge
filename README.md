@@ -26,6 +26,13 @@ released together.
 | [`@frappeforge/codegen`](packages/codegen) | Generates TypeScript types for your DocTypes from a live site.                                              | [![npm](https://img.shields.io/npm/v/@frappeforge/codegen?label=)](https://www.npmjs.com/package/@frappeforge/codegen) |
 | `@frappeforge/react`                       | React hooks on TanStack Query with realtime cache sync.                                                     | planned                                                                                                                |
 
+## Requirements
+
+Node.js 22.12 or newer. `@frappeforge/client` also runs in any runtime with `fetch` (browsers, workers,
+edge). The packages are ES modules only; CommonJS code can still `require()` them on Node 22.12+.
+TypeScript users need `module: "nodenext"` or `moduleResolution: "bundler"`, and TypeScript 5.8+ in
+CommonJS files.
+
 ## Principles
 
 - **Typed end to end.** Your DocTypes become your types; the compiler catches mistakes before the server does.
