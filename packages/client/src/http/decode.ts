@@ -67,6 +67,26 @@ export async function readJson(response: Response, context: FrappeRequestContext
     )
 }
 
+/**
+ * Reads `data` (`/api/resource/`) or `message` (`/api/method/`) from a successful response. A
+ * value that is not of the expected kind, `what`, is a `FrappeError` that says so.
+ */
+export function readMember<T>(
+    key: 'data' | 'message',
+    is: (value: unknown) => value is T,
+    what: string,
+): (response: Response, context: FrappeRequestContext) => Promise<T> {
+    return async (response, context) => {
+        const body = await readJson(response, context)
+        const value = isRecord(body) ? body[key] : undefined
+        if (is(value)) return value
+        throw new FrappeError(`Expected ${what} in \`${key}\` from ${context.method} ${context.url}.`, {
+            status: response.status,
+            request: context,
+        })
+    }
+}
+
 /** Maps a non-2xx response and its body text to the matching error class. */
 export function toError(response: Response, text: string, context: FrappeRequestContext): FrappeError {
     const { status } = response

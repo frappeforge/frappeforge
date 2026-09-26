@@ -5,6 +5,8 @@ Zero-dependency, `fetch`-native TypeScript client for the Frappe Framework REST 
 
 > **Status: pre-release.** The API may change before `1.0.0`. Supported Frappe versions: v15 and v16.
 
+- **Typed documents.** DocType names autocomplete, field names and filter values are type-checked, and
+  a list returns exactly the fields you ask for.
 - **Typed errors.** Every failure is a `FrappeError` subclass that carries the server's own messages,
   and never its traceback.
 - **Authentication built in.** API keys, browser and Node sessions, and OAuth bearer tokens with
@@ -20,17 +22,8 @@ pnpm add @frappeforge/client
 
 ## Quick start
 
-```ts
-import { createClient } from '@frappeforge/client'
-
-const frappe = createClient({ url: 'https://example.com' })
-
-const { message } = await frappe.request<{ message: string }>({ path: '/api/method/frappe.ping' })
-console.log(message) // "pong"
-```
-
-To call as a user, use an API key and secret from **User → Settings → API Access**. Keep them on
-the server: never ship them to a browser.
+Use an API key and secret from **User → Settings → API Access**. Keep them on the server: never ship
+them to a browser.
 
 ```ts
 import { createClient, tokenAuth } from '@frappeforge/client'
@@ -40,10 +33,15 @@ const frappe = createClient({
     auth: tokenAuth({ apiKey: process.env.FRAPPE_API_KEY!, apiSecret: process.env.FRAPPE_API_SECRET! }),
 })
 
-const { data } = await frappe.request<{ data: { name: string; description: string } }>({
-    path: '/api/resource/ToDo/TODO-0001',
+const open = await frappe.doc.list('ToDo', {
+    fields: ['name', 'description', 'priority'],
+    filters: { status: 'Open' },
+    orderBy: { field: 'modified', order: 'desc' },
+    limit: 10,
 })
 ```
+
+Without `auth`, requests run as Guest, which can call only public methods such as `frappe.ping`.
 
 ## Options
 
@@ -58,6 +56,85 @@ sent.
 | `siteName` | —              | Sends `X-Frappe-Site-Name`, for a site reached through a host name that differs from the site name (visible ASCII, e.g. `site1.local`). In browsers it triggers a CORS preflight.      |
 | `fetch`    | global `fetch` | A fetch-compatible function, for tests or instrumentation. It must honor `request.signal`.                                                                                             |
 | `auth`     | —              | How requests authenticate: `tokenAuth`, `sessionAuth`, `bearerAuth` or your own `AuthStrategy` ([Authentication](#authentication)). Without it, requests run as Guest.                 |
+
+## Documents
+
+`frappe.doc` reads documents. Every method takes a `RequestOptions` object last, like `request()`.
+
+```ts
+const todo = await frappe.doc.get('ToDo', 'TODO-0001') // one document, with its child tables
+const settings = await frappe.doc.getSingle('System Settings') // a single DocType's record
+const count = await frappe.doc.count('ToDo', { status: 'Open' })
+
+const rows = await frappe.doc.list('ToDo', {
+    fields: ['name', 'description'], // default: `name` only; `['*']` for every column
+    filters: { status: 'Open', priority: ['in', ['High', 'Medium']] },
+    orFilters: [
+        ['allocated_to', '=', 'jane@example.com'],
+        ['owner', '=', 'jane@example.com'],
+    ],
+    orderBy: [{ field: 'priority', order: 'desc' }, { field: 'modified' }], // `asc` by default
+    limit: 50, // default 20
+    offset: 0,
+})
+
+for await (const row of frappe.doc.paginate('ToDo', { fields: ['description'], pageSize: 100 })) {
+    console.log(row.name, row.description) // every matching ToDo, 100 per request
+}
+```
+
+- **Filters** come in two forms. An object: a value means equality, and `[operator, value]` means an
+  operator, so `{ status: ['Open', 'Closed'] }` is an error — write `{ status: ['in', ['Open', 'Closed']] }`.
+  Or an array of `[field, operator, value]`, which also accepts `[childDocType, field, operator, value]`
+  for a child table. `null` matches empty fields, and booleans are sent as `1` / `0`.
+- **Operators:** `=`, `!=`, `>`, `<`, `>=`, `<=`, `like`, `not like`, `in`, `not in`, `is` (`'set'` /
+  `'not set'`), `between`, `timespan` (such as `'this week'`), `descendants of`, `not descendants of`,
+  `ancestors of` and `not ancestors of`.
+- **Documents and rows differ.** `get` leaves empty fields out of the document, as Frappe does; a list
+  row has every column it asked for, with `null` for an empty one. Fields the user may not read are
+  left out of both.
+- **`paginate`** continues each page after the last `name` of the page before, so a row that matches
+  for the whole walk is visited exactly once, however many rows are created, changed or deleted
+  meanwhile. A row created during the walk is visited only if its `name` sorts after the rows already
+  read. It always includes `name`, sorts by it, and takes no `orderBy`, `groupBy`, `limit` or
+  `offset`. Aborting its signal ends the walk with `CancelledError`.
+- **Long queries:** a `list` or `count` whose path and query string would be longer than 3800
+  characters (the site URL is not counted), such as a long `in` filter, is sent as a POST to
+  `frappe.client.get_list` or `frappe.client.get_count` instead, with the same result.
+- **Child tables** are listed with `parent`, the parent DocType:
+  `frappe.doc.list('Has Role', { fields: ['role'], parent: 'User' })`. Only that DocType's rows come
+  back, though other DocTypes may use the same child table. Frappe rejects `parent` for any other
+  DocType, so generated types accept it only on child tables.
+- **Names** are encoded for the URL, so `/`, `#`, `?` and spaces are safe.
+
+### Typed DocTypes
+
+Declare your DocTypes once, and every call is checked against them:
+
+```ts
+import type { FrappeDoc } from '@frappeforge/client'
+
+interface ToDo extends FrappeDoc {
+    doctype: 'ToDo'
+    status?: 'Open' | 'Closed' | 'Cancelled' | null
+    priority?: 'High' | 'Medium' | 'Low' | null
+    description: string
+}
+
+declare module '@frappeforge/client' {
+    interface Register {
+        docTypes: { ToDo: ToDo }
+    }
+}
+
+const rows = await frappe.doc.list('ToDo', { fields: ['description', 'status'] })
+// { description: string; status?: 'Open' | 'Closed' | 'Cancelled' | null }[]
+
+await frappe.doc.list('ToDo', { filters: { status: 'Opne' } }) // compile error: not a status
+```
+
+To type one client only, pass the map instead: `createClient<{ ToDo: ToDo }>({ url })`. A DocType that
+is not in the map is still accepted, with `unknown` field values.
 
 ## Requests
 

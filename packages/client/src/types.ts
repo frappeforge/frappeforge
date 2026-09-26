@@ -311,8 +311,25 @@ export interface ListArgs<T, F extends FieldSelection<T> = FieldSelection<T>> {
     limit?: number
     /** Number of rows to skip before collecting results. */
     offset?: number
-    /** Parent DocType, required when listing child table rows. */
-    parent?: string
+    /**
+     * Parent DocType, required when listing child table rows. Only the rows of that parent
+     * DocType are returned, though other DocTypes may use the same child table. Listing any other
+     * DocType with `parent` fails, so a generated DocType that is not a child table does not
+     * accept it.
+     */
+    parent?: string extends FieldOf<T> ? string : [T] extends [{ parent: string }] ? string : never
+}
+
+/**
+ * Arguments accepted by `paginate`: those of a listing, without an order, grouping or paging of
+ * your own. The walk sorts by `name`, which is its cursor.
+ */
+export interface PaginateArgs<T, F extends FieldSelection<T> = FieldSelection<T>> extends Omit<
+    ListArgs<T, F>,
+    'orderBy' | 'groupBy' | 'limit' | 'offset'
+> {
+    /** Rows per request: a positive integer, default 100. */
+    pageSize?: number
 }
 
 /**

@@ -188,6 +188,12 @@ describe('auth.currentUser', () => {
         await expect(client([reply]).frappe.auth.currentUser()).rejects.toBeInstanceOf(ErrorClass)
     })
 
+    it('says what it expected in place of the user', async () => {
+        await expect(client([json(200, { message: 42 })]).frappe.auth.currentUser()).rejects.toThrow(
+            `Expected a string in \`message\` from GET ${url}/api/method/frappe.auth.get_logged_user.`,
+        )
+    })
+
     it('passes request options through', async () => {
         const controller = new AbortController()
         controller.abort()
