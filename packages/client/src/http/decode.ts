@@ -163,7 +163,8 @@ function parseRecord(text: string): Readonly<Record<string, unknown>> | undefine
     return isRecord(value) ? value : undefined
 }
 
-function isRecord(value: unknown): value is Readonly<Record<string, unknown>> {
+/** A JSON object: not `null`, not an array. */
+export function isRecord(value: unknown): value is Readonly<Record<string, unknown>> {
     return typeof value === 'object' && value !== null && !Array.isArray(value)
 }
 

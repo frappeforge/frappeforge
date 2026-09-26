@@ -15,6 +15,34 @@ export class AuthenticationError extends FrappeError {
 }
 
 // @public
+export interface AuthNamespace {
+    readonly currentUser: (options?: RequestOptions) => Promise<string | null>;
+    readonly login: (credentials: {
+        username: string;
+        password: string;
+    }, options?: RequestOptions) => Promise<LoginResult>;
+    readonly logout: (options?: RequestOptions) => Promise<void>;
+}
+
+// @public
+export interface AuthStrategy {
+    apply(headers: Headers, method: string): void | Promise<void>;
+    clear?(): void;
+    readonly credentials?: "include" | "omit" | "same-origin";
+    onResponse?(response: Response): void;
+    onUnauthorized?(request: Request): boolean | Promise<boolean>;
+}
+
+// @public
+export function bearerAuth(options: BearerAuthOptions): AuthStrategy;
+
+// @public
+export interface BearerAuthOptions {
+    refresh?: () => boolean | Promise<boolean>;
+    token: string | (() => string | Promise<string>);
+}
+
+// @public
 export class CancelledError extends FrappeError {
     override readonly name: "CancelledError";
 }
@@ -24,6 +52,7 @@ export type ChildFilterTuple<T> = string extends FieldOf<T> ? readonly [childDoc
 
 // @public
 export interface ClientOptions {
+    auth?: AuthStrategy;
     fetch?: (request: Request) => Promise<Response>;
     headers?: Record<string, string>;
     siteName?: string;
@@ -78,6 +107,7 @@ export type FilterTuple<T> = readonly [field: ListFieldOf<T>, ...condition: Filt
 
 // @public
 export interface FrappeClient {
+    readonly auth: AuthNamespace;
     readonly request: <T = unknown>(init: RawRequest, options?: RequestOptions) => Promise<T>;
     readonly siteName: string | undefined;
     readonly url: string;
@@ -157,6 +187,12 @@ export type ListFieldOf<T> = Exclude<FieldOf<T>, TableFieldOf<T> | "doctype" | A
 export type ListRow<T, F extends FieldSelection<T>> = (F extends readonly ["*"] ? ListFieldOf<T> : F[number] & ListFieldOf<T>) extends (infer C extends string) ? Exclude<C & keyof FrappeDoc, "doctype" | (F extends readonly ["*"] ? "_user_tags" | "_comments" | "_assign" | "_liked_by" : never)> extends (infer S extends keyof FrappeDoc) ? (string extends FieldOf<T> ? Record<Exclude<C, keyof FrappeDoc>, unknown> & Pick<FrappeDoc, S> : { [P in keyof T as P extends Exclude<C, keyof FrappeDoc> ? P : never]: T[P]; } & { [P in S]: Exclude<(T & FrappeDoc)[P], undefined>; }) extends (infer R) ? { [K in keyof R]: R[K]; } : never : never : never;
 
 // @public
+export interface LoginResult {
+    fullName: string;
+    homePage: string;
+}
+
+// @public
 export class NetworkError extends FrappeError {
     override readonly name: "NetworkError";
 }
@@ -234,6 +270,14 @@ export interface ServerMessage {
 }
 
 // @public
+export function sessionAuth(options?: SessionAuthOptions): AuthStrategy;
+
+// @public
+export interface SessionAuthOptions {
+    csrfToken?: string | (() => string | undefined);
+}
+
+// @public
 export type TableFieldOf<T> = { [K in FieldOf<T>]-?: 0 extends 1 & T[K] ? never : NonNullable<T[K]> extends readonly FrappeDoc[] ? K : never; }[FieldOf<T>];
 
 // @public
@@ -243,6 +287,15 @@ export class TimeoutError extends FrappeError {
 
 // @public
 export type Timespan = "last 7 days" | "last 14 days" | "last 30 days" | "last 90 days" | "last week" | "last month" | "last quarter" | "last 6 months" | "last year" | "yesterday" | "today" | "tomorrow" | "this week" | "this month" | "this quarter" | "this year" | "next 7 days" | "next 14 days" | "next 30 days" | "next week" | "next month" | "next quarter" | "next 6 months" | "next year";
+
+// @public
+export function tokenAuth(options: TokenAuthOptions): AuthStrategy;
+
+// @public
+export interface TokenAuthOptions {
+    apiKey: string;
+    apiSecret: string;
+}
 
 // @public
 export type UnknownDoc = FrappeDoc & Record<string, unknown>;

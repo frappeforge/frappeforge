@@ -1,6 +1,16 @@
 import { describe, expect, it, vi } from 'vitest'
 
-import { CancelledError, ConfigurationError, createClient, NotFoundError, TimeoutError } from '../src/index.js'
+import {
+    bearerAuth,
+    CancelledError,
+    ConfigurationError,
+    createClient,
+    NotFoundError,
+    sessionAuth,
+    TimeoutError,
+    tokenAuth,
+} from '../src/index.js'
+import { exposed } from './support/expose.js'
 import { hang, json, only, stubFetch } from './support/fetch.js'
 
 const url = 'https://example.com'
@@ -54,5 +64,32 @@ describe('createClient', () => {
         const { fetch } = stubFetch([json(404, { exc_type: 'DoesNotExistError' })])
         const frappe = createClient({ url, fetch })
         await expect(frappe.request({ path: '/api/resource/ToDo/nope' })).rejects.toBeInstanceOf(NotFoundError)
+    })
+
+    it('exposes the auth namespace on the frozen client', () => {
+        const frappe = createClient({ url })
+        expect(Object.keys(frappe)).toEqual(['url', 'siteName', 'request', 'auth'])
+        expect(Object.keys(frappe.auth)).toEqual(['login', 'logout', 'currentUser'])
+        expect(Object.isFrozen(frappe.auth)).toBe(true)
+    })
+
+    it.each([
+        ['tokenAuth', tokenAuth({ apiKey: 'key', apiSecret: 'SECRET9f2c' })],
+        ['bearerAuth', bearerAuth({ token: () => 'SECRET9f2c' })],
+        ['sessionAuth', sessionAuth({ csrfToken: 'SECRET9f2c' })],
+    ])('never exposes a %s credential, even after requests', async (_title, auth) => {
+        const sid = 'sid=SECRET9f2c; Path=/'
+        const { fetch, requests } = stubFetch([
+            json(200, { message: 'Administrator' }, [['set-cookie', sid]]),
+            json(200, { message: 'ok' }),
+        ])
+        const frappe = createClient({ url, fetch, auth })
+        await frappe.request({ path: '/api/method/frappe.auth.get_logged_user' })
+        await frappe.request({ method: 'POST', path: '/api/method/frappe.ping' })
+        // The credential was sent...
+        expect([...(requests[1]?.headers.values() ?? [])].join(' ')).toContain('SECRET9f2c')
+        // ...and cannot be read back.
+        expect(exposed(frappe)).not.toContain('SECRET9f2c')
+        expect(exposed(auth)).not.toContain('SECRET9f2c')
     })
 })

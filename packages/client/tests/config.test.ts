@@ -1,7 +1,9 @@
 import { describe, expect, it } from 'vitest'
 
+import { tokenAuth } from '../src/auth/token.js'
 import { type ClientOptions, resolveConfig } from '../src/config.js'
 import { ConfigurationError } from '../src/errors.js'
+import { exposed } from './support/expose.js'
 
 const url = 'https://example.com'
 
@@ -18,20 +20,24 @@ describe('resolveConfig', () => {
             timeout: 30_000,
             siteName: undefined,
             fetch: undefined,
+            auth: undefined,
         })
     })
 
     it('keeps every option it was given', () => {
         const fetch = (): Promise<Response> => Promise.resolve(new Response())
-        expect(resolveConfig({ url, headers: { 'X-Trace': '1' }, timeout: 0, siteName: 'site1.local', fetch })).toEqual(
-            {
-                url,
-                headers: { 'X-Trace': '1' },
-                timeout: 0,
-                siteName: 'site1.local',
-                fetch,
-            },
-        )
+        const auth = tokenAuth({ apiKey: 'key', apiSecret: 'secret' })
+        expect(
+            resolveConfig({ url, headers: { 'X-Trace': '1' }, timeout: 0, siteName: 'site1.local', fetch, auth }),
+        ).toEqual({
+            url,
+            headers: { 'X-Trace': '1' },
+            timeout: 0,
+            siteName: 'site1.local',
+            fetch,
+            auth,
+        })
+        expect(resolveConfig({ url, auth }).auth).toBe(auth)
     })
 
     it('freezes the config and a copy of the headers', () => {
@@ -113,7 +119,12 @@ describe('resolveConfig', () => {
         },
     )
 
-    it.each([{ 'Bad Name': 'x' }, { 'X-A': 'line\nbreak' }])('rejects invalid header syntax %o', (headers) => {
+    it.each([
+        [{ 'Bad Name': 'x' }, 'A header has an invalid name.'],
+        [{ 'X-A': 'line\nbreak' }, 'The "X-A" header has an invalid value.'],
+        [{ Authorization: 'token key:SECRET9f2c\u0000' }, 'The "Authorization" header has an invalid value.'],
+        [{ 'token key:SECRET9f2c': 'x' }, 'A header has an invalid name.'],
+    ])('rejects invalid header syntax %o, never quoting it', (headers, cause) => {
         let error: unknown
         try {
             resolveConfig({ url, headers })
@@ -122,10 +133,86 @@ describe('resolveConfig', () => {
         }
         expect(error).toBeInstanceOf(ConfigurationError)
         expect(error).toMatchObject({ message: '`headers` contains an invalid header name or value.' })
-        expect((error as Error).cause).toBeInstanceOf(TypeError)
+        expect((error as Error).cause).toMatchObject({ name: 'TypeError', message: cause })
+        expect(exposed(error)).not.toContain('SECRET9f2c')
+        expect(exposed(error)).not.toContain('break')
     })
 
     it('rejects a fetch that is not a function', () => {
         expect(() => resolveUntyped({ url, fetch: 'fetch' })).toThrow('`fetch` must be a function')
+    })
+
+    it.each([
+        [
+            'a plain object literal',
+            {
+                apply() {
+                    // nothing to do
+                },
+            },
+        ],
+        [
+            'one with every hook',
+            {
+                apply() {
+                    // nothing to do
+                },
+                credentials: 'include',
+                onResponse() {
+                    // nothing to do
+                },
+                onUnauthorized: () => true,
+                clear() {
+                    // nothing to do
+                },
+            },
+        ],
+        [
+            'a class instance',
+            new (class {
+                apply(): void {
+                    // nothing to do
+                }
+            })(),
+        ],
+    ])('accepts %s as auth', (_title, auth) => {
+        expect(resolveUntyped({ url, auth }).auth).toBe(auth)
+    })
+
+    it.each([
+        ['API credentials instead of a strategy', { apiKey: 'key', apiSecret: 'SECRET9f2c' }],
+        ['null', null],
+        ['a string', 'token key:SECRET9f2c'],
+        ['a function', () => 'SECRET9f2c'],
+        [
+            'a hook that is not a function',
+            {
+                apply() {
+                    // nothing to do
+                },
+                onResponse: 'SECRET9f2c',
+            },
+        ],
+        [
+            'an unknown credentials mode',
+            {
+                apply() {
+                    // nothing to do
+                },
+                credentials: 'always',
+            },
+        ],
+    ])('rejects %s as auth, without echoing it', (_title, auth) => {
+        let error: unknown
+        try {
+            resolveUntyped({ url, auth })
+        } catch (caught) {
+            error = caught
+        }
+        expect(error).toBeInstanceOf(ConfigurationError)
+        expect(error).toMatchObject({
+            message: '`auth` must be an AuthStrategy, such as tokenAuth({ apiKey, apiSecret }).',
+        })
+        expect(exposed(error)).not.toContain('SECRET9f2c')
     })
 })
