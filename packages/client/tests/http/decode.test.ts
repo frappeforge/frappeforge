@@ -12,7 +12,7 @@ import {
     ServerError,
     ValidationError,
 } from '../../src/errors.js'
-import { plainText, readJson, toError } from '../../src/http/decode.js'
+import { plainText, readJson, readMember, toError } from '../../src/http/decode.js'
 
 /** A response recorded from a real Frappe site, with what the client must make of it. */
 interface ResponseFixture {
@@ -117,6 +117,36 @@ describe('readJson', () => {
     it('says so when the content type is missing', async () => {
         const response = new Response(new Blob(['not json']))
         await expect(readJson(response, context)).rejects.toThrow('received an unknown content type.')
+    })
+})
+
+describe('readMember', () => {
+    const isString = (value: unknown): value is string => typeof value === 'string'
+
+    it('returns `message` or `data` when it is of the expected kind', async () => {
+        const read = readMember('message', isString, 'a string')
+        await expect(read(new Response('{"message":"pong"}'), context)).resolves.toBe('pong')
+        const data = readMember('data', Array.isArray, 'a list')
+        await expect(data(new Response('{"data":[1]}'), context)).resolves.toEqual([1])
+    })
+
+    it.each([
+        ['a value of another kind', '{"message":42}'],
+        ['a body without the member', '{"data":"pong"}'],
+        ['a body that is not an object', '["pong"]'],
+        ['an empty body', ''],
+    ])('rejects %s', async (_title, body) => {
+        const error = await readMember(
+            'message',
+            isString,
+            'a string',
+        )(new Response(body), context).catch((error: unknown) => error)
+        expect(error).toBeInstanceOf(FrappeError)
+        expect(error).toMatchObject({
+            status: 200,
+            request: context,
+            message: `Expected a string in \`message\` from POST ${site}/api/resource/Task.`,
+        })
     })
 })
 

@@ -66,11 +66,13 @@ describe('createClient', () => {
         await expect(frappe.request({ path: '/api/resource/ToDo/nope' })).rejects.toBeInstanceOf(NotFoundError)
     })
 
-    it('exposes the auth namespace on the frozen client', () => {
+    it('exposes the auth and doc namespaces on the frozen client', () => {
         const frappe = createClient({ url })
-        expect(Object.keys(frappe)).toEqual(['url', 'siteName', 'request', 'auth'])
+        expect(Object.keys(frappe)).toEqual(['url', 'siteName', 'request', 'auth', 'doc'])
         expect(Object.keys(frappe.auth)).toEqual(['login', 'logout', 'currentUser'])
         expect(Object.isFrozen(frappe.auth)).toBe(true)
+        expect(Object.keys(frappe.doc)).toEqual(['get', 'getSingle', 'list', 'count', 'paginate'])
+        expect(Object.isFrozen(frappe.doc)).toBe(true)
     })
 
     it.each([

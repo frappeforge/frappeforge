@@ -1,13 +1,7 @@
 // `frappe.auth`: sign in, sign out, and who is signed in.
 
-import {
-    AuthenticationError,
-    ConfigurationError,
-    FrappeError,
-    type FrappeRequestContext,
-    PermissionError,
-} from '../errors.js'
-import { isRecord, readJson } from '../http/decode.js'
+import { AuthenticationError, ConfigurationError, type FrappeRequestContext, PermissionError } from '../errors.js'
+import { isRecord, readJson, readMember } from '../http/decode.js'
 import type { Send } from '../http/send.js'
 import type { RequestOptions } from '../types.js'
 
@@ -101,7 +95,11 @@ export function createAuthNamespace(send: Send, clear: () => void): AuthNamespac
         },
         currentUser: async (options: RequestOptions = {}): Promise<string | null> => {
             try {
-                const user = await send({ path: '/api/method/frappe.auth.get_logged_user' }, options, readMessage)
+                const user = await send(
+                    { path: '/api/method/frappe.auth.get_logged_user' },
+                    options,
+                    readMember('message', isString, 'a string'),
+                )
                 return user === 'Guest' ? null : user
             } catch (error) {
                 // Guest gets 403 here, and a rejected token 401.
@@ -130,13 +128,6 @@ async function readLogin(response: Response, context: FrappeRequestContext): Pro
     throw new AuthenticationError(message, { status: response.status, request: context })
 }
 
-/** The `message` of a `/api/method/` response, which must be a string here. */
-async function readMessage(response: Response, context: FrappeRequestContext): Promise<string> {
-    const body = await readJson(response, context)
-    const message = isRecord(body) ? body['message'] : undefined
-    if (typeof message === 'string') return message
-    throw new FrappeError(`Expected a string message from ${context.method} ${context.url}.`, {
-        status: response.status,
-        request: context,
-    })
+function isString(value: unknown): value is string {
+    return typeof value === 'string'
 }

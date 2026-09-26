@@ -71,10 +71,19 @@ export class ConflictError extends FrappeError {
 }
 
 // @public
-export function createClient(options: ClientOptions): FrappeClient;
+export function createClient<D extends object = RegisteredDocTypes>(options: ClientOptions): FrappeClient<D>;
 
 // @public
 export type DocInput<T> = { [K in keyof T as K extends ServerField ? never : K]?: NonNullable<T[K]> extends readonly (infer C extends FrappeDoc)[] ? readonly DocInput<C>[] : T[K]; };
+
+// @public
+export interface DocNamespace<D extends object = RegisteredDocTypes> {
+    readonly count: <K extends DocTypeName<D>>(doctype: K, filters?: Filters<DocOf<D, K>>, options?: RequestOptions) => Promise<number>;
+    readonly get: <K extends DocTypeName<D>>(doctype: K, name: string, options?: RequestOptions) => Promise<DocOf<D, K>>;
+    readonly getSingle: <K extends DocTypeName<D>>(doctype: K, options?: RequestOptions) => Promise<DocOf<D, K>>;
+    readonly list: <K extends DocTypeName<D>, const F extends FieldSelection<DocOf<D, K>> = readonly ["name"]>(doctype: K, args?: ListArgs<DocOf<D, K>, F>, options?: RequestOptions) => Promise<ListRow<DocOf<D, K>, F>[]>;
+    readonly paginate: <K extends DocTypeName<D>, const F extends FieldSelection<DocOf<D, K>> = readonly ["name"]>(doctype: K, args?: PaginateArgs<DocOf<D, K>, F>, options?: RequestOptions) => AsyncGenerator<ListRow<DocOf<D, K>, F extends readonly ["*"] ? F : readonly [...F, "name"]>, void, undefined>;
+}
 
 // @public
 export type DocOf<D extends object, K extends string> = K extends keyof D ? D[K] extends FrappeDoc ? D[K] : UnknownDoc : UnknownDoc;
@@ -106,8 +115,9 @@ export type FilterTuple<T> = readonly [field: ListFieldOf<T>, ...condition: Filt
 } ? readonly [docType: N, field: ListFieldOf<T>, ...condition: FilterCondition] : never) | ChildFilterTuple<T>;
 
 // @public
-export interface FrappeClient {
+export interface FrappeClient<D extends object = RegisteredDocTypes> {
     readonly auth: AuthNamespace;
+    readonly doc: DocNamespace<D>;
     readonly request: <T = unknown>(init: RawRequest, options?: RequestOptions) => Promise<T>;
     readonly siteName: string | undefined;
     readonly url: string;
@@ -177,7 +187,9 @@ export interface ListArgs<T, F extends FieldSelection<T> = FieldSelection<T>> {
     offset?: number;
     orderBy?: OrderBy<T> | readonly OrderBy<T>[];
     orFilters?: Filters<T>;
-    parent?: string;
+    parent?: string extends FieldOf<T> ? string : [T] extends [{
+        parent: string;
+    }] ? string : never;
 }
 
 // @public
@@ -206,6 +218,11 @@ export class NotFoundError extends FrappeError {
 export interface OrderBy<T> {
     field: ListFieldOf<T>;
     order?: "asc" | "desc";
+}
+
+// @public
+export interface PaginateArgs<T, F extends FieldSelection<T> = FieldSelection<T>> extends Omit<ListArgs<T, F>, "orderBy" | "groupBy" | "limit" | "offset"> {
+    pageSize?: number;
 }
 
 // @public
