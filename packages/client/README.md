@@ -7,6 +7,8 @@ Zero-dependency, `fetch`-native TypeScript client for the Frappe Framework REST 
 
 - **Typed errors.** Every failure is a `FrappeError` subclass that carries the server's own messages,
   and never its traceback.
+- **Authentication built in.** API keys, browser and Node sessions, and OAuth bearer tokens with
+  refresh — and no credential is ever visible when you log the client.
 - **Timeouts and cancellation built in.** A 30-second default, per-request overrides, and `AbortSignal`.
 - **No dependencies, no globals patched.** Bring your own `fetch` for tests or instrumentation.
 
@@ -27,13 +29,15 @@ const { message } = await frappe.request<{ message: string }>({ path: '/api/meth
 console.log(message) // "pong"
 ```
 
-To call as a user, send an API key and secret from **User → Settings → API Access**. Keep them on
+To call as a user, use an API key and secret from **User → Settings → API Access**. Keep them on
 the server: never ship them to a browser.
 
 ```ts
+import { createClient, tokenAuth } from '@frappeforge/client'
+
 const frappe = createClient({
     url: 'https://example.com',
-    headers: { Authorization: `token ${process.env.FRAPPE_API_KEY}:${process.env.FRAPPE_API_SECRET}` },
+    auth: tokenAuth({ apiKey: process.env.FRAPPE_API_KEY!, apiSecret: process.env.FRAPPE_API_SECRET! }),
 })
 
 const { data } = await frappe.request<{ data: { name: string; description: string } }>({
@@ -46,13 +50,14 @@ const { data } = await frappe.request<{ data: { name: string; description: strin
 `createClient()` checks its options at once and throws a `ConfigurationError` before any request is
 sent.
 
-| Option     | Default        | Description                                                                                                                                                                       |
-| ---------- | -------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `url`      | —              | Site URL. A path prefix is allowed (`https://example.com/frappe`); credentials, a query or a fragment are not.                                                                    |
-| `headers`  | `{}`           | Headers sent with every request.                                                                                                                                                  |
-| `timeout`  | `30000`        | Time budget per request in milliseconds, including reading the response. `0` disables it.                                                                                         |
-| `siteName` | —              | Sends `X-Frappe-Site-Name`, for a site reached through a host name that differs from the site name (visible ASCII, e.g. `site1.local`). In browsers it triggers a CORS preflight. |
-| `fetch`    | global `fetch` | A fetch-compatible function, for tests or instrumentation. It must honor `request.signal`.                                                                                        |
+| Option     | Default        | Description                                                                                                                                                                            |
+| ---------- | -------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `url`      | —              | Site URL. A path prefix is allowed (`https://example.com/frappe`); credentials, a query or a fragment are not.                                                                         |
+| `headers`  | `{}`           | Headers sent with every request.                                                                                                                                                       |
+| `timeout`  | `30000`        | Time budget per attempt in milliseconds, including reading the response; a replay after a `401` gets its own, and a strategy's `token()` or `refresh()` is not timed. `0` disables it. |
+| `siteName` | —              | Sends `X-Frappe-Site-Name`, for a site reached through a host name that differs from the site name (visible ASCII, e.g. `site1.local`). In browsers it triggers a CORS preflight.      |
+| `fetch`    | global `fetch` | A fetch-compatible function, for tests or instrumentation. It must honor `request.signal`.                                                                                             |
+| `auth`     | —              | How requests authenticate: `tokenAuth`, `sessionAuth`, `bearerAuth` or your own `AuthStrategy` ([Authentication](#authentication)). Without it, requests run as Guest.                 |
 
 ## Requests
 
@@ -95,7 +100,7 @@ reading status codes:
 | `PermissionError`     | `403`: not allowed, or not signed in (Frappe answers a guest with 403).           |
 | `NotFoundError`       | `404`: no such document, method or route.                                         |
 | `ConflictError`       | `409`: a document with this name already exists.                                  |
-| `AuthenticationError` | `401`: invalid credentials.                                                       |
+| `AuthenticationError` | `401`: invalid credentials; also a `login()` that did not complete.               |
 | `RateLimitError`      | `429`: too many requests; `retryAfter` holds the wait in milliseconds, when sent. |
 | `ServerError`         | `5xx`: the server, or a proxy in front of it, failed.                             |
 | `TimeoutError`        | The request exceeded its timeout.                                                 |
@@ -129,6 +134,89 @@ try {
   filters and arguments, is never included.
 - `JSON.stringify(error)` gives a loggable object. The server's traceback is never read into an error.
 
+## Authentication
+
+| Strategy                           | For                                          | Sends                                                                      |
+| ---------------------------------- | -------------------------------------------- | -------------------------------------------------------------------------- |
+| `tokenAuth({ apiKey, apiSecret })` | Servers, scripts and sync jobs               | `Authorization: token <key>:<secret>`                                      |
+| `sessionAuth()`                    | Browser apps, and password sign-in from Node | The session cookie, and the CSRF token on `POST`, `PUT`, `PATCH`, `DELETE` |
+| `bearerAuth({ token, refresh })`   | OAuth access tokens                          | `Authorization: Bearer <token>`                                            |
+
+Credentials are held in closures: `JSON.stringify` and `console.log` of a strategy, a client or an
+error the client throws never show them. A strategy's options are checked when it is created, and a
+mistake is a `ConfigurationError` that never quotes the value; so is an invalid header, anywhere.
+
+### Sessions
+
+```ts
+import { createClient, sessionAuth } from '@frappeforge/client'
+
+const frappe = createClient({ url: 'https://example.com', auth: sessionAuth() })
+
+const { fullName, homePage } = await frappe.auth.login({ username: 'jane@example.com', password })
+const user = await frappe.auth.currentUser() // 'jane@example.com', or null for Guest
+await frappe.auth.logout()
+```
+
+The same code works in both places:
+
+- **In a browser**, the browser keeps the session cookie; requests are sent with
+  `credentials: 'include'`. The CSRF token comes from the `csrf_token` global that Frappe sets on the
+  pages it renders, or from the `csrfToken` option (a string, or a function returning one). An
+  unrendered `{{ csrf_token }}` placeholder, as in a dev server's `index.html`, is ignored. For a
+  different origin, the site must allow it in `allow_cors`. In a page served by Frappe, reload after
+  `login()` so that the page's token belongs to the new session, as Frappe's own login page does.
+- **In Node**, which keeps no cookies, the strategy keeps the cookies it receives and sends them
+  back. A session created through the API needs no CSRF token.
+
+`login()` rejects with `AuthenticationError` for wrong credentials, and also when Frappe asks for a
+second factor or for a new password, since no session exists then. `logout()` forgets the stored
+cookies even if the request fails.
+
+An expired session is not a `401`: Frappe runs the request as Guest, and protected endpoints answer
+`403`. After a `PermissionError`, `currentUser()` tells "signed out" (`null`) from "not allowed".
+
+### Bearer tokens and refresh
+
+```ts
+import { bearerAuth, createClient } from '@frappeforge/client'
+
+const frappe = createClient({
+    url: 'https://example.com',
+    auth: bearerAuth({
+        token: () => tokens.access, // read before every request
+        refresh: async () => {
+            tokens = await renewTokens(tokens.refresh)
+            return true // send the failed request again
+        },
+    }),
+})
+```
+
+After a `401`, `refresh` is called and the request is sent once more with the new token. Requests
+that fail together share one `refresh` call. When `token()` no longer returns a usable token (the
+user signed out meanwhile), the `401` surfaces as it is. The timeout covers each attempt, not
+`token()` or `refresh()`; the request's `signal` cancels those too.
+
+### Your own strategy
+
+Implement `AuthStrategy`: `apply(headers, method)` adds credentials before every attempt, and the
+optional `credentials`, `onResponse`, `onUnauthorized` and `clear` cover cookies, refresh and
+sign-out. What a hook throws reaches the caller unchanged, so keep credentials out of your own error
+messages.
+
+```ts
+import { type AuthStrategy, createClient } from '@frappeforge/client'
+
+const vaultAuth: AuthStrategy = {
+    async apply(headers) {
+        const { key, secret } = await vault.read('frappe')
+        headers.set('Authorization', `token ${key}:${secret}`)
+    },
+}
+const frappe = createClient({ url: 'https://example.com', auth: vaultAuth })
+```
+
 ## Timeouts and cancellation
 
 ```ts
@@ -143,7 +231,8 @@ await pending // rejects with CancelledError; the abort reason is its `cause`
 ```
 
 A timeout rejects with `TimeoutError` and a cancellation with `CancelledError`, so a user navigating
-away is never reported as a failure. `options.headers` adds or overrides headers for one request.
+away is never reported as a failure. The timeout covers each attempt; the signal covers the whole
+call, including a strategy that is still fetching a token. `options.headers` adds or overrides headers for one request.
 
 ## Testing and instrumentation
 

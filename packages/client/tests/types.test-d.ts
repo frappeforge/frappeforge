@@ -1,6 +1,18 @@
 import { assertType, describe, expectTypeOf, it } from 'vitest'
 
-import { createClient, type FrappeClient } from '../src/index.js'
+import {
+    type AuthNamespace,
+    type AuthStrategy,
+    bearerAuth,
+    type BearerAuthOptions,
+    createClient,
+    type FrappeClient,
+    type LoginResult,
+    sessionAuth,
+    type SessionAuthOptions,
+    tokenAuth,
+    type TokenAuthOptions,
+} from '../src/index.js'
 import type {
     AbsentColumn,
     ChildFilterTuple,
@@ -549,5 +561,72 @@ describe('request', () => {
         expectTypeOf(query).toExtend<RawRequest['query']>()
         // @ts-expect-error a symbol cannot be encoded
         assertType<QueryValue>(Symbol('x'))
+    })
+})
+
+describe('auth', () => {
+    it('lets a minimal object literal implement AuthStrategy', () => {
+        const minimal = {
+            apply() {
+                // nothing to do
+            },
+        } satisfies AuthStrategy
+        expectTypeOf(minimal).toExtend<AuthStrategy>()
+        const asyncOne: AuthStrategy = {
+            async apply(headers, method) {
+                expectTypeOf(headers).toEqualTypeOf<Headers>()
+                expectTypeOf(method).toEqualTypeOf<string>()
+                await Promise.resolve()
+            },
+            onUnauthorized: async (request) => {
+                expectTypeOf(request).toEqualTypeOf<Request>()
+                return Promise.resolve(true)
+            },
+        }
+        expectTypeOf(asyncOne).toExtend<AuthStrategy>()
+    })
+
+    it('lets a class implement AuthStrategy', () => {
+        class Vault implements AuthStrategy {
+            readonly credentials = 'omit'
+            apply(headers: Headers): void {
+                headers.set('Authorization', 'token a:b')
+            }
+            clear(): void {
+                // nothing to do
+            }
+        }
+        expectTypeOf(new Vault()).toExtend<AuthStrategy>()
+    })
+
+    it('spells out the credentials modes', () => {
+        expectTypeOf<NonNullable<AuthStrategy['credentials']>>().toEqualTypeOf<'include' | 'omit' | 'same-origin'>()
+        const apply = (): void => undefined
+        // @ts-expect-error not a credentials mode
+        assertType<AuthStrategy>({ apply, credentials: 'always' })
+    })
+
+    it('returns an AuthStrategy from every strategy, with typed options', () => {
+        expectTypeOf(tokenAuth).returns.toEqualTypeOf<AuthStrategy>()
+        expectTypeOf(bearerAuth).returns.toEqualTypeOf<AuthStrategy>()
+        expectTypeOf(sessionAuth).returns.toEqualTypeOf<AuthStrategy>()
+        expectTypeOf(tokenAuth).parameter(0).toEqualTypeOf<TokenAuthOptions>()
+        expectTypeOf<BearerAuthOptions['token']>().toEqualTypeOf<string | (() => string | Promise<string>)>()
+        expectTypeOf<SessionAuthOptions['csrfToken']>().toEqualTypeOf<string | (() => string | undefined) | undefined>()
+        bearerAuth({ token: async () => Promise.resolve('abc'), refresh: async () => Promise.resolve(true) })
+        sessionAuth()
+        // @ts-expect-error the secret is required
+        tokenAuth({ apiKey: 'key' })
+    })
+
+    it('types the auth namespace', () => {
+        const frappe = createClient({ url: 'https://example.com', auth: sessionAuth() })
+        expectTypeOf(frappe.auth).toEqualTypeOf<AuthNamespace>()
+        expectTypeOf(frappe.auth.login({ username: 'a', password: 'b' })).toEqualTypeOf<Promise<LoginResult>>()
+        expectTypeOf<LoginResult>().toEqualTypeOf<{ fullName: string; homePage: string }>()
+        expectTypeOf(frappe.auth.logout()).toEqualTypeOf<Promise<void>>()
+        expectTypeOf(frappe.auth.currentUser()).toEqualTypeOf<Promise<string | null>>()
+        // @ts-expect-error a password is required
+        void frappe.auth.login({ username: 'a' })
     })
 })

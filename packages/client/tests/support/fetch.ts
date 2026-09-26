@@ -21,12 +21,14 @@ export function stubFetch(replies: Reply[] = []): {
     return { fetch, requests }
 }
 
-/** A JSON response. */
-export function json(status: number, body: unknown, headers: Record<string, string> = {}): Response {
-    return new Response(JSON.stringify(body), {
-        status,
-        headers: { 'content-type': 'application/json', ...headers },
-    })
+/**
+ * A JSON response. `headers` may repeat a name, as `[['set-cookie', a], ['set-cookie', b]]`; the
+ * content type is `application/json` unless it sets one.
+ */
+export function json(status: number, body: unknown, headers: HeadersInit = {}): Response {
+    const all = new Headers(headers)
+    if (!all.has('content-type')) all.set('content-type', 'application/json')
+    return new Response(JSON.stringify(body), { status, headers: all })
 }
 
 /** A text response, HTML by default. */

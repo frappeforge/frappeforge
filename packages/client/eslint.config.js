@@ -42,22 +42,37 @@ export default createConfig(import.meta.dirname, [
             },
         },
     },
-    // Layers, enforced: `http/` is the bottom, `config.ts` sits on it, `client.ts` on both, and only
-    // `index.ts` imports `client.ts`. In flat config a later `no-restricted-imports` replaces the
-    // earlier options for the same files, so every layer repeats the zero-dependency pattern.
+    // Layers, enforced: `http/` is the bottom (it knows only the strategy's type), `auth/` stands
+    // alone, `resources/` sit on `http/`, `config.ts` on `http/` and `auth/`, `client.ts` on all of
+    // them, and only `index.ts` imports `client.ts`. In flat config a later `no-restricted-imports`
+    // replaces the earlier options for the same files, so every layer repeats the zero-dependency
+    // pattern.
     imports(['src/**/*.ts'], { regex: '(^|/)client\\.js$', message: 'Only src/index.ts imports client.ts.' }),
     imports(['src/index.ts']),
     imports(['src/http/**/*.ts'], {
-        regex: '^\\.\\./(?!(errors|types)\\.js$)',
-        message: 'http/ is the bottom layer: it imports only ../errors.js, ../types.js and its siblings.',
+        regex: '^\\.\\./(?!(errors|types|auth/strategy)\\.js$)',
+        message:
+            'http/ is the bottom layer: it imports only ../errors.js, ../types.js, ../auth/strategy.js and its siblings.',
     }),
+    imports(['src/auth/**/*.ts'], {
+        regex: '^\\.\\./(?!errors\\.js$)',
+        message: 'auth/ imports only ../errors.js and its siblings.',
+    }),
+    imports(
+        ['src/resources/**/*.ts'],
+        {
+            regex: '^\\.\\./(?!(errors|types)\\.js$|http/)',
+            message: 'resources/ import only ../http/, ../errors.js and ../types.js.',
+        },
+        { regex: '^\\./', message: 'A resource never imports another resource.' },
+    ),
     imports(['src/config.ts'], {
-        regex: '^\\./(?!(errors|types)\\.js$|http/)',
-        message: 'config.ts imports only errors.js, types.js and http/.',
+        regex: '^\\./(?!(errors|types|auth/strategy)\\.js$|http/)',
+        message: 'config.ts imports only errors.js, types.js, auth/strategy.js and http/.',
     }),
     imports(['src/client.ts'], {
-        regex: '^\\./(?!(config|errors|types)\\.js$|http/)',
-        message: 'client.ts imports only config.js, errors.js, types.js and http/.',
+        regex: '^\\./(?!(config|errors|types)\\.js$|http/|resources/)',
+        message: 'client.ts imports only config.js, errors.js, types.js, http/ and resources/.',
     }),
     {
         // One fetch call site: headers, timeouts and error mapping cannot be bypassed.

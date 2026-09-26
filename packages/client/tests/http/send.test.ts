@@ -1,12 +1,17 @@
+import { getEventListeners } from 'node:events'
+
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
+import type { AuthStrategy } from '../../src/auth/strategy.js'
 import { resolveConfig } from '../../src/config.js'
 import {
+    AuthenticationError,
     CancelledError,
     ConfigurationError,
     FrappeError,
     NetworkError,
     NotFoundError,
+    PermissionError,
     ServerError,
     TimeoutError,
     ValidationError,
@@ -14,17 +19,19 @@ import {
 import { readJson } from '../../src/http/decode.js'
 import { send } from '../../src/http/send.js'
 import type { RawRequest, RequestOptions } from '../../src/types.js'
+import { deferred, exposed } from '../support/expose.js'
 import { hang, hangBody, json, only, type Reply, stubFetch, text } from '../support/fetch.js'
 
 const url = 'https://example.com'
 const ping = { path: '/api/method/frappe.ping' } as const
+const SECRET = 'SECRET5e1d0b'
 
 /** Sends one request through a client configured with a stub answering `replies`. */
 function sendWith(
     replies: Reply[],
     init: RawRequest = ping,
     options: RequestOptions = {},
-    clientOptions: { headers?: Record<string, string>; siteName?: string; timeout?: number } = {},
+    clientOptions: { headers?: Record<string, string>; siteName?: string; timeout?: number; auth?: AuthStrategy } = {},
 ) {
     const stub = stubFetch(replies)
     const config = resolveConfig({ url, fetch: stub.fetch, ...clientOptions })
@@ -132,6 +139,28 @@ describe('send: request', () => {
         })
     })
 
+    it.each([
+        ['post', 'POST'],
+        ['patch', 'PATCH'],
+        ['Delete', 'DELETE'],
+    ])('upper-cases the method %s from JavaScript, for fetch, the strategy and errors alike', async (method, sent) => {
+        const seen: string[] = []
+        const auth: AuthStrategy = {
+            apply(_headers, applied) {
+                seen.push(applied)
+            },
+        }
+        const { result, requests } = sendWith(
+            [json(404, {})],
+            { method: method as 'POST', path: '/api/x' },
+            {},
+            { auth },
+        )
+        expect(await rejection(result)).toMatchObject({ request: { method: sent } })
+        expect(only(requests).method).toBe(sent)
+        expect(seen).toEqual([sent])
+    })
+
     it('sends X-Frappe-Site-Name only when configured', async () => {
         const { result, requests } = sendWith([json(200, {})])
         await result
@@ -153,6 +182,7 @@ describe('send: requests that cannot be built', () => {
         ['a path with a query', { path: '/api/x?a=1' }],
         ['a path with a ".." segment', { path: '/../admin' }],
         ['a query value JSON cannot encode', { path: '/api/x', query: { filters: { a: 1n } } }],
+        ['a method that is not a string', { method: 1 as unknown as 'GET', path: '/api/x' }],
     ])('rejects %s before calling fetch', async (_case, init: RawRequest) => {
         const { result, requests } = sendWith([], init)
         await expect(result).rejects.toThrow(ConfigurationError)
@@ -180,6 +210,14 @@ describe('send: requests that cannot be built', () => {
         expect((error as Error).message).not.toContain('break')
         expect((error as Error).cause).toBeInstanceOf(TypeError)
         expect(requests).toHaveLength(0)
+    })
+
+    it('never lets an invalid header value into the error, not even through its cause', async () => {
+        const { result } = sendWith([], ping, { headers: { Authorization: `token key:${SECRET}\u0000` } })
+        const error = await rejection(result)
+        expect(error).toBeInstanceOf(ConfigurationError)
+        expect((error as Error).cause).toMatchObject({ message: 'The "Authorization" header has an invalid value.' })
+        expect(exposed(error)).not.toContain(SECRET)
     })
 
     // A mistake in the request is reported as one even when the caller has already given up on it.
@@ -403,5 +441,417 @@ describe('send: failures', () => {
         const error = await rejection(sendWith([text(200, '<!doctype html>')]).result)
         expect(error).toBeInstanceOf(FrappeError)
         expect(error).toMatchObject({ name: 'FrappeError', status: 200 })
+    })
+})
+
+describe('send: authentication', () => {
+    const unauthorized = (): Response =>
+        json(401, {
+            exc_type: 'AuthenticationError',
+            _server_messages: JSON.stringify([JSON.stringify({ message: 'Invalid token' })]),
+        })
+
+    /** A strategy that sends `token <n>`, counting attempts, and renews on a 401 as `renew` says. */
+    function counting(renew?: (request: Request) => unknown) {
+        let attempt = 0
+        const seen: Response[] = []
+        const strategy: AuthStrategy = {
+            apply(headers, method) {
+                attempt += 1
+                headers.set('Authorization', `token ${String(attempt)}`)
+                headers.set('X-Method', method)
+            },
+            onResponse(response) {
+                expect(response.bodyUsed).toBe(false)
+                seen.push(response)
+            },
+            ...(renew === undefined ? {} : { onUnauthorized: renew as (request: Request) => boolean }),
+        }
+        return { strategy, seen, attempts: () => attempt }
+    }
+
+    it('applies the strategy last, so its headers win over the client and the request', async () => {
+        const { strategy } = counting()
+        const { result, requests } = sendWith(
+            [json(200, {})],
+            { method: 'POST', path: '/api/x', body: {} },
+            { headers: { Authorization: 'from the request' } },
+            { headers: { Authorization: 'from the client', 'X-Client': 'client' }, auth: strategy },
+        )
+        await result
+        expect(Object.fromEntries(only(requests).headers)).toEqual({
+            accept: 'application/json',
+            authorization: 'token 1',
+            'content-type': 'application/json',
+            'x-client': 'client',
+            'x-method': 'POST',
+        })
+    })
+
+    it('sends the request in the same tick when apply is synchronous', async () => {
+        const { strategy } = counting()
+        const { result, requests } = sendWith([json(200, {})], ping, {}, { auth: strategy })
+        expect(requests).toHaveLength(1)
+        await result
+    })
+
+    it('awaits an async apply', async () => {
+        const auth: AuthStrategy = {
+            async apply(headers) {
+                await Promise.resolve()
+                headers.set('Authorization', 'late')
+            },
+        }
+        const { result, requests } = sendWith([json(200, {})], ping, {}, { auth })
+        await result
+        expect(only(requests).headers.get('authorization')).toBe('late')
+    })
+
+    it('passes what apply throws through unchanged, without calling fetch', async () => {
+        const failure = new Error('vault is sealed')
+        const auth: AuthStrategy = {
+            apply() {
+                throw failure
+            },
+        }
+        const { result, requests } = sendWith([json(200, {})], ping, {}, { auth })
+        expect(await rejection(result)).toBe(failure)
+        expect(requests).toHaveLength(0)
+    })
+
+    it('reports a header the strategy cannot set as ConfigurationError', async () => {
+        const auth: AuthStrategy = {
+            apply(headers) {
+                // A Headers object that throws only once the Request copies it.
+                Object.defineProperty(headers, Symbol.iterator, {
+                    value: () => {
+                        throw new TypeError('broken')
+                    },
+                })
+            },
+        }
+        const { result, requests } = sendWith([json(200, {})], ping, {}, { auth })
+        expect(await rejection(result)).toBeInstanceOf(ConfigurationError)
+        expect(requests).toHaveLength(0)
+    })
+
+    it.each([
+        [
+            'an invalid value',
+            'Authorization',
+            `token key:${SECRET}\u0000`,
+            'The "Authorization" header has an invalid value.',
+        ],
+        ['an invalid name', `token key:${SECRET}`, 'x', 'A header has an invalid name.'],
+    ])('lets apply fail on %s with a TypeError that never quotes it', async (_case, name, value, message) => {
+        const auth: AuthStrategy = {
+            apply(headers) {
+                headers.append(name, value)
+            },
+        }
+        const { result, requests } = sendWith([json(200, {})], ping, {}, { auth })
+        const error = await rejection(result)
+        expect(error).toBeInstanceOf(TypeError)
+        expect((error as Error).message).toBe(message)
+        expect(exposed(error)).not.toContain(SECRET)
+        expect(requests).toHaveLength(0)
+    })
+
+    it("sends the strategy's credentials mode, and the runtime default without one", async () => {
+        const auth: AuthStrategy = {
+            apply() {
+                // nothing to do
+            },
+            credentials: 'include',
+        }
+        const withAuth = sendWith([json(200, {})], ping, {}, { auth })
+        await withAuth.result
+        expect(only(withAuth.requests).credentials).toBe('include')
+        const without = sendWith([json(200, {})])
+        await without.result
+        expect(only(without.requests).credentials).toBe('same-origin')
+    })
+
+    it('shows onResponse every response before its body is read: 2xx, non-2xx, the 401 and the replay', async () => {
+        const { strategy, seen } = counting(() => true)
+        const success = sendWith([json(200, {})], ping, {}, { auth: strategy })
+        await success.result
+        const failure = sendWith([json(404, {})], ping, {}, { auth: strategy })
+        await rejection(failure.result)
+        const replayed = sendWith([unauthorized(), json(200, {})], ping, {}, { auth: strategy })
+        await replayed.result
+        expect(seen.map((response) => response.status)).toEqual([200, 404, 401, 200])
+    })
+
+    it('passes what onResponse throws through unchanged: the response did arrive', async () => {
+        const failure = new TypeError('response.headers.getSetCookie is not a function')
+        const auth: AuthStrategy = {
+            apply() {
+                // nothing to do
+            },
+            onResponse() {
+                throw failure
+            },
+        }
+        const { result } = sendWith([json(200, {})], ping, {}, { auth })
+        expect(await rejection(result)).toBe(failure)
+    })
+
+    it('never calls onUnauthorized once the caller has aborted', async () => {
+        const renew = vi.fn(() => true)
+        const controller = new AbortController()
+        const auth: AuthStrategy = {
+            apply() {
+                // nothing to do
+            },
+            onResponse() {
+                controller.abort()
+            },
+            onUnauthorized: renew,
+        }
+        const { result, requests } = sendWith([unauthorized()], ping, { signal: controller.signal }, { auth })
+        expect(await rejection(result)).toBeInstanceOf(CancelledError)
+        expect(renew).not.toHaveBeenCalled()
+        expect(requests).toHaveLength(1)
+    })
+
+    it('never calls apply when the signal is already aborted', async () => {
+        const apply = vi.fn()
+        const { result, requests } = sendWith(
+            [json(200, {})],
+            ping,
+            { signal: AbortSignal.abort() },
+            { auth: { apply } },
+        )
+        expect(await rejection(result)).toBeInstanceOf(CancelledError)
+        expect(apply).not.toHaveBeenCalled()
+        expect(requests).toHaveLength(0)
+    })
+
+    it.each([
+        ['a synchronous', false],
+        ['an async', true],
+    ])('does not send the request when %s apply itself aborts the signal', async (_case, async) => {
+        const controller = new AbortController()
+        const auth: AuthStrategy = {
+            apply() {
+                controller.abort()
+                return async ? Promise.resolve() : undefined
+            },
+        }
+        const { result, requests } = sendWith([json(200, {})], ping, { signal: controller.signal }, { auth })
+        expect(await rejection(result)).toBeInstanceOf(CancelledError)
+        expect(requests).toHaveLength(0)
+    })
+
+    it('watches the signal while an async apply runs, and stops once it has finished', async () => {
+        const controller = new AbortController()
+        let listening = 0
+        const auth: AuthStrategy = {
+            async apply(headers) {
+                await Promise.resolve()
+                listening = getEventListeners(controller.signal, 'abort').length
+                headers.set('Authorization', 'late')
+            },
+        }
+        const { result, requests } = sendWith([json(200, {})], ping, { signal: controller.signal }, { auth })
+        await result
+        expect(only(requests).headers.get('authorization')).toBe('late')
+        expect(listening).toBe(1)
+        expect(getEventListeners(controller.signal, 'abort')).toHaveLength(0)
+    })
+
+    it('replays a 401 once when onUnauthorized resolves true, calling apply again', async () => {
+        const renew = vi.fn(async (_request: Request) => Promise.resolve(true))
+        const { strategy, attempts } = counting(renew)
+        const { result, requests } = sendWith(
+            [unauthorized(), json(200, { message: 'ok' })],
+            ping,
+            {},
+            { auth: strategy },
+        )
+        await expect(result).resolves.toEqual({ message: 'ok' })
+        expect(requests.map((request) => request.headers.get('authorization'))).toEqual(['token 1', 'token 2'])
+        expect(attempts()).toBe(2)
+        expect(renew).toHaveBeenCalledTimes(1)
+        expect(renew.mock.calls[0]?.[0]).toBe(requests[0])
+    })
+
+    it('rebuilds the replay with the same JSON body', async () => {
+        const { strategy } = counting(() => true)
+        const body = { usr: 'Administrator', note: 'é ü' }
+        const { result, requests } = sendWith(
+            [unauthorized(), json(200, {})],
+            { method: 'POST', path: '/api/method/login', body },
+            {},
+            { auth: strategy },
+        )
+        await result
+        const [first, second] = requests
+        expect(await first?.text()).toBe(JSON.stringify(body))
+        expect(await second?.text()).toBe(JSON.stringify(body))
+        expect(second?.headers.get('content-type')).toBe('application/json')
+    })
+
+    it('rebuilds the replay with the same FormData, file included', async () => {
+        const { strategy } = counting(() => true)
+        const form = new FormData()
+        form.set('is_private', '1')
+        form.set('file', new Blob(['hello']), 'hello.txt')
+        const { result, requests } = sendWith(
+            [unauthorized(), json(200, {})],
+            { method: 'POST', path: '/api/method/upload_file', body: form },
+            {},
+            { auth: strategy },
+        )
+        await result
+        for (const request of requests) {
+            const received = await request.formData()
+            expect(received.get('is_private')).toBe('1')
+            expect(await (received.get('file') as File).text()).toBe('hello')
+        }
+        expect(requests).toHaveLength(2)
+    })
+
+    it.each([
+        ['there is no onUnauthorized', undefined],
+        ['it resolves false', () => false],
+        ['it resolves anything but true', () => 'yes'],
+    ])('does not replay a 401 when %s', async (_title, renew) => {
+        const { strategy } = counting(renew)
+        const { result, requests } = sendWith([unauthorized()], ping, {}, { auth: strategy })
+        const error = await rejection(result)
+        expect(error).toBeInstanceOf(AuthenticationError)
+        expect(error).toMatchObject({ message: 'Invalid token', status: 401 })
+        expect(requests).toHaveLength(1)
+    })
+
+    it('never calls onUnauthorized for other statuses', async () => {
+        const renew = vi.fn(() => true)
+        const { strategy } = counting(renew)
+        const { result } = sendWith([json(403, {})], ping, {}, { auth: strategy })
+        expect(await rejection(result)).toBeInstanceOf(PermissionError)
+        expect(renew).not.toHaveBeenCalled()
+    })
+
+    it("maps the replay's own 401 with the server's message, and does not replay again", async () => {
+        const renew = vi.fn(() => true)
+        const { strategy } = counting(renew)
+        const { result, requests } = sendWith([unauthorized(), unauthorized()], ping, {}, { auth: strategy })
+        expect(await rejection(result)).toMatchObject({ name: 'AuthenticationError', message: 'Invalid token' })
+        expect(requests).toHaveLength(2)
+        expect(renew).toHaveBeenCalledTimes(1)
+    })
+
+    it('passes what onUnauthorized throws through unchanged', async () => {
+        const failure = new Error('refresh failed')
+        const { strategy } = counting(() => Promise.reject(failure))
+        const { result, requests } = sendWith([unauthorized()], ping, {}, { auth: strategy })
+        expect(await rejection(result)).toBe(failure)
+        expect(requests).toHaveLength(1)
+    })
+
+    it('reads the replay through the same reader', async () => {
+        const { strategy } = counting(() => true)
+        const { result } = sendWith([unauthorized(), text(200, '<html></html>')], ping, {}, { auth: strategy })
+        expect(await rejection(result)).toBeInstanceOf(FrappeError)
+    })
+
+    describe('with fake timers', () => {
+        beforeEach(() => {
+            vi.useFakeTimers()
+        })
+        afterEach(() => {
+            vi.useRealTimers()
+        })
+
+        it('gives each attempt its own full timeout, and none to onUnauthorized', async () => {
+            const renewed = deferred<boolean>()
+            const { strategy } = counting(() => renewed.promise)
+            const firstAnswer = deferred<Response>()
+            const { result, requests } = sendWith(
+                [() => firstAnswer.promise, hang],
+                ping,
+                { timeout: 1000 },
+                { auth: strategy },
+            )
+            const settled = rejection(result)
+            await vi.advanceTimersByTimeAsync(900)
+            firstAnswer.resolve(unauthorized())
+            // The refresh takes longer than the budget: it is not timed.
+            await vi.advanceTimersByTimeAsync(5000)
+            expect(requests).toHaveLength(1)
+            renewed.resolve(true)
+            await vi.advanceTimersByTimeAsync(999)
+            expect(requests).toHaveLength(2)
+            await vi.advanceTimersByTimeAsync(1)
+            expect(await settled).toBeInstanceOf(TimeoutError)
+            expect(vi.getTimerCount()).toBe(0)
+        })
+
+        it('cancels while onUnauthorized is pending, without waiting for it or sending the replay', async () => {
+            const renewed = deferred<boolean>()
+            const { strategy } = counting(() => renewed.promise)
+            const controller = new AbortController()
+            const reason = new Error('navigated away')
+            const { result, requests } = sendWith(
+                [unauthorized()],
+                ping,
+                { signal: controller.signal },
+                { auth: strategy },
+            )
+            const settled = rejection(result)
+            await vi.advanceTimersByTimeAsync(0)
+            controller.abort(reason)
+            const error = await settled
+            expect(error).toBeInstanceOf(CancelledError)
+            expect(error).toMatchObject({
+                cause: reason,
+                message: `Request cancelled before it was sent (GET ${url}/api/method/frappe.ping).`,
+            })
+            renewed.resolve(true)
+            await vi.advanceTimersByTimeAsync(0)
+            expect(requests).toHaveLength(1)
+            expect(vi.getTimerCount()).toBe(0)
+        })
+
+        it('cancels while an async apply is pending, without waiting for it', async () => {
+            const token = deferred<undefined>()
+            const auth: AuthStrategy = {
+                async apply() {
+                    await token.promise
+                },
+            }
+            const controller = new AbortController()
+            const reason = new Error('unmounted')
+            const { result, requests } = sendWith([json(200, {})], ping, { signal: controller.signal }, { auth })
+            const settled = rejection(result)
+            await vi.advanceTimersByTimeAsync(0)
+            controller.abort(reason)
+            const error = await settled
+            expect(error).toBeInstanceOf(CancelledError)
+            expect(error).toMatchObject({
+                cause: reason,
+                message: `Request cancelled before it was sent (GET ${url}/api/method/frappe.ping).`,
+            })
+            token.resolve(undefined)
+            await vi.advanceTimersByTimeAsync(0)
+            expect(requests).toHaveLength(0)
+            expect(vi.getTimerCount()).toBe(0)
+        })
+
+        it('clears the timer when onResponse throws', async () => {
+            const auth: AuthStrategy = {
+                apply() {
+                    // nothing to do
+                },
+                onResponse() {
+                    throw new Error('hook bug')
+                },
+            }
+            const { result } = sendWith([json(200, {})], ping, { timeout: 1000 }, { auth })
+            await expect(result).rejects.toThrow('hook bug')
+            expect(vi.getTimerCount()).toBe(0)
+        })
     })
 })

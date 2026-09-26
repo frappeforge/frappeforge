@@ -2,7 +2,8 @@
 
 import { type ClientOptions, resolveConfig } from './config.js'
 import { readJson } from './http/decode.js'
-import { send } from './http/send.js'
+import { type Send, send as sendRequest } from './http/send.js'
+import { type AuthNamespace, createAuthNamespace } from './resources/auth.js'
 import type { RawRequest, RequestOptions } from './types.js'
 
 /** A client for one Frappe site. Create it with {@link createClient}. */
@@ -32,6 +33,8 @@ export interface FrappeClient {
      * ```
      */
     readonly request: <T = unknown>(init: RawRequest, options?: RequestOptions) => Promise<T>
+    /** Sign in, sign out, and who is signed in. */
+    readonly auth: AuthNamespace
 }
 
 /**
@@ -46,10 +49,14 @@ export interface FrappeClient {
  */
 export function createClient(options: ClientOptions): FrappeClient {
     const config = resolveConfig(options)
+    const send: Send = (init, requestOptions, read) => sendRequest(config, init, requestOptions, read)
     return Object.freeze({
         url: config.url,
         siteName: config.siteName,
         request: <T = unknown>(init: RawRequest, requestOptions: RequestOptions = {}): Promise<T> =>
-            send(config, init, requestOptions, readJson) as Promise<T>,
+            send(init, requestOptions, readJson) as Promise<T>,
+        auth: createAuthNamespace(send, () => {
+            config.auth?.clear?.()
+        }),
     })
 }

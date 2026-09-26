@@ -1,6 +1,8 @@
 // Client options: validated once, before any request, and frozen.
 
+import type { AuthStrategy } from './auth/strategy.js'
 import { ConfigurationError } from './errors.js'
+import { SafeHeaders } from './http/headers.js'
 import { assertTimeout, type ResolvedConfig } from './http/send.js'
 
 /** Options for {@link createClient}. */
@@ -9,7 +11,11 @@ export interface ClientOptions {
     url: string
     /** Headers sent with every request. */
     headers?: Record<string, string>
-    /** Per-request time budget in milliseconds. Default `30_000`; `0` disables the timeout. */
+    /**
+     * Time budget of each attempt in milliseconds, including reading the response; a replay after a
+     * `401` gets its own, and a strategy's work (such as a token refresh) is not timed. Default
+     * `30_000`; `0` disables the timeout.
+     */
     timeout?: number
     /**
      * Sends `X-Frappe-Site-Name`. Only for sites reached through a host that differs from the site
@@ -21,14 +27,21 @@ export interface ClientOptions {
      * `fetch`. It must honor `request.signal`: timeouts and cancellation abort through it.
      */
     fetch?: (request: Request) => Promise<Response>
+    /**
+     * How requests authenticate: {@link tokenAuth}, {@link sessionAuth}, {@link bearerAuth}, or
+     * your own {@link AuthStrategy}. Default: none — requests run as Guest.
+     */
+    auth?: AuthStrategy
 }
 
 const DEFAULT_TIMEOUT = 30_000
 
+const credentialModes: ReadonlySet<unknown> = new Set(['include', 'omit', 'same-origin'])
+
 /** Validates the options and fills in defaults. Throws `ConfigurationError` on the first invalid option. */
 export function resolveConfig(options: ClientOptions): ResolvedConfig {
     if (!isPlainObject(options)) throw new ConfigurationError('createClient() needs an options object with a `url`.')
-    const { url, headers = {}, timeout = DEFAULT_TIMEOUT, siteName, fetch } = options
+    const { url, headers = {}, timeout = DEFAULT_TIMEOUT, siteName, fetch, auth } = options
     // Visible ASCII: a site or host name, and always a valid header value.
     if (siteName !== undefined && (typeof siteName !== 'string' || !/^[!-~]+$/u.test(siteName))) {
         throw new ConfigurationError(
@@ -44,7 +57,28 @@ export function resolveConfig(options: ClientOptions): ResolvedConfig {
         timeout: assertTimeout(timeout, '`timeout`'),
         siteName,
         fetch,
+        auth: resolveAuth(auth),
     })
+}
+
+/**
+ * Checks the strategy's shape. The message never quotes it: the likely mistake,
+ * `auth: { apiKey, apiSecret }`, holds a secret.
+ */
+function resolveAuth(auth: unknown): AuthStrategy | undefined {
+    if (auth === undefined) return undefined
+    const strategy = (typeof auth === 'object' ? auth : null) as Partial<Record<keyof AuthStrategy, unknown>> | null
+    if (
+        strategy === null ||
+        typeof strategy.apply !== 'function' ||
+        [strategy.onResponse, strategy.onUnauthorized, strategy.clear].some(
+            (hook) => hook !== undefined && typeof hook !== 'function',
+        ) ||
+        (strategy.credentials !== undefined && !credentialModes.has(strategy.credentials))
+    ) {
+        throw new ConfigurationError('`auth` must be an AuthStrategy, such as tokenAuth({ apiKey, apiSecret }).')
+    }
+    return auth as AuthStrategy
 }
 
 /** `origin + path`, without trailing slashes. */
@@ -71,7 +105,8 @@ function resolveHeaders(headers: unknown): Readonly<Record<string, string>> {
     }
     const copy = { ...(headers as Record<string, string>) }
     try {
-        new Headers(copy)
+        const probe = new SafeHeaders()
+        for (const [name, value] of Object.entries(copy)) probe.set(name, value)
     } catch (cause) {
         throw new ConfigurationError('`headers` contains an invalid header name or value.', { cause })
     }
