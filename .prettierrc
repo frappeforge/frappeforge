@@ -1,15 +1,8 @@
 {
+    "$schema": "https://json.schemastore.org/prettierrc",
     "printWidth": 120,
     "tabWidth": 4,
-    "useTabs": false,
-    "singleQuote": true,
-    "trailingComma": "all",
-    "arrowParens": "always",
     "semi": false,
-    "bracketSpacing": true,
-    "bracketSameLine": false,
-    "quoteProps": "as-needed",
-    "embeddedLanguageFormatting": "auto",
-    "singleAttributePerLine": true,
-    "endOfLine": "lf"
+    "singleQuote": true,
+    "singleAttributePerLine": true
 }

@@ -49,11 +49,6 @@ async function rejection(promise: Promise<unknown>): Promise<unknown> {
     )
 }
 
-afterEach(() => {
-    vi.restoreAllMocks()
-    vi.unstubAllGlobals()
-})
-
 describe('send: request', () => {
     it('sends a GET to the site URL and path, and reads the JSON body', async () => {
         const { result, requests } = sendWith([json(200, { message: 'pong' })])

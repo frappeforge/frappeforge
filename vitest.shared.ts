@@ -6,7 +6,10 @@
  */
 import { mergeConfig, type ViteUserConfig } from 'vitest/config'
 
-/** Builds a package's Vitest config: unit tests, type tests and 100 % per-file coverage. */
+/**
+ * Builds a package's Vitest config: unit tests, type tests, 100 % per-file coverage, and no state
+ * leaking from one test into the next.
+ */
 export function createVitestConfig(pkg: { version: string }, overrides: ViteUserConfig = {}): ViteUserConfig {
     const base: ViteUserConfig = {
         define: {
@@ -15,6 +18,12 @@ export function createVitestConfig(pkg: { version: string }, overrides: ViteUser
         test: {
             environment: 'node',
             include: ['tests/**/*.test.ts'],
+            // Before every test: spies get their original implementation back (Vitest already clears
+            // their calls), and `vi.stubGlobal` / `vi.stubEnv` are undone. No test file needs its own
+            // cleanup hook, and a forgotten one cannot leak into the next test.
+            restoreMocks: true,
+            unstubGlobals: true,
+            unstubEnvs: true,
             // Type-level tests (`expectTypeOf`) run through tsc alongside the runtime suite.
             typecheck: {
                 enabled: true,
