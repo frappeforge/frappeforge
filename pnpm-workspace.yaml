@@ -1,6 +1,12 @@
 packages:
     - packages/*
 
+# Refuse to install a dependency whose `engines` excludes the running Node or pnpm, instead of warning.
+engineStrict: true
+
+# Peer dependencies are declared explicitly, never installed behind our back.
+autoInstallPeers: false
+
 # Supply-chain guard: never install a version published less than 24h ago.
 minimumReleaseAge: 1440
 

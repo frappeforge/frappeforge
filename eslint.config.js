@@ -30,6 +30,14 @@ const importSort = {
 export function createConfig(tsconfigRootDir, overrides = []) {
     return defineConfig(
         globalIgnores(['dist/**', 'coverage/**', 'node_modules/**', 'temp/**', 'etc/**']),
+        {
+            // A disable comment or inline config that no longer does anything fails the lint, so stale
+            // exceptions cannot pile up. ESLint's default only warns, which the gate lets through.
+            linterOptions: {
+                reportUnusedDisableDirectives: 'error',
+                reportUnusedInlineConfigs: 'error',
+            },
+        },
         js.configs.recommended,
         {
             files: ['**/*.ts', '**/*.mts', '**/*.cts'],

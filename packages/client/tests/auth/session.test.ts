@@ -1,4 +1,4 @@
-import { afterEach, describe, expect, it, vi } from 'vitest'
+import { describe, expect, it, vi } from 'vitest'
 
 import { ConfigurationError, createClient, type RawRequest, sessionAuth } from '../../src/index.js'
 import { exposed } from '../support/expose.js'
@@ -34,10 +34,6 @@ function withCookies(cookies: readonly string[], status = 200): Response {
         cookies.map((cookie): [string, string] => ['set-cookie', cookie]),
     )
 }
-
-afterEach(() => {
-    vi.unstubAllGlobals()
-})
 
 describe('sessionAuth: credentials', () => {
     it('sends every request with credentials: include, so browsers attach their cookies', async () => {
