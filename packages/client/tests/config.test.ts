@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest'
 
 import { tokenAuth } from '../src/auth/token.js'
 import { type ClientOptions, resolveConfig } from '../src/config.js'
-import { ConfigurationError } from '../src/errors.js'
+import { InvalidArgumentError } from '../src/errors.js'
 import { exposed } from './support/expose.js'
 
 const url = 'https://example.com'
@@ -69,7 +69,7 @@ describe('resolveConfig', () => {
         ['a fragment', 'https://example.com/#app'],
         ['a non-string', 42],
     ])('rejects a url with %s', (_case, input) => {
-        expect(() => resolveUntyped({ url: input })).toThrow(ConfigurationError)
+        expect(() => resolveUntyped({ url: input })).toThrow(InvalidArgumentError)
         expect(() => resolveUntyped({ url: input })).toThrow('`url` must be an http(s) URL')
     })
 
@@ -131,7 +131,7 @@ describe('resolveConfig', () => {
         } catch (caught) {
             error = caught
         }
-        expect(error).toBeInstanceOf(ConfigurationError)
+        expect(error).toBeInstanceOf(InvalidArgumentError)
         expect(error).toMatchObject({ message: '`headers` contains an invalid header name or value.' })
         expect((error as Error).cause).toMatchObject({ name: 'TypeError', message: cause })
         expect(exposed(error)).not.toContain('SECRET9f2c')
@@ -209,7 +209,7 @@ describe('resolveConfig', () => {
         } catch (caught) {
             error = caught
         }
-        expect(error).toBeInstanceOf(ConfigurationError)
+        expect(error).toBeInstanceOf(InvalidArgumentError)
         expect(error).toMatchObject({
             message: '`auth` must be an AuthStrategy, such as tokenAuth({ apiKey, apiSecret }).',
         })

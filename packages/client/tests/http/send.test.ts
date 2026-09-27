@@ -5,10 +5,10 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import type { AuthStrategy } from '../../src/auth/strategy.js'
 import { resolveConfig } from '../../src/config.js'
 import {
+    AbortError,
     AuthenticationError,
-    CancelledError,
-    ConfigurationError,
     FrappeError,
+    InvalidArgumentError,
     NetworkError,
     NotFoundError,
     PermissionError,
@@ -18,7 +18,7 @@ import {
 } from '../../src/errors.js'
 import { readJson } from '../../src/http/decode.js'
 import { send } from '../../src/http/send.js'
-import type { RawRequest, RequestOptions } from '../../src/types.js'
+import type { FrappeRequest, RequestOptions } from '../../src/types.js'
 import { deferred, exposed } from '../support/expose.js'
 import { hang, hangBody, json, only, type Reply, stubFetch, text } from '../support/fetch.js'
 
@@ -29,7 +29,7 @@ const SECRET = 'SECRET5e1d0b'
 /** Sends one request through a client configured with a stub answering `replies`. */
 function sendWith(
     replies: Reply[],
-    init: RawRequest = ping,
+    init: FrappeRequest = ping,
     options: RequestOptions = {},
     clientOptions: { headers?: Record<string, string>; siteName?: string; timeout?: number; auth?: AuthStrategy } = {},
 ) {
@@ -178,9 +178,9 @@ describe('send: requests that cannot be built', () => {
         ['a path with a ".." segment', { path: '/../admin' }],
         ['a query value JSON cannot encode', { path: '/api/x', query: { filters: { a: 1n } } }],
         ['a method that is not a string', { method: 1 as unknown as 'GET', path: '/api/x' }],
-    ])('rejects %s before calling fetch', async (_case, init: RawRequest) => {
+    ])('rejects %s before calling fetch', async (_case, init: FrappeRequest) => {
         const { result, requests } = sendWith([], init)
-        await expect(result).rejects.toThrow(ConfigurationError)
+        await expect(result).rejects.toThrow(InvalidArgumentError)
         expect(requests).toHaveLength(0)
     })
 
@@ -196,10 +196,10 @@ describe('send: requests that cannot be built', () => {
         ['a ReadableStream body', { method: 'POST', path: '/api/x', body: new ReadableStream() }, {}],
         ['a function body', { method: 'POST', path: '/api/x', body: () => 1 }, {}],
         ['a symbol body', { method: 'POST', path: '/api/x', body: Symbol('x') }, {}],
-    ] as const)('reports %s as ConfigurationError, with no secret in the message', async (_case, init, options) => {
+    ] as const)('reports %s as InvalidArgumentError, with no secret in the message', async (_case, init, options) => {
         const { result, requests } = sendWith([], init, options)
         const error = await rejection(result)
-        expect(error).toBeInstanceOf(ConfigurationError)
+        expect(error).toBeInstanceOf(InvalidArgumentError)
         expect((error as Error).message).toMatch(/^Invalid request \((GET|POST) https:\/\/example\.com\/api\//u)
         expect((error as Error).message).toMatch(/: check its method, headers and body\.$/u)
         expect((error as Error).message).not.toContain('break')
@@ -210,7 +210,7 @@ describe('send: requests that cannot be built', () => {
     it('never lets an invalid header value into the error, not even through its cause', async () => {
         const { result } = sendWith([], ping, { headers: { Authorization: `token key:${SECRET}\u0000` } })
         const error = await rejection(result)
-        expect(error).toBeInstanceOf(ConfigurationError)
+        expect(error).toBeInstanceOf(InvalidArgumentError)
         expect((error as Error).cause).toMatchObject({ message: 'The "Authorization" header has an invalid value.' })
         expect(exposed(error)).not.toContain(SECRET)
     })
@@ -221,11 +221,11 @@ describe('send: requests that cannot be built', () => {
         ['an invalid timeout', ping, { timeout: -1 }, '`timeout` must be an integer'],
         ['a GET with a body', { path: '/api/x', body: { a: 1 } }, {}, 'Invalid request (GET'],
     ] as const)(
-        'reports %s as ConfigurationError even if the signal is already aborted',
+        'reports %s as InvalidArgumentError even if the signal is already aborted',
         async (_case, init, options, message) => {
             const { result, requests } = sendWith([], init, { ...options, signal: AbortSignal.abort() })
             const error = await rejection(result)
-            expect(error).toBeInstanceOf(ConfigurationError)
+            expect(error).toBeInstanceOf(InvalidArgumentError)
             expect((error as Error).message).toContain(message)
             expect(requests).toHaveLength(0)
         },
@@ -239,7 +239,7 @@ describe('send: requests that cannot be built', () => {
 })
 
 // Fake timers drive the timeout: it is a plain `setTimeout`, so every case is deterministic.
-describe('send: timeout and cancellation', () => {
+describe('send: timeouts and aborts', () => {
     beforeEach(() => {
         vi.useFakeTimers()
     })
@@ -263,7 +263,7 @@ describe('send: timeout and cancellation', () => {
         controller.abort(reason)
         const { result, requests } = sendWith([], ping, { signal: controller.signal })
         const error = await rejection(result)
-        expect(error).toBeInstanceOf(CancelledError)
+        expect(error).toBeInstanceOf(AbortError)
         expect(error).toMatchObject({ cause: reason, request: { method: 'GET', url: `${url}/api/method/frappe.ping` } })
         expect(requests).toHaveLength(0)
     })
@@ -323,25 +323,25 @@ describe('send: timeout and cancellation', () => {
         expect(await outcome).toBeInstanceOf(TimeoutError)
     })
 
-    it('reports a caller abort in flight as CancelledError, with the reason as cause', async () => {
+    it('reports a caller abort in flight as AbortError, with the reason as cause', async () => {
         const controller = new AbortController()
         const reason = new Error('navigated away')
         const { result, requests } = sendWith([hang], ping, { signal: controller.signal })
         expect(requests).toHaveLength(1)
         controller.abort(reason)
         const error = await rejection(result)
-        expect(error).toBeInstanceOf(CancelledError)
+        expect(error).toBeInstanceOf(AbortError)
         expect(error).toMatchObject({
-            message: `Request cancelled (GET ${url}/api/method/frappe.ping).`,
+            message: `Request aborted (GET ${url}/api/method/frappe.ping).`,
             cause: reason,
         })
     })
 
-    it('reports a caller abort while the body is read as CancelledError', async () => {
+    it('reports a caller abort while the body is read as AbortError', async () => {
         const controller = new AbortController()
         const { result } = sendWith([hangBody], ping, { signal: controller.signal })
         controller.abort()
-        await expect(result).rejects.toBeInstanceOf(CancelledError)
+        await expect(result).rejects.toBeInstanceOf(AbortError)
     })
 
     it('keeps the first cause: a caller abort after the timeout is still a timeout', async () => {
@@ -367,14 +367,14 @@ describe('send: timeout and cancellation', () => {
         expect(remove).toHaveBeenCalledWith('abort', add.mock.calls[0]?.[1])
     })
 
-    it('leaves no timer behind after a timeout or a cancellation', async () => {
+    it('leaves no timer behind after a timeout or an abort', async () => {
         const timedOut = rejection(sendWith([hang], ping, { timeout: 10 }).result)
         await vi.advanceTimersByTimeAsync(10)
         await timedOut
         const controller = new AbortController()
-        const cancelled = rejection(sendWith([hang], ping, { signal: controller.signal }).result)
+        const aborted = rejection(sendWith([hang], ping, { signal: controller.signal }).result)
         controller.abort()
-        await cancelled
+        await aborted
         expect(vi.getTimerCount()).toBe(0)
     })
 })
@@ -414,7 +414,7 @@ describe('send: failures', () => {
             sendWith([json(417, body)], { method: 'POST', path: '/api/resource/Task', body: {} }).result,
         )
         expect(error).toBeInstanceOf(ValidationError)
-        expect(error).toMatchObject({ status: 417, exception: 'MandatoryError', message: 'Subject is mandatory' })
+        expect(error).toMatchObject({ status: 417, exceptionType: 'MandatoryError', message: 'Subject is mandatory' })
     })
 
     it('maps an HTML error page from a proxy', async () => {
@@ -514,7 +514,7 @@ describe('send: authentication', () => {
         expect(requests).toHaveLength(0)
     })
 
-    it('reports a header the strategy cannot set as ConfigurationError', async () => {
+    it('reports a header the strategy cannot set as InvalidArgumentError', async () => {
         const auth: AuthStrategy = {
             apply(headers) {
                 // A Headers object that throws only once the Request copies it.
@@ -526,7 +526,7 @@ describe('send: authentication', () => {
             },
         }
         const { result, requests } = sendWith([json(200, {})], ping, {}, { auth })
-        expect(await rejection(result)).toBeInstanceOf(ConfigurationError)
+        expect(await rejection(result)).toBeInstanceOf(InvalidArgumentError)
         expect(requests).toHaveLength(0)
     })
 
@@ -605,7 +605,7 @@ describe('send: authentication', () => {
             onUnauthorized: renew,
         }
         const { result, requests } = sendWith([unauthorized()], ping, { signal: controller.signal }, { auth })
-        expect(await rejection(result)).toBeInstanceOf(CancelledError)
+        expect(await rejection(result)).toBeInstanceOf(AbortError)
         expect(renew).not.toHaveBeenCalled()
         expect(requests).toHaveLength(1)
     })
@@ -618,7 +618,7 @@ describe('send: authentication', () => {
             { signal: AbortSignal.abort() },
             { auth: { apply } },
         )
-        expect(await rejection(result)).toBeInstanceOf(CancelledError)
+        expect(await rejection(result)).toBeInstanceOf(AbortError)
         expect(apply).not.toHaveBeenCalled()
         expect(requests).toHaveLength(0)
     })
@@ -635,7 +635,7 @@ describe('send: authentication', () => {
             },
         }
         const { result, requests } = sendWith([json(200, {})], ping, { signal: controller.signal }, { auth })
-        expect(await rejection(result)).toBeInstanceOf(CancelledError)
+        expect(await rejection(result)).toBeInstanceOf(AbortError)
         expect(requests).toHaveLength(0)
     })
 
@@ -784,7 +784,7 @@ describe('send: authentication', () => {
             expect(vi.getTimerCount()).toBe(0)
         })
 
-        it('cancels while onUnauthorized is pending, without waiting for it or sending the replay', async () => {
+        it('aborts while onUnauthorized is pending, without waiting for it or sending the replay', async () => {
             const renewed = deferred<boolean>()
             const { strategy } = counting(() => renewed.promise)
             const controller = new AbortController()
@@ -799,10 +799,10 @@ describe('send: authentication', () => {
             await vi.advanceTimersByTimeAsync(0)
             controller.abort(reason)
             const error = await settled
-            expect(error).toBeInstanceOf(CancelledError)
+            expect(error).toBeInstanceOf(AbortError)
             expect(error).toMatchObject({
                 cause: reason,
-                message: `Request cancelled before it was sent (GET ${url}/api/method/frappe.ping).`,
+                message: `Request aborted before it was sent (GET ${url}/api/method/frappe.ping).`,
             })
             renewed.resolve(true)
             await vi.advanceTimersByTimeAsync(0)
@@ -810,7 +810,7 @@ describe('send: authentication', () => {
             expect(vi.getTimerCount()).toBe(0)
         })
 
-        it('cancels while an async apply is pending, without waiting for it', async () => {
+        it('aborts while an async apply is pending, without waiting for it', async () => {
             const token = deferred<undefined>()
             const auth: AuthStrategy = {
                 async apply() {
@@ -824,10 +824,10 @@ describe('send: authentication', () => {
             await vi.advanceTimersByTimeAsync(0)
             controller.abort(reason)
             const error = await settled
-            expect(error).toBeInstanceOf(CancelledError)
+            expect(error).toBeInstanceOf(AbortError)
             expect(error).toMatchObject({
                 cause: reason,
-                message: `Request cancelled before it was sent (GET ${url}/api/method/frappe.ping).`,
+                message: `Request aborted before it was sent (GET ${url}/api/method/frappe.ping).`,
             })
             token.resolve(undefined)
             await vi.advanceTimersByTimeAsync(0)

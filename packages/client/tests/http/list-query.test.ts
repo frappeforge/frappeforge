@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 
-import { ConfigurationError } from '../../src/errors.js'
+import { InvalidArgumentError } from '../../src/errors.js'
 import {
     assertPositiveInteger,
     fitsInGet,
@@ -85,7 +85,7 @@ describe('normalizeFilters', () => {
         ['a single tuple instead of an array of tuples', ['status', '=', 'Open']],
     ])('rejects %s', (_title, filters) => {
         expect(() => normalizeFilters(filters)).toThrow(
-            new ConfigurationError(
+            new InvalidArgumentError(
                 '`filters` must be an object or an array of arrays such as ["status", "=", "Open"].',
             ),
         )
@@ -182,7 +182,7 @@ describe('toListParams', () => {
         ['a number', 1],
         ['nothing', undefined],
     ])('rejects a sort field with %s', (_title, field) => {
-        expect(() => toListParams({ orderBy: { field } })).toThrow(ConfigurationError)
+        expect(() => toListParams({ orderBy: { field } })).toThrow(InvalidArgumentError)
         expect(() => toListParams({ orderBy: { field } })).toThrow(/^`orderBy` field must be a field name/u)
     })
 
@@ -192,7 +192,7 @@ describe('toListParams', () => {
 
     it.each(['ASC', 'up', 1])('rejects the sort order %s', (order) => {
         expect(() => toListParams({ orderBy: { field: 'modified', order } })).toThrow(
-            new ConfigurationError(`\`orderBy\` order must be "asc" or "desc"; got ${String(order)}.`),
+            new InvalidArgumentError(`\`orderBy\` order must be "asc" or "desc"; got ${String(order)}.`),
         )
     })
 
@@ -202,13 +202,13 @@ describe('toListParams', () => {
 
     it.each([0, -1, 1.5, Number.NaN, Number.POSITIVE_INFINITY, '20', null])('rejects the limit %s', (limit) => {
         expect(() => toListParams({ limit })).toThrow(
-            new ConfigurationError(`\`limit\` must be a positive integer; got ${String(limit)}.`),
+            new InvalidArgumentError(`\`limit\` must be a positive integer; got ${String(limit)}.`),
         )
     })
 
     it.each([-1, 0.5, Number.NaN, '0', null])('rejects the offset %s', (offset) => {
         expect(() => toListParams({ offset })).toThrow(
-            new ConfigurationError(`\`offset\` must be an integer of 0 or more; got ${String(offset)}.`),
+            new InvalidArgumentError(`\`offset\` must be an integer of 0 or more; got ${String(offset)}.`),
         )
     })
 
@@ -228,7 +228,7 @@ describe('assertPositiveInteger', () => {
 
     it('names the argument', () => {
         expect(() => assertPositiveInteger(0, '`pageSize`')).toThrow(
-            new ConfigurationError('`pageSize` must be a positive integer; got 0.'),
+            new InvalidArgumentError('`pageSize` must be a positive integer; got 0.'),
         )
     })
 })

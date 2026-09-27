@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 
-import { AuthenticationError, ConfigurationError, createClient, tokenAuth } from '../../src/index.js'
+import { AuthenticationError, createClient, InvalidArgumentError, tokenAuth } from '../../src/index.js'
 import { deferred, exposed } from '../support/expose.js'
 import { json, stubFetch } from '../support/fetch.js'
 
@@ -45,15 +45,15 @@ describe('tokenAuth', () => {
         ['a secret containing a NUL', { apiKey: 'key', apiSecret: `${SECRET}\u0000` }, 'apiSecret'],
         ['a secret with a trailing newline', { apiKey: 'key', apiSecret: `${SECRET}\n` }, 'apiSecret'],
         ['a secret with non-ASCII characters', { apiKey: 'key', apiSecret: `${SECRET}é` }, 'apiSecret'],
-    ])('rejects %s with a ConfigurationError that does not quote it', (_title, options, name) => {
+    ])('rejects %s with an InvalidArgumentError that does not quote it', (_title, options, name) => {
         const error = captureError(() => tokenAuth(options as never))
-        expect(error).toBeInstanceOf(ConfigurationError)
+        expect(error).toBeInstanceOf(InvalidArgumentError)
         expect((error as Error).message).toContain(`\`${name}\``)
         expect(exposed(error)).not.toContain(SECRET)
     })
 
     it.each([[undefined], [null], ['key:secret']])('rejects options of %j', (options) => {
-        expect(() => tokenAuth(options as never)).toThrow(ConfigurationError)
+        expect(() => tokenAuth(options as never)).toThrow(InvalidArgumentError)
     })
 
     it('never exposes the secret through the strategy, the client or an error', async () => {

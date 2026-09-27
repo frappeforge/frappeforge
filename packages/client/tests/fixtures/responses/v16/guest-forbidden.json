@@ -14,7 +14,7 @@
     "expected": {
         "name": "PermissionError",
         "status": 403,
-        "exception": "PermissionError",
+        "exceptionType": "PermissionError",
         "message": "You are not permitted to access this resource. Login to accessFunction frappe.auth.get_logged_user is not whitelisted."
     }
 }

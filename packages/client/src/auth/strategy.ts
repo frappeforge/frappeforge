@@ -24,7 +24,7 @@
 export interface AuthStrategy {
     /**
      * Adds credentials to an outgoing request. Called before every attempt that is not already
-     * cancelled, after the client's and the request's own headers are set, so what it sets wins. The
+     * aborted, after the client's and the request's own headers are set, so what it sets wins. The
      * attempt's time budget starts after it returns.
      *
      * @param headers - The request's headers, to modify in place. An invalid name or value makes

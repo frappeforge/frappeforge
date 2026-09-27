@@ -1,9 +1,11 @@
 import { describe, expect, it } from 'vitest'
 
-import { CancelledError, ConfigurationError, createClient, FrappeError, NotFoundError } from '../../src/index.js'
+import { AbortError, createClient, FrappeError, InvalidArgumentError, NotFoundError } from '../../src/index.js'
 import { json, only, type Reply, stubFetch } from '../support/fetch.js'
 
 const url = 'https://example.com'
+
+const NAME_ERROR = '`name` must be a non-empty string or a positive integer.'
 
 function client(replies: Reply[]) {
     const { fetch, requests } = stubFetch(replies)
@@ -50,6 +52,12 @@ describe('doc.get', () => {
         expect(request.url).toBe(`${url}/api/resource/ToDo/TODO-0001`)
     })
 
+    it('reads a document by a numeric name, as DocTypes named by autoincrement have', async () => {
+        const { frappe, requests } = client([json(200, { data: { name: 5, doctype: 'Counter' } })])
+        await expect(frappe.doc.get('Counter', 5)).resolves.toEqual({ name: 5, doctype: 'Counter' })
+        expect(pathOf(only(requests))).toBe('/api/resource/Counter/5')
+    })
+
     it.each(awkwardNames)('encodes a name with %s', async (_title, name, encoded) => {
         const { frappe, requests } = client([json(200, { data: { name } })])
         await frappe.doc.get('Sales Invoice', name)
@@ -59,11 +67,18 @@ describe('doc.get', () => {
     it.each([
         ['an empty doctype', '', 'X', '`doctype` must be a non-empty string.'],
         ['a doctype that is not a string', 1, 'X', '`doctype` must be a non-empty string.'],
-        ['an empty name', 'ToDo', '', '`name` must be a non-empty string.'],
-        ['a name that is not a string', 'ToDo', 42, '`name` must be a non-empty string.'],
+        ['an empty name', 'ToDo', '', NAME_ERROR],
+        ['a name that is a boolean', 'ToDo', true, NAME_ERROR],
+        ['the number 0', 'ToDo', 0, NAME_ERROR],
+        ['a negative number', 'ToDo', -1, NAME_ERROR],
+        ['a fraction', 'ToDo', 1.5, NAME_ERROR],
+        ['NaN', 'ToDo', Number.NaN, NAME_ERROR],
+        ['a number above the safe integers', 'ToDo', 2 ** 53, NAME_ERROR],
     ])('rejects %s without sending', async (_title, doctype, name, message) => {
         const { frappe, requests } = client([])
-        await expect(frappe.doc.get(doctype as string, name as string)).rejects.toThrow(new ConfigurationError(message))
+        await expect(frappe.doc.get(doctype as string, name as string)).rejects.toThrow(
+            new InvalidArgumentError(message),
+        )
         expect(requests).toHaveLength(0)
     })
 
@@ -98,16 +113,16 @@ describe('doc.getSingle', () => {
 
     it('rejects an empty doctype without sending', async () => {
         const { frappe, requests } = client([])
-        await expect(frappe.doc.getSingle('')).rejects.toBeInstanceOf(ConfigurationError)
+        await expect(frappe.doc.getSingle('')).rejects.toBeInstanceOf(InvalidArgumentError)
         expect(requests).toHaveLength(0)
     })
 })
 
-describe('doc.list', () => {
+describe('doc.getList', () => {
     it('reads /api/resource/{doctype} and returns `data`', async () => {
         const rows = [{ name: 'TODO-0001' }, { name: 'TODO-0002' }]
         const { frappe, requests } = client([json(200, { data: rows })])
-        await expect(frappe.doc.list('ToDo')).resolves.toEqual(rows)
+        await expect(frappe.doc.getList('ToDo')).resolves.toEqual(rows)
         const request = only(requests)
         expect(request.method).toBe('GET')
         expect(pathOf(request)).toBe('/api/resource/ToDo')
@@ -117,7 +132,7 @@ describe('doc.list', () => {
 
     it('sends every argument in the query', async () => {
         const { frappe, requests } = client([json(200, { data: [] })])
-        await frappe.doc.list('ToDo', {
+        await frappe.doc.getList('ToDo', {
             fields: ['name', 'status'],
             filters: { status: 'Open', allocated_to: ['is', 'set'] },
             orFilters: [['priority', '=', 'High']],
@@ -142,14 +157,14 @@ describe('doc.list', () => {
 
     it('sends `parent` for child table rows, and keeps the rows to that parent type', async () => {
         const { frappe, requests } = client([json(200, { data: [] })])
-        await frappe.doc.list('Has Role', { fields: ['role'], parent: 'User' })
+        await frappe.doc.getList('Has Role', { fields: ['role'], parent: 'User' })
         expect(pathOf(only(requests))).toBe('/api/resource/Has%20Role')
         expect(queryOf(only(requests))).toMatchObject({ filters: [['parenttype', '=', 'User']], parent: 'User' })
     })
 
     it.each(awkwardNames)('encodes a DocType with %s', async (_title, doctype, encoded) => {
         const { frappe, requests } = client([json(200, { data: [] })])
-        await frappe.doc.list(doctype)
+        await frappe.doc.getList(doctype)
         expect(pathOf(only(requests))).toBe(`/api/resource/${encoded}`)
     })
 
@@ -164,13 +179,13 @@ describe('doc.list', () => {
         ['arguments that are not an object', 'ToDo', 'status'],
     ])('rejects %s without sending', async (_title, doctype, args) => {
         const { frappe, requests } = client([])
-        await expect(frappe.doc.list(doctype, args as never)).rejects.toBeInstanceOf(ConfigurationError)
+        await expect(frappe.doc.getList(doctype, args as never)).rejects.toBeInstanceOf(InvalidArgumentError)
         expect(requests).toHaveLength(0)
     })
 
     it('rejects a response without a list in `data`', async () => {
         const { frappe } = client([json(200, { data: { name: 'x' } })])
-        await expect(frappe.doc.list('ToDo')).rejects.toMatchObject({
+        await expect(frappe.doc.getList('ToDo')).rejects.toMatchObject({
             name: 'FrappeError',
             message: `Expected a list in \`data\` from GET ${url}/api/resource/ToDo.`,
             status: 200,
@@ -195,7 +210,7 @@ describe('doc.list', () => {
 
         it('is sent as a GET at exactly 3800 characters', async () => {
             const { frappe, requests } = client([json(200, { data: [] })])
-            await frappe.doc.list('ToDo', { filters: { name: ['in', namesOfLength(3800)] } })
+            await frappe.doc.getList('ToDo', { filters: { name: ['in', namesOfLength(3800)] } })
             const request = only(requests)
             expect(request.method).toBe('GET')
             expect(request.url.slice(url.length)).toHaveLength(3800)
@@ -206,7 +221,7 @@ describe('doc.list', () => {
             const rows = [{ name: 'TODO-00001' }]
             const { frappe, requests } = client([json(200, { message: rows })])
             await expect(
-                frappe.doc.list('ToDo', { fields: ['name'], filters: { name: ['in', names] }, limit: 500 }),
+                frappe.doc.getList('ToDo', { fields: ['name'], filters: { name: ['in', names] }, limit: 500 }),
             ).resolves.toEqual(rows)
             const request = only(requests)
             expect(request.method).toBe('POST')
@@ -224,7 +239,7 @@ describe('doc.list', () => {
         it('rejects a POST response without a list in `message`', async () => {
             const { frappe } = client([json(200, { message: 3 })])
             await expect(
-                frappe.doc.list('ToDo', { filters: { name: ['in', namesOfLength(3801)] } }),
+                frappe.doc.getList('ToDo', { filters: { name: ['in', namesOfLength(3801)] } }),
             ).rejects.toMatchObject({
                 name: 'FrappeError',
                 message: `Expected a list in \`message\` from POST ${url}/api/method/frappe.client.get_list.`,
@@ -262,8 +277,8 @@ describe('doc.count', () => {
 
     it('rejects invalid arguments without sending', async () => {
         const { frappe, requests } = client([])
-        await expect(frappe.doc.count('')).rejects.toBeInstanceOf(ConfigurationError)
-        await expect(frappe.doc.count('ToDo', 'status' as never)).rejects.toBeInstanceOf(ConfigurationError)
+        await expect(frappe.doc.count('')).rejects.toBeInstanceOf(InvalidArgumentError)
+        await expect(frappe.doc.count('ToDo', 'status' as never)).rejects.toBeInstanceOf(InvalidArgumentError)
         expect(requests).toHaveLength(0)
     })
 
@@ -370,14 +385,14 @@ describe('doc.paginate', () => {
         expect(requests.map((request) => request.headers.get('x-trace'))).toEqual(['walk-1', 'walk-1'])
     })
 
-    it('ends with CancelledError when aborted between pages, without another request', async () => {
+    it('ends with AbortError when aborted between pages, without another request', async () => {
         const controller = new AbortController()
         const { frappe, requests } = client([page('A', 'B'), page('C')])
         const walk = frappe.doc.paginate('ToDo', { pageSize: 2 }, { signal: controller.signal })
         await expect(walk.next()).resolves.toEqual({ value: { name: 'A' }, done: false })
         await expect(walk.next()).resolves.toEqual({ value: { name: 'B' }, done: false })
         controller.abort()
-        await expect(walk.next()).rejects.toBeInstanceOf(CancelledError)
+        await expect(walk.next()).rejects.toBeInstanceOf(AbortError)
         expect(requests).toHaveLength(1)
     })
 
@@ -391,7 +406,7 @@ describe('doc.paginate', () => {
     it.each(['orderBy', 'groupBy', 'limit', 'offset'])('rejects %s without sending', async (key) => {
         const { frappe, requests } = client([])
         await expect(all(frappe.doc.paginate('ToDo', { [key]: 1 }))).rejects.toThrow(
-            new ConfigurationError(`paginate() sorts and pages by \`name\` itself; \`${key}\` is not accepted.`),
+            new InvalidArgumentError(`paginate() sorts and pages by \`name\` itself; \`${key}\` is not accepted.`),
         )
         expect(requests).toHaveLength(0)
     })
@@ -402,7 +417,7 @@ describe('doc.paginate', () => {
     ])('rejects arguments that are %s without sending', async (_title, args) => {
         const { frappe, requests } = client([])
         await expect(all(frappe.doc.paginate('ToDo', args as never))).rejects.toThrow(
-            new ConfigurationError('The listing arguments must be an object.'),
+            new InvalidArgumentError('The listing arguments must be an object.'),
         )
         expect(requests).toHaveLength(0)
     })
@@ -425,7 +440,7 @@ describe('doc.paginate', () => {
     it.each([0, 2.5, '10'])('rejects the page size %s without sending', async (pageSize) => {
         const { frappe, requests } = client([])
         await expect(all(frappe.doc.paginate('ToDo', { pageSize: pageSize as number }))).rejects.toThrow(
-            new ConfigurationError(`\`pageSize\` must be a positive integer; got ${String(pageSize)}.`),
+            new InvalidArgumentError(`\`pageSize\` must be a positive integer; got ${String(pageSize)}.`),
         )
         expect(requests).toHaveLength(0)
     })

@@ -73,8 +73,8 @@ jobs:
                   create-github-releases: true
                   github-token: ${{ steps.app-token.outputs.token }}
               env:
-                  # Phase 1: granular publish token. Phase 2 (after npm trusted publishing is
-                  # enabled for both packages): delete the secret and the line below; the
-                  # id-token permission above is then sufficient.
+                  # `pnpm release` runs `pnpm publish -r --provenance`: changesets never passes that
+                  # flag, and pnpm reads no provenance setting. The attestation is signed through the
+                  # id-token permission above. The token authenticates the upload; remove it once
+                  # every package uses npm trusted publishing and pnpm is confirmed to support it.
                   NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
-                  NPM_CONFIG_PROVENANCE: 'true'

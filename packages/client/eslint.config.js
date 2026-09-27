@@ -43,7 +43,7 @@ export default createConfig(import.meta.dirname, [
         },
     },
     // Layers, enforced: `http/` is the bottom (it knows only the strategy's type), `auth/` stands
-    // alone, `resources/` sit on `http/`, `config.ts` on `http/` and `auth/`, `client.ts` on all of
+    // alone, `namespaces/` sit on `http/`, `config.ts` on `http/` and `auth/`, `client.ts` on all of
     // them, and only `index.ts` imports `client.ts`. In flat config a later `no-restricted-imports`
     // replaces the earlier options for the same files, so every layer repeats the zero-dependency
     // pattern.
@@ -59,20 +59,20 @@ export default createConfig(import.meta.dirname, [
         message: 'auth/ imports only ../errors.js and its siblings.',
     }),
     imports(
-        ['src/resources/**/*.ts'],
+        ['src/namespaces/**/*.ts'],
         {
             regex: '^\\.\\./(?!(errors|types)\\.js$|http/)',
-            message: 'resources/ import only ../http/, ../errors.js and ../types.js.',
+            message: 'namespaces/ import only ../http/, ../errors.js and ../types.js.',
         },
-        { regex: '^\\./', message: 'A resource never imports another resource.' },
+        { regex: '^\\./', message: 'A namespace never imports another namespace.' },
     ),
     imports(['src/config.ts'], {
         regex: '^\\./(?!(errors|types|auth/strategy)\\.js$|http/)',
         message: 'config.ts imports only errors.js, types.js, auth/strategy.js and http/.',
     }),
     imports(['src/client.ts'], {
-        regex: '^\\./(?!(config|errors|types)\\.js$|http/|resources/)',
-        message: 'client.ts imports only config.js, errors.js, types.js, http/ and resources/.',
+        regex: '^\\./(?!(config|errors|types)\\.js$|http/|namespaces/)',
+        message: 'client.ts imports only config.js, errors.js, types.js, http/ and namespaces/.',
     }),
     {
         // One fetch call site: headers, timeouts and error mapping cannot be bypassed.

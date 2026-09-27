@@ -12,6 +12,7 @@ import {
 
 interface Task extends FrappeDoc {
     doctype: 'Task'
+    name: string
     subject: string
     status?: 'Open' | 'Completed' | null
 }
@@ -37,7 +38,9 @@ describe('Register', () => {
         const frappe = createClient({ url: 'https://example.com' })
 
         expectTypeOf(frappe.doc.get('Task', 'TASK-0001')).resolves.toEqualTypeOf<Task>()
-        expectTypeOf(frappe.doc.list('Task', { fields: ['subject'] })).resolves.toEqualTypeOf<{ subject: string }[]>()
+        expectTypeOf(frappe.doc.getList('Task', { fields: ['subject'] })).resolves.toEqualTypeOf<
+            { subject: string }[]
+        >()
         expectTypeOf(frappe.doc.paginate('Task', { fields: ['subject'] })).toEqualTypeOf<
             AsyncGenerator<{ subject: string; name: string }, void, undefined>
         >()

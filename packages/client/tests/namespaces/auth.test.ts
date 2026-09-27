@@ -3,9 +3,9 @@ import { describe, expect, it, vi } from 'vitest'
 import {
     AuthenticationError,
     type AuthStrategy,
-    ConfigurationError,
     createClient,
     FrappeError,
+    InvalidArgumentError,
     NetworkError,
     PermissionError,
     ServerError,
@@ -24,16 +24,16 @@ function client(replies: Reply[], auth?: AuthStrategy) {
 }
 
 const loggedIn = (homePage: string, message = 'Logged In') =>
-    json(200, { message, home_page: homePage, full_name: 'John Doe' })
+    json(200, { message, home_page: homePage, full_name: 'Test User' })
 
 describe('auth.login', () => {
     it('posts usr and pwd as JSON to /api/method/login', async () => {
         const { frappe, requests } = client([loggedIn('/app')])
-        await frappe.auth.login({ username: 'john@example.com', password: PASSWORD })
+        await frappe.auth.login({ username: 'user@example.com', password: PASSWORD })
         const request = only(requests)
         expect(request.method).toBe('POST')
         expect(request.url).toBe(`${url}/api/method/login`)
-        expect(await request.json()).toEqual({ usr: 'john@example.com', pwd: PASSWORD })
+        expect(await request.json()).toEqual({ usr: 'user@example.com', pwd: PASSWORD })
     })
 
     it.each([
@@ -43,8 +43,8 @@ describe('auth.login', () => {
         ['a Website User', loggedIn('/me', 'No App'), '/me'],
     ])('returns the full name and home page for %s', async (_title, response, homePage) => {
         const { frappe } = client([response])
-        await expect(frappe.auth.login({ username: 'john', password: PASSWORD })).resolves.toEqual({
-            fullName: 'John Doe',
+        await expect(frappe.auth.login({ username: 'user', password: PASSWORD })).resolves.toEqual({
+            fullName: 'Test User',
             homePage,
         })
     })
@@ -57,7 +57,7 @@ describe('auth.login', () => {
             }),
         ])
         const error = await frappe.auth
-            .login({ username: 'john', password: PASSWORD })
+            .login({ username: 'user', password: PASSWORD })
             .catch((reason: unknown) => reason)
         expect(error).toBeInstanceOf(AuthenticationError)
         expect(error).toMatchObject({
@@ -71,7 +71,7 @@ describe('auth.login', () => {
         const { frappe } = client([
             json(200, { message: 'Password Reset', redirect_to: '/update-password?key=abc&password_expired=true' }),
         ])
-        await expect(frappe.auth.login({ username: 'john', password: PASSWORD })).rejects.toMatchObject({
+        await expect(frappe.auth.login({ username: 'user', password: PASSWORD })).rejects.toMatchObject({
             name: 'AuthenticationError',
             message: 'The password has expired and must be reset before signing in.',
         })
@@ -83,7 +83,7 @@ describe('auth.login', () => {
         ['an array', []],
     ])('rejects %s instead of resolving a half sign-in', async (_title, body) => {
         const { frappe } = client([body === undefined ? new Response(null, { status: 200 }) : json(200, body)])
-        await expect(frappe.auth.login({ username: 'john', password: PASSWORD })).rejects.toMatchObject({
+        await expect(frappe.auth.login({ username: 'user', password: PASSWORD })).rejects.toMatchObject({
             name: 'AuthenticationError',
             message: 'The server did not complete the sign-in.',
         })
@@ -98,7 +98,7 @@ describe('auth.login', () => {
             }),
         ])
         const error = await frappe.auth
-            .login({ username: 'john', password: PASSWORD })
+            .login({ username: 'user', password: PASSWORD })
             .catch((reason: unknown) => reason)
         expect(error).toBeInstanceOf(AuthenticationError)
         expect(error).toMatchObject({ message: 'Invalid login credentials', status: 401 })
@@ -108,13 +108,13 @@ describe('auth.login', () => {
     it.each([
         ['no username', { password: PASSWORD }],
         ['an empty username', { username: '', password: PASSWORD }],
-        ['an empty password', { username: 'john', password: '' }],
-        ['a password that is not a string', { username: 'john', password: 42 }],
+        ['an empty password', { username: 'user', password: '' }],
+        ['a password that is not a string', { username: 'user', password: 42 }],
         ['no credentials at all', undefined],
     ])('rejects %s before any request, without echoing the password', async (_title, credentials) => {
         const { frappe, requests } = client([])
         const error = await frappe.auth.login(credentials as never).catch((reason: unknown) => reason)
-        expect(error).toBeInstanceOf(ConfigurationError)
+        expect(error).toBeInstanceOf(InvalidArgumentError)
         expect(exposed(error)).not.toContain(PASSWORD)
         expect(requests).toHaveLength(0)
     })
@@ -163,10 +163,10 @@ describe('auth.logout', () => {
     })
 })
 
-describe('auth.currentUser', () => {
+describe('auth.getLoggedUser', () => {
     it('returns the signed-in user from frappe.auth.get_logged_user', async () => {
         const { frappe, requests } = client([json(200, { message: 'Administrator' })])
-        await expect(frappe.auth.currentUser()).resolves.toBe('Administrator')
+        await expect(frappe.auth.getLoggedUser()).resolves.toBe('Administrator')
         expect(only(requests).method).toBe('GET')
         expect(only(requests).url).toBe(`${url}/api/method/frappe.auth.get_logged_user`)
     })
@@ -176,7 +176,7 @@ describe('auth.currentUser', () => {
         ['401, a rejected token', json(401, { exc_type: 'AuthenticationError' })],
         ['a "Guest" message', json(200, { message: 'Guest' })],
     ])('returns null for %s', async (_title, reply) => {
-        await expect(client([reply]).frappe.auth.currentUser()).resolves.toBeNull()
+        await expect(client([reply]).frappe.auth.getLoggedUser()).resolves.toBeNull()
     })
 
     it.each([
@@ -185,11 +185,11 @@ describe('auth.currentUser', () => {
         ['a message that is not a string', json(200, { message: 42 }), FrappeError],
         ['a body without a message', json(200, []), FrappeError],
     ])('rethrows %s', async (_title, reply, ErrorClass) => {
-        await expect(client([reply]).frappe.auth.currentUser()).rejects.toBeInstanceOf(ErrorClass)
+        await expect(client([reply]).frappe.auth.getLoggedUser()).rejects.toBeInstanceOf(ErrorClass)
     })
 
     it('says what it expected in place of the user', async () => {
-        await expect(client([json(200, { message: 42 })]).frappe.auth.currentUser()).rejects.toThrow(
+        await expect(client([json(200, { message: 42 })]).frappe.auth.getLoggedUser()).rejects.toThrow(
             `Expected a string in \`message\` from GET ${url}/api/method/frappe.auth.get_logged_user.`,
         )
     })
@@ -197,8 +197,8 @@ describe('auth.currentUser', () => {
     it('passes request options through', async () => {
         const controller = new AbortController()
         controller.abort()
-        await expect(client([]).frappe.auth.currentUser({ signal: controller.signal })).rejects.toMatchObject({
-            name: 'CancelledError',
+        await expect(client([]).frappe.auth.getLoggedUser({ signal: controller.signal })).rejects.toMatchObject({
+            name: 'AbortError',
         })
     })
 })
@@ -208,11 +208,11 @@ describe('auth with sessionAuth, end to end', () => {
         const cookie = (line: string): [string, string] => ['set-cookie', line]
         const { frappe, requests } = client(
             [
-                json(200, { message: 'Logged In', home_page: '/app', full_name: 'John Doe' }, [
+                json(200, { message: 'Logged In', home_page: '/app', full_name: 'Test User' }, [
                     cookie(`sid=${SID}; Max-Age=345600; HttpOnly; Path=/; SameSite=Lax`),
                     cookie('system_user=yes; Path=/'),
                 ]),
-                json(200, { message: 'john@example.com' }),
+                json(200, { message: 'user@example.com' }),
                 json(200, {}, [
                     cookie('sid=Guest; Max-Age=345600; HttpOnly; Path=/'),
                     cookie('sid=; Expires=Thu, 24 Sep 2026 10:00:00 GMT; Path=/'),
@@ -222,10 +222,10 @@ describe('auth with sessionAuth, end to end', () => {
             ],
             sessionAuth(),
         )
-        await frappe.auth.login({ username: 'john@example.com', password: PASSWORD })
-        await expect(frappe.auth.currentUser()).resolves.toBe('john@example.com')
+        await frappe.auth.login({ username: 'user@example.com', password: PASSWORD })
+        await expect(frappe.auth.getLoggedUser()).resolves.toBe('user@example.com')
         await frappe.auth.logout()
-        await expect(frappe.auth.currentUser()).resolves.toBeNull()
+        await expect(frappe.auth.getLoggedUser()).resolves.toBeNull()
 
         expect(requests.map((request) => request.headers.get('cookie'))).toEqual([
             null,
@@ -238,8 +238,8 @@ describe('auth with sessionAuth, end to end', () => {
 
     it('can be destructured', async () => {
         const { frappe } = client([json(200, { message: 'Administrator' })])
-        const { currentUser } = frappe.auth
-        await expect(currentUser()).resolves.toBe('Administrator')
+        const { getLoggedUser } = frappe.auth
+        await expect(getLoggedUser()).resolves.toBe('Administrator')
         expect(Object.isFrozen(frappe.auth)).toBe(true)
     })
 })

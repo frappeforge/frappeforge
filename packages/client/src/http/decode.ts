@@ -25,7 +25,7 @@ const errorByStatus: Readonly<Record<number, typeof FrappeError>> = {
     417: ValidationError,
 }
 
-const entities = {
+const htmlEntities = {
     amp: '&',
     lt: '<',
     gt: '>',
@@ -40,11 +40,11 @@ const entities = {
  * `<details>` / `<summary>`, tables and headings), the common entities are decoded, and whitespace
  * is collapsed.
  */
-export function plainText(html: string): string {
+export function toPlainText(html: string): string {
     return html
         .replace(/<\/?(?:a|abbr|b|cite|code|em|i|kbd|mark|q|s|small|span|strong|sub|sup|u|var)\b[^>]*>/giu, '')
         .replace(/<[^>]*>/gu, ' ')
-        .replace(/&(amp|lt|gt|quot|#39|nbsp);/gu, (_match, name: keyof typeof entities) => entities[name])
+        .replace(/&(amp|lt|gt|quot|#39|nbsp);/gu, (_match, name: keyof typeof htmlEntities) => htmlEntities[name])
         .replace(/\s+/gu, ' ')
         .trim()
 }
@@ -93,15 +93,15 @@ export function toError(response: Response, text: string, context: FrappeRequest
     const body = parseRecord(text)
     const { messages: serverMessages, raised } = parseServerMessages(body?.['_server_messages'])
     const exceptionText = stringOrUndefined(body?.['exception'])
-    const exception =
+    const exceptionType =
         stringOrUndefined(body?.['exc_type']) ?? /^(?:[\w.]+\.)?(\w+)(?::|$)/u.exec(exceptionText ?? '')?.[1]
     const errorMessage = stringOrUndefined(body?.['_error_message'])
     const separator = exceptionText?.indexOf(': ') ?? -1
 
     const candidates = [
-        raised === undefined ? undefined : plainText(raised.message),
-        errorMessage === undefined ? undefined : plainText(errorMessage),
-        exceptionText === undefined || separator < 0 ? undefined : plainText(exceptionText.slice(separator + 2)),
+        raised === undefined ? undefined : toPlainText(raised.message),
+        errorMessage === undefined ? undefined : toPlainText(errorMessage),
+        exceptionText === undefined || separator < 0 ? undefined : toPlainText(exceptionText.slice(separator + 2)),
         body === undefined ? htmlTitle(text) : undefined,
     ]
     const message =
@@ -112,7 +112,7 @@ export function toError(response: Response, text: string, context: FrappeRequest
         status,
         serverMessages,
         request: context,
-        ...(exception === undefined ? {} : { exception }),
+        ...(exceptionType === undefined ? {} : { exceptionType }),
     }
     if (status === 429) {
         const retryAfter = parseRetryAfter(response.headers.get('retry-after'))
@@ -166,7 +166,7 @@ function parseRetryAfter(value: string | null): number | undefined {
 
 function htmlTitle(text: string): string | undefined {
     const title = /<title[^>]*>([^<]*)<\/title>/iu.exec(text)?.[1]
-    return title === undefined ? undefined : plainText(title)
+    return title === undefined ? undefined : toPlainText(title)
 }
 
 /** `undefined` when the text is not JSON — which JSON itself can never produce. */

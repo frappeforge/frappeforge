@@ -1,7 +1,7 @@
 // Request URLs: the path on the site and the query string.
 
-import { ConfigurationError } from '../errors.js'
-import type { QueryValue, RawRequest } from '../types.js'
+import { InvalidArgumentError } from '../errors.js'
+import type { FrappeRequest, QueryValue } from '../types.js'
 
 /**
  * A `.` or `..` segment, also percent-encoded. The URL parser resolves them, so the request would
@@ -14,9 +14,9 @@ const dotSegment = /(?:^|\/)(?:\.|%2e){1,2}(?:\/|$)/iu
  * Joins the site URL, a path and a query. Concatenation, not `new URL(path, base)`, which would
  * drop a path prefix in the site URL.
  */
-export function buildUrl(base: string, path: string, query: RawRequest['query'] = {}): string {
+export function buildUrl(base: string, path: string, query: FrappeRequest['query'] = {}): string {
     if (!/^\/[^?#\\\s\p{Cc}]*$/u.test(path) || dotSegment.test(path)) {
-        throw new ConfigurationError(
+        throw new InvalidArgumentError(
             `Request path must start with "/", without "?", "#", "\\", whitespace, or "." and ".." segments (use \`query\` for parameters): ${JSON.stringify(path)}`,
         )
     }
@@ -40,7 +40,7 @@ function encodeQueryValue(key: string, value: QueryValue): string | undefined {
         const json = JSON.stringify(value) as string | undefined
         if (json !== undefined) return json
     } catch (cause) {
-        throw new ConfigurationError(what, { cause })
+        throw new InvalidArgumentError(what, { cause })
     }
-    throw new ConfigurationError(what)
+    throw new InvalidArgumentError(what)
 }

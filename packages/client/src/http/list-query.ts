@@ -1,7 +1,7 @@
 // List queries: listing arguments turned into the parameters of Frappe's `get_list` and
 // `get_count`, and the rule for when they no longer fit in a URL.
 
-import { ConfigurationError } from '../errors.js'
+import { InvalidArgumentError } from '../errors.js'
 import type { QueryValue } from '../types.js'
 import { buildUrl } from './url.js'
 
@@ -9,7 +9,7 @@ import { buildUrl } from './url.js'
  * Listing arguments as the runtime receives them: typed callers pass `ListArgs`, untyped ones
  * anything, so every value is checked here.
  */
-export interface LooseListArgs {
+export interface UncheckedListArgs {
     readonly fields?: unknown
     readonly filters?: unknown
     readonly orFilters?: unknown
@@ -60,7 +60,7 @@ export function normalizeFilters(filters: unknown, what = '`filters`'): unknown[
     if (Array.isArray(filters)) {
         return filters.map((filter: unknown) => {
             if (!Array.isArray(filter)) {
-                throw new ConfigurationError(
+                throw new InvalidArgumentError(
                     `${what} must be an object or an array of arrays such as ["status", "=", "Open"].`,
                 )
             }
@@ -68,7 +68,9 @@ export function normalizeFilters(filters: unknown, what = '`filters`'): unknown[
         })
     }
     if (typeof filters !== 'object' || filters === null) {
-        throw new ConfigurationError(`${what} must be an object or an array of arrays such as ["status", "=", "Open"].`)
+        throw new InvalidArgumentError(
+            `${what} must be an object or an array of arrays such as ["status", "=", "Open"].`,
+        )
     }
     const tuples: unknown[][] = []
     for (const [field, value] of Object.entries(filters)) {
@@ -85,33 +87,31 @@ function toWire(value: unknown): unknown {
 }
 
 /** Checks that listing arguments are an object, as untyped callers may pass `null`. */
-export function assertListArgs(args: unknown): asserts args is LooseListArgs {
+export function assertListArgs(args: unknown): asserts args is UncheckedListArgs {
     if (typeof args !== 'object' || args === null) {
-        throw new ConfigurationError('The listing arguments must be an object.')
+        throw new InvalidArgumentError('The listing arguments must be an object.')
     }
 }
 
 /**
  * The `get_list` parameters for a listing. Checks every argument first, so a mistake is a
- * `ConfigurationError` and no request is sent. With `parent`, only the rows of that parent
+ * `InvalidArgumentError` and no request is sent. With `parent`, only the rows of that parent
  * DocType are returned.
  */
 export function toListParams(args: unknown): ListParams {
     assertListArgs(args)
     const { fields, parent } = args
     if (fields !== undefined && !Array.isArray(fields)) {
-        throw new ConfigurationError('`fields` must be an array of field names, or ["*"].')
+        throw new InvalidArgumentError('`fields` must be an array of field names, or ["*"].')
     }
-    if (parent !== undefined && (typeof parent !== 'string' || parent === '')) {
-        throw new ConfigurationError('`parent` must be the name of the parent DocType.')
-    }
+    if (parent !== undefined) assertParent(parent)
     const filters = normalizeFilters(args.filters)
     // Frappe 15 returns child rows of every parent type for `parent`, Frappe 16 only this one's.
     if (parent !== undefined) filters.push(['parenttype', '=', parent])
     const orFilters = normalizeFilters(args.orFilters, '`orFilters`')
     const orderBy = toOrderBy(args.orderBy)
     const { groupBy } = args
-    if (groupBy !== undefined) assertIdentifier(groupBy, '`groupBy`')
+    if (groupBy !== undefined) assertFieldName(groupBy, '`groupBy`')
     return {
         // A copy: `paginate` reuses the parameters for every page.
         ...(fields === undefined ? {} : { fields: [...(fields as readonly unknown[])] }),
@@ -132,32 +132,40 @@ function toOrderBy(orderBy: unknown): string {
     return entries
         .map((entry) => {
             const { field, order = 'asc' } = Object(entry) as { field?: unknown; order?: unknown }
-            assertIdentifier(field, '`orderBy` field')
+            assertFieldName(field, '`orderBy` field')
             if (order !== 'asc' && order !== 'desc') {
-                throw new ConfigurationError(`\`orderBy\` order must be "asc" or "desc"; got ${String(order)}.`)
+                throw new InvalidArgumentError(`\`orderBy\` order must be "asc" or "desc"; got ${String(order)}.`)
             }
             return `${field} ${order}`
         })
         .join(', ')
 }
 
-function assertIdentifier(value: unknown, what: string): asserts value is string {
+/** Checks a field name: a column name as Frappe stores it. */
+export function assertFieldName(value: unknown, what: string): asserts value is string {
     if (typeof value !== 'string' || !identifier.test(value)) {
-        throw new ConfigurationError(`${what} must be a field name such as "modified"; got ${String(value)}.`)
+        throw new InvalidArgumentError(`${what} must be a field name such as "modified"; got ${String(value)}.`)
+    }
+}
+
+/** Checks `parent`, the parent DocType a child table's rows are read through. */
+export function assertParent(parent: unknown): asserts parent is string {
+    if (typeof parent !== 'string' || parent === '') {
+        throw new InvalidArgumentError('`parent` must be the name of the parent DocType.')
     }
 }
 
 /** Checks a count of rows, such as `limit` or `pageSize`. */
 export function assertPositiveInteger(value: unknown, what: string): number {
     if (typeof value !== 'number' || !Number.isInteger(value) || value < 1) {
-        throw new ConfigurationError(`${what} must be a positive integer; got ${String(value)}.`)
+        throw new InvalidArgumentError(`${what} must be a positive integer; got ${String(value)}.`)
     }
     return value
 }
 
 function assertOffset(value: unknown): number {
     if (typeof value !== 'number' || !Number.isInteger(value) || value < 0) {
-        throw new ConfigurationError(`\`offset\` must be an integer of 0 or more; got ${String(value)}.`)
+        throw new InvalidArgumentError(`\`offset\` must be an integer of 0 or more; got ${String(value)}.`)
     }
     return value
 }

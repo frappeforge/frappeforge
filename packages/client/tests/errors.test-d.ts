@@ -1,12 +1,12 @@
 import { describe, expectTypeOf, it } from 'vitest'
 
 import {
+    AbortError,
     AuthenticationError,
-    CancelledError,
-    ConfigurationError,
     ConflictError,
     FrappeError,
     type FrappeErrorJSON,
+    InvalidArgumentError,
     NetworkError,
     NotFoundError,
     PermissionError,
@@ -20,10 +20,10 @@ import {
 describe('error names', () => {
     it('are literal types, so a name check narrows like instanceof', () => {
         expectTypeOf(new FrappeError('x').name).toEqualTypeOf<string>()
-        expectTypeOf(new ConfigurationError('x').name).toEqualTypeOf<'ConfigurationError'>()
+        expectTypeOf(new InvalidArgumentError('x').name).toEqualTypeOf<'InvalidArgumentError'>()
         expectTypeOf(new NetworkError('x').name).toEqualTypeOf<'NetworkError'>()
         expectTypeOf(new TimeoutError('x').name).toEqualTypeOf<'TimeoutError'>()
-        expectTypeOf(new CancelledError('x').name).toEqualTypeOf<'CancelledError'>()
+        expectTypeOf(new AbortError('x').name).toEqualTypeOf<'AbortError'>()
         expectTypeOf(new AuthenticationError('x').name).toEqualTypeOf<'AuthenticationError'>()
         expectTypeOf(new PermissionError('x').name).toEqualTypeOf<'PermissionError'>()
         expectTypeOf(new NotFoundError('x').name).toEqualTypeOf<'NotFoundError'>()

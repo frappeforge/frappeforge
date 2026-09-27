@@ -35,7 +35,7 @@
         "gate": "pnpm build && pnpm typecheck && pnpm lint && pnpm format:check && pnpm knip && pnpm test && pnpm api:check && pnpm publint && pnpm verify:packed",
         "changeset": "changeset",
         "version-packages": "changeset version",
-        "release": "pnpm build && changeset publish"
+        "release": "pnpm build && pnpm publish -r --provenance --access public --no-git-checks && changeset git-tag"
     },
     "devDependencies": {
         "@changesets/changelog-github": "^1.0.1",

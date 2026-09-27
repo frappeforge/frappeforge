@@ -14,8 +14,11 @@
 export interface FrappeDoc {
     /** The DocType this document belongs to. Not a database column, so lists never return it. */
     doctype: string
-    /** Primary key. Either a generated series value or a field of the document itself. */
-    name: string
+    /**
+     * Primary key: a string, or an integer for DocTypes named by "Autoincrement". Generated
+     * interfaces narrow it to the one their DocType uses.
+     */
+    name: string | number
     /** User who created the document. */
     owner: string
     /** Creation timestamp, as returned by the server. */
@@ -118,7 +121,7 @@ export type AbsentColumn<T> =
  * tables are left out, because lists never return child rows, and so are `doctype`, which is not
  * a column, and the standard columns the table does not have ({@link AbsentColumn}).
  */
-export type ListFieldOf<T> = Exclude<FieldOf<T>, TableFieldOf<T> | 'doctype' | AbsentColumn<T>>
+export type ColumnOf<T> = Exclude<FieldOf<T>, TableFieldOf<T> | 'doctype' | AbsentColumn<T>>
 
 /**
  * Which columns a list returns: some fields, or `['*']` for every column.
@@ -126,7 +129,7 @@ export type ListFieldOf<T> = Exclude<FieldOf<T>, TableFieldOf<T> | 'doctype' | A
  * `'name'` is always allowed, even while the document type is still generic, so that a
  * default of `['name']` — what Frappe returns when no fields are asked for — always type-checks.
  */
-export type FieldSelection<T> = readonly (ListFieldOf<T> | 'name')[] | readonly ['*']
+export type FieldSelection<T> = readonly (ColumnOf<T> | 'name')[] | readonly ['*']
 
 /**
  * One row of a list result: the requested columns, or every column with `['*']`. Child tables
@@ -145,7 +148,7 @@ export type FieldSelection<T> = readonly (ListFieldOf<T> | 'name')[] | readonly 
  * ```
  */
 export type ListRow<T, F extends FieldSelection<T>> = (
-    F extends readonly ['*'] ? ListFieldOf<T> : F[number] & ListFieldOf<T>
+    F extends readonly ['*'] ? ColumnOf<T> : F[number] & ColumnOf<T>
 ) extends infer C extends string
     ? Exclude<
           C & keyof FrappeDoc,
@@ -162,6 +165,27 @@ export type ListRow<T, F extends FieldSelection<T>> = (
             : never
         : never
     : never
+
+/** A field `getValue` can read: a database column, or `name`. */
+export type ValueField<T> = ColumnOf<T> | 'name'
+
+/**
+ * What `getValue` returns for the fields it is given: for one field, its value, `null` when
+ * empty; for several, a row, as `getList` returns them.
+ *
+ * @example
+ * ```ts
+ * type Status = GetValueResult<Task, 'status'> // 'Open' | 'Completed' | null
+ * type Row = GetValueResult<Task, readonly ['status', 'priority']> // { status?: …; priority: number }
+ * ```
+ */
+export type GetValueResult<T, F extends ValueField<T> | readonly ValueField<T>[]> = F extends readonly ValueField<T>[]
+    ? ListRow<T, F>
+    : F extends ValueField<T>
+      ? ListRow<T, readonly [F]> extends infer R
+          ? Exclude<R[keyof R], undefined> | null
+          : never
+      : never
 
 // ── Filters ────────────────────────────────────────────────────────────────────────────────
 
@@ -235,7 +259,7 @@ export type FilterObject<T> =
         ? {
               readonly [K in Exclude<keyof FrappeDoc, 'doctype'>]?: EqualityValue<FrappeDoc[K]> | FilterCondition
           } & Readonly<Record<string, EqualityValue<unknown> | FilterCondition>>
-        : { readonly [K in ListFieldOf<T>]?: EqualityValue<T[K]> | FilterCondition }
+        : { readonly [K in ColumnOf<T>]?: EqualityValue<T[K]> | FilterCondition }
 
 /**
  * A filter on a child-table field: `[childDocType, field, operator, value]`. Matches documents
@@ -251,7 +275,7 @@ export type ChildFilterTuple<T> =
         ? readonly [childDocType: string, field: string, ...condition: FilterCondition]
         : {
               [K in TableFieldOf<T>]-?: NonNullable<T[K]> extends readonly (infer C extends FrappeDoc)[]
-                  ? readonly [childDocType: C['doctype'], field: ListFieldOf<C>, ...condition: FilterCondition]
+                  ? readonly [childDocType: C['doctype'], field: ColumnOf<C>, ...condition: FilterCondition]
                   : never
           }[TableFieldOf<T>]
 
@@ -264,9 +288,9 @@ export type ChildFilterTuple<T> =
  * long to read. The object form, {@link FilterObject}, checks values per field.
  */
 export type FilterTuple<T> =
-    | readonly [field: ListFieldOf<T>, ...condition: FilterCondition]
+    | readonly [field: ColumnOf<T>, ...condition: FilterCondition]
     | (T extends { doctype: infer N extends string }
-          ? readonly [docType: N, field: ListFieldOf<T>, ...condition: FilterCondition]
+          ? readonly [docType: N, field: ColumnOf<T>, ...condition: FilterCondition]
           : never)
     | ChildFilterTuple<T>
 
@@ -287,7 +311,7 @@ export type Filters<T> = FilterObject<T> | readonly FilterTuple<T>[]
 /** Which field to sort a listing by, and in which direction. */
 export interface OrderBy<T> {
     /** Field to sort by. */
-    field: ListFieldOf<T>
+    field: ColumnOf<T>
     /** Defaults to `asc`. */
     order?: 'asc' | 'desc'
 }
@@ -303,7 +327,7 @@ export interface ListArgs<T, F extends FieldSelection<T> = FieldSelection<T>> {
     /** Sort order: one field, or several in priority order. */
     orderBy?: OrderBy<T> | readonly OrderBy<T>[]
     /** Field to group results by. */
-    groupBy?: ListFieldOf<T>
+    groupBy?: ColumnOf<T>
     /**
      * Rows to return: a positive integer, default 20. Frappe reads `0` as "no limit", so this
      * client never sends it — use `paginate` to read everything.
@@ -353,7 +377,7 @@ export type ServerField =
     | '_liked_by'
 
 /**
- * What `create` and `update` accept.
+ * What `insert` and `setValue` accept.
  *
  * Every field is optional, because Frappe checks mandatory fields only after the DocType's
  * `validate` hooks, which often fill them. Server-assigned fields ({@link ServerField}) are
@@ -373,6 +397,23 @@ export type DocInput<T> = {
         : T[K]
 }
 
+/** Frappe's permission types, as `hasPermission` checks them. */
+export type PermissionType =
+    | 'select'
+    | 'read'
+    | 'write'
+    | 'create'
+    | 'delete'
+    | 'submit'
+    | 'cancel'
+    | 'amend'
+    | 'print'
+    | 'email'
+    | 'report'
+    | 'import'
+    | 'export'
+    | 'share'
+
 /**
  * Accepted as the last argument of every call, so cancellation and per-call overrides never
  * need a separate API.
@@ -387,7 +428,7 @@ export interface RequestOptions {
 }
 
 /**
- * A value accepted in {@link RawRequest.query}. Strings are sent as they are, numbers via
+ * A value accepted in {@link FrappeRequest.query}. Strings are sent as they are, numbers via
  * `String`, booleans as `1` / `0`, and arrays and objects as JSON; `null` and `undefined` are
  * left out of the query string. A `Date` is an object too, so it would be sent as quoted JSON:
  * pass dates as strings, such as `'2026-01-31'`.
@@ -395,7 +436,7 @@ export interface RequestOptions {
 export type QueryValue = string | number | boolean | null | undefined | readonly unknown[] | object
 
 /** A request to any Frappe endpoint, sent through the client's pipeline by `request()`. */
-export interface RawRequest {
+export interface FrappeRequest {
     /** HTTP method. Default `GET`. */
     method?: 'GET' | 'POST' | 'PUT' | 'DELETE'
     /**

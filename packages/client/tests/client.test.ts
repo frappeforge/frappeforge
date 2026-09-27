@@ -1,10 +1,10 @@
 import { describe, expect, it, vi } from 'vitest'
 
 import {
+    AbortError,
     bearerAuth,
-    CancelledError,
-    ConfigurationError,
     createClient,
+    InvalidArgumentError,
     NotFoundError,
     sessionAuth,
     TimeoutError,
@@ -17,7 +17,7 @@ const url = 'https://example.com'
 
 describe('createClient', () => {
     it('validates options before any request', () => {
-        expect(() => createClient({ url: 'example.com' })).toThrow(ConfigurationError)
+        expect(() => createClient({ url: 'example.com' })).toThrow(InvalidArgumentError)
     })
 
     it('exposes the normalized url and the site name on a frozen client', () => {
@@ -49,7 +49,7 @@ describe('createClient', () => {
             const { fetch, requests } = stubFetch([hang])
             const frappe = createClient({ url, fetch })
             await expect(frappe.request({ path: '/api/x' }, { signal: controller.signal })).rejects.toBeInstanceOf(
-                CancelledError,
+                AbortError,
             )
             const timedOut = frappe.request({ path: '/api/x' }, { timeout: 50 }).catch((error: unknown) => error)
             await vi.advanceTimersByTimeAsync(50)
@@ -69,9 +69,22 @@ describe('createClient', () => {
     it('exposes the auth and doc namespaces on the frozen client', () => {
         const frappe = createClient({ url })
         expect(Object.keys(frappe)).toEqual(['url', 'siteName', 'request', 'auth', 'doc'])
-        expect(Object.keys(frappe.auth)).toEqual(['login', 'logout', 'currentUser'])
+        expect(Object.keys(frappe.auth)).toEqual(['login', 'logout', 'getLoggedUser'])
         expect(Object.isFrozen(frappe.auth)).toBe(true)
-        expect(Object.keys(frappe.doc)).toEqual(['get', 'getSingle', 'list', 'count', 'paginate'])
+        expect(Object.keys(frappe.doc)).toEqual([
+            'get',
+            'getSingle',
+            'getList',
+            'count',
+            'getValue',
+            'getSingleValue',
+            'exists',
+            'hasPermission',
+            'validateLink',
+            'isAmended',
+            'getPassword',
+            'paginate',
+        ])
         expect(Object.isFrozen(frappe.doc)).toBe(true)
     })
 

@@ -1,6 +1,6 @@
 // Session (cookie) authentication, with CSRF handling. The same code runs in browsers and Node.
 
-import { ConfigurationError } from '../errors.js'
+import { InvalidArgumentError } from '../errors.js'
 import { parseSetCookie, serializeCookies } from './cookies.js'
 import type { AuthStrategy } from './strategy.js'
 
@@ -14,7 +14,7 @@ export interface SessionAuthOptions {
 }
 
 /** The methods Frappe checks the CSRF token for. */
-const unsafe: ReadonlySet<string> = new Set(['POST', 'PUT', 'PATCH', 'DELETE'])
+const unsafeMethods: ReadonlySet<string> = new Set(['POST', 'PUT', 'PATCH', 'DELETE'])
 
 /**
  * Authenticates with the site's session cookie, created by `frappe.auth.login()` or by Frappe's own
@@ -29,25 +29,25 @@ const unsafe: ReadonlySet<string> = new Set(['POST', 'PUT', 'PATCH', 'DELETE'])
  * detecting the environment. The jar ignores `Domain` and `Path`: a client talks to one site.
  *
  * An expired session is not a `401`: requests run as Guest, and protected ones answer `403`. Use
- * `frappe.auth.currentUser()`, which is `null` for Guest, to tell the two apart.
+ * `frappe.auth.getLoggedUser()`, which is `null` for Guest, to tell the two apart.
  *
  * @param options - Where the CSRF token comes from.
  *
  * @example
  * ```ts
  * const frappe = createClient({ url: 'https://example.com', auth: sessionAuth() })
- * await frappe.auth.login({ username: 'jane@example.com', password })
+ * await frappe.auth.login({ username: 'user@example.com', password })
  * ```
  */
 export function sessionAuth(options: SessionAuthOptions = {}): AuthStrategy {
     const { csrfToken } = Object(options) as Partial<Record<keyof SessionAuthOptions, unknown>>
-    if (csrfToken !== undefined && typeof csrfToken !== 'function' && usable(csrfToken) === undefined) {
-        throw new ConfigurationError(
+    if (csrfToken !== undefined && typeof csrfToken !== 'function' && usableToken(csrfToken) === undefined) {
+        throw new InvalidArgumentError(
             'sessionAuth(): `csrfToken` must be a non-empty string of visible ASCII characters that is not an unrendered `{{ csrf_token }}` placeholder, or a function.',
         )
     }
-    const csrf = (): string | undefined =>
-        usable(
+    const readCsrfToken = (): string | undefined =>
+        usableToken(
             typeof csrfToken === 'function'
                 ? (csrfToken as () => unknown)()
                 : (csrfToken ?? (globalThis as { csrf_token?: unknown }).csrf_token),
@@ -57,7 +57,7 @@ export function sessionAuth(options: SessionAuthOptions = {}): AuthStrategy {
     return Object.freeze({
         credentials: 'include',
         apply(headers: Headers, method: string): void {
-            const token = unsafe.has(method) ? csrf() : undefined
+            const token = unsafeMethods.has(method) ? readCsrfToken() : undefined
             if (token !== undefined) headers.set('X-Frappe-CSRF-Token', token)
             const cookie = serializeCookies(jar)
             if (cookie !== '') headers.set('Cookie', cookie)
@@ -84,6 +84,6 @@ export function sessionAuth(options: SessionAuthOptions = {}): AuthStrategy {
  * The token, when it can be sent: a non-empty string of visible ASCII that is not an unrendered
  * template placeholder such as `{{ csrf_token }}`.
  */
-function usable(value: unknown): string | undefined {
+function usableToken(value: unknown): string | undefined {
     return typeof value === 'string' && /^[!-~]+$/u.test(value) && !value.startsWith('{{') ? value : undefined
 }

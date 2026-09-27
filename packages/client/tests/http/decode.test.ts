@@ -12,7 +12,7 @@ import {
     ServerError,
     ValidationError,
 } from '../../src/errors.js'
-import { plainText, readJson, readMember, toError } from '../../src/http/decode.js'
+import { readJson, readMember, toError, toPlainText } from '../../src/http/decode.js'
 
 /** A response recorded from a real Frappe site, with what the client must make of it. */
 interface ResponseFixture {
@@ -20,7 +20,7 @@ interface ResponseFixture {
     recordedFrom: string | null
     request: { method: string; path: string }
     response: { status: number; headers: Record<string, string>; body: string }
-    expected: { value: unknown } | { name: string; status: number; exception?: string; message: string }
+    expected: { value: unknown } | { name: string; status: number; exceptionType?: string; message: string }
 }
 
 const site = 'https://example.com'
@@ -83,7 +83,7 @@ describe('recorded responses', () => {
         expect(error.toJSON()).toMatchObject({
             name: expected.name,
             status: expected.status,
-            exception: expected.exception,
+            exceptionType: expected.exceptionType,
             message: expected.message,
             request: { method: request.method, url },
         })
@@ -176,7 +176,7 @@ describe('toError', () => {
             context,
         )
         expect(error.constructor).toBe(FrappeError)
-        expect(error.exception).toBe('CSRFTokenError')
+        expect(error.exceptionType).toBe('CSRFTokenError')
         expect(error.message).toBe('Request failed with status 400 (POST /api/resource/Task)')
     })
 
@@ -262,7 +262,7 @@ describe('toError', () => {
                 ...envelope(417, { exc_type: 'MandatoryError', exception: 'frappe.exceptions.ValidationError: x' }),
                 context,
             )
-            expect(error.exception).toBe('MandatoryError')
+            expect(error.exceptionType).toBe('MandatoryError')
         })
 
         it.each([
@@ -272,7 +272,7 @@ describe('toError', () => {
             ['frappe.exceptions.PermissionError', 'PermissionError'],
             ['not a class name at all', undefined],
         ])('parses the class name out of %j', (exception, expected) => {
-            expect(toError(...envelope(500, { exception }), context).exception).toBe(expected)
+            expect(toError(...envelope(500, { exception }), context).exceptionType).toBe(expected)
         })
     })
 
@@ -384,7 +384,7 @@ describe('toError', () => {
     })
 })
 
-describe('plainText', () => {
+describe('toPlainText', () => {
     it.each([
         ['<b>Subject</b> is mandatory', 'Subject is mandatory'],
         ['Line one<br>Line two<br/>three', 'Line one Line two three'],
@@ -401,6 +401,6 @@ describe('plainText', () => {
         ['<h4>Title</h4><table><tr><td>a</td><td>b</td></tr></table>', 'Title a b'],
         ['Row <span class="x">1</span>: <a href="/app/todo/1">TODO-1</a>', 'Row 1: TODO-1'],
     ])('converts %j', (html, text) => {
-        expect(plainText(html)).toBe(text)
+        expect(toPlainText(html)).toBe(text)
     })
 })

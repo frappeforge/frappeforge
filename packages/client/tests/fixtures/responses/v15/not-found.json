@@ -14,7 +14,7 @@
     "expected": {
         "name": "NotFoundError",
         "status": 404,
-        "exception": "DoesNotExistError",
+        "exceptionType": "DoesNotExistError",
         "message": "ToDo does-not-exist not found"
     }
 }
