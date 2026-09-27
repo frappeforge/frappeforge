@@ -14,7 +14,7 @@
     "expected": {
         "name": "ValidationError",
         "status": 417,
-        "exception": "MandatoryError",
+        "exceptionType": "MandatoryError",
         "message": "Error: Value missing for ToDo: Description"
     }
 }

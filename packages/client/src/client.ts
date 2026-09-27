@@ -3,9 +3,9 @@
 import { type ClientOptions, resolveConfig } from './config.js'
 import { readJson } from './http/decode.js'
 import { type Send, send as sendRequest } from './http/send.js'
-import { type AuthNamespace, createAuthNamespace } from './resources/auth.js'
-import { createDocNamespace, type DocNamespace } from './resources/doc.js'
-import type { RawRequest, RegisteredDocTypes, RequestOptions } from './types.js'
+import { type AuthNamespace, createAuthNamespace } from './namespaces/auth.js'
+import { createDocNamespace, type DocNamespace } from './namespaces/doc.js'
+import type { FrappeRequest, RegisteredDocTypes, RequestOptions } from './types.js'
 
 /**
  * A client for one Frappe site. Create it with {@link createClient}.
@@ -24,8 +24,8 @@ export interface FrappeClient<D extends object = RegisteredDocTypes> {
      * runtime.
      *
      * Rejects with a `FrappeError` subclass: the status errors for non-2xx responses (with the
-     * server's messages), `TimeoutError`, `CancelledError`, `NetworkError`, or
-     * `ConfigurationError` for a request that cannot be built.
+     * server's messages), `TimeoutError`, `AbortError`, `NetworkError`, or
+     * `InvalidArgumentError` for a request that cannot be built.
      *
      * A function property, not a method: it never uses `this`, so `const { request } = frappe` is
      * safe, and lint rules such as `unbound-method` know it.
@@ -38,7 +38,7 @@ export interface FrappeClient<D extends object = RegisteredDocTypes> {
      * const { message } = await frappe.request<{ message: string }>({ path: '/api/method/frappe.ping' })
      * ```
      */
-    readonly request: <T = unknown>(init: RawRequest, options?: RequestOptions) => Promise<T>
+    readonly request: <T = unknown>(init: FrappeRequest, options?: RequestOptions) => Promise<T>
     /** Sign in, sign out, and who is signed in. */
     readonly auth: AuthNamespace
     /** Read documents: one by name, lists, counts, and every matching row. */
@@ -47,7 +47,7 @@ export interface FrappeClient<D extends object = RegisteredDocTypes> {
 
 /**
  * Creates a client for one Frappe site. Options are validated here, so a mistake throws a
- * `ConfigurationError` before any request is sent.
+ * `InvalidArgumentError` before any request is sent.
  *
  * Documents are typed by the DocTypes `@frappeforge/codegen` registers. Pass a DocType map as
  * `D` to use another one.
@@ -64,11 +64,11 @@ export function createClient<D extends object = RegisteredDocTypes>(options: Cli
     return Object.freeze({
         url: config.url,
         siteName: config.siteName,
-        request: <T = unknown>(init: RawRequest, requestOptions: RequestOptions = {}): Promise<T> =>
+        request: <T = unknown>(init: FrappeRequest, requestOptions: RequestOptions = {}): Promise<T> =>
             send(init, requestOptions, readJson) as Promise<T>,
         auth: createAuthNamespace(send, () => {
             config.auth?.clear?.()
         }),
         doc: createDocNamespace<D>(send),
-    })
+    } satisfies FrappeClient<D>)
 }

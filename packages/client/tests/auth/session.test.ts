@@ -1,11 +1,11 @@
 import { describe, expect, it, vi } from 'vitest'
 
-import { ConfigurationError, createClient, type RawRequest, sessionAuth } from '../../src/index.js'
+import { createClient, type FrappeRequest, InvalidArgumentError, sessionAuth } from '../../src/index.js'
 import { exposed } from '../support/expose.js'
 import { json, stubFetch } from '../support/fetch.js'
 
 const url = 'https://example.com'
-const ping: RawRequest = { path: '/api/method/frappe.ping' }
+const ping: FrappeRequest = { path: '/api/method/frappe.ping' }
 const SID = 'SID0f3a9c1e2b'
 const CSRF = 'CSRF7d41e0'
 
@@ -14,8 +14,8 @@ const CSRF = 'CSRF7d41e0'
 const loginCookies = [
     `sid=${SID}; Expires=Tue, 29 Sep 2099 10:00:00 GMT; Max-Age=345600; HttpOnly; Path=/; SameSite=Lax`,
     'system_user=yes; Path=/; SameSite=Lax',
-    'full_name=John%20Doe; Path=/; SameSite=Lax',
-    'user_id=john%40example.com; Path=/; SameSite=Lax',
+    'full_name=Test%20User; Path=/; SameSite=Lax',
+    'user_id=user%40example.com; Path=/; SameSite=Lax',
     'user_image=; Path=/; SameSite=Lax',
 ]
 const logoutCookies = [
@@ -121,7 +121,7 @@ describe('sessionAuth: CSRF token', () => {
                 }
                 return undefined
             })()
-            expect(error).toBeInstanceOf(ConfigurationError)
+            expect(error).toBeInstanceOf(InvalidArgumentError)
         },
     )
 
@@ -135,11 +135,11 @@ describe('sessionAuth: the cookie jar (Node, where getSetCookie returns the line
     it('fills the jar from several Set-Cookie lines, ignoring their attributes, and sends it back', async () => {
         const { fetch, requests } = stubFetch([withCookies(loginCookies), json(200, {}), json(200, {})])
         const frappe = createClient({ url, fetch, auth: sessionAuth() })
-        await frappe.request({ method: 'POST', path: '/api/method/login', body: { usr: 'john', pwd: 'x' } })
+        await frappe.request({ method: 'POST', path: '/api/method/login', body: { usr: 'user', pwd: 'x' } })
         expect(requests[0]?.headers.has('cookie')).toBe(false)
         await frappe.request(ping)
         await frappe.request({ method: 'POST', path: '/api/method/frappe.client.get_count' })
-        const cookie = `sid=${SID}; system_user=yes; full_name=John%20Doe; user_id=john%40example.com; user_image=`
+        const cookie = `sid=${SID}; system_user=yes; full_name=Test%20User; user_id=user%40example.com; user_image=`
         expect(requests[1]?.headers.get('cookie')).toBe(cookie)
         expect(requests[2]?.headers.get('cookie')).toBe(cookie)
     })
@@ -212,7 +212,7 @@ describe('sessionAuth: the cookie jar (Node, where getSetCookie returns the line
 describe('sessionAuth: browsers, where getSetCookie returns []', () => {
     it('leaves the jar empty and sends no Cookie; the browser attaches its own through credentials', async () => {
         // A browser's fetch never exposes Set-Cookie: the response carries none, whatever the server sent.
-        const browserResponse = json(200, { message: 'Logged In', home_page: '/app', full_name: 'John Doe' })
+        const browserResponse = json(200, { message: 'Logged In', home_page: '/app', full_name: 'Test User' })
         expect(browserResponse.headers.getSetCookie()).toEqual([])
         const { fetch, requests } = stubFetch([browserResponse, json(200, {})])
         vi.stubGlobal('csrf_token', CSRF)

@@ -16,6 +16,7 @@ import {
 import type {
     AbsentColumn,
     ChildFilterTuple,
+    ColumnOf,
     DocInput,
     DocOf,
     DocTypeName,
@@ -26,11 +27,10 @@ import type {
     Filters,
     FilterTuple,
     FrappeDoc,
+    FrappeRequest,
     ListArgs,
-    ListFieldOf,
     ListRow,
     QueryValue,
-    RawRequest,
     RegisteredDocTypes,
     TableFieldOf,
     UnknownDoc,
@@ -40,6 +40,7 @@ import type {
 
 interface TaskDependsOn extends FrappeDoc {
     doctype: 'Task Depends On'
+    name: string
     parent: string
     parentfield: string
     parenttype: string
@@ -48,6 +49,7 @@ interface TaskDependsOn extends FrappeDoc {
 
 interface Task extends FrappeDoc {
     doctype: 'Task'
+    name: string
     subject: string
     status?: 'Open' | 'Working' | 'Completed' | null
     priority: number
@@ -80,7 +82,7 @@ describe('DocOf', () => {
 
     it('falls back to a loose document for a DocType that was not generated', () => {
         expectTypeOf<Loose>().toEqualTypeOf<UnknownDoc>()
-        expectTypeOf<Loose['name']>().toEqualTypeOf<string>()
+        expectTypeOf<Loose['name']>().toEqualTypeOf<string | number>()
         expectTypeOf<Loose['custom_field']>().toEqualTypeOf<unknown>()
     })
 
@@ -124,29 +126,29 @@ describe('fields', () => {
 
     it('TableFieldOf does not mistake an `any` field for a table', () => {
         expectTypeOf<TableFieldOf<Note>>().toEqualTypeOf<never>()
-        expectTypeOf<'meta'>().toExtend<ListFieldOf<Note>>()
+        expectTypeOf<'meta'>().toExtend<ColumnOf<Note>>()
     })
 
-    it('ListFieldOf leaves out the standard columns the table does not have', () => {
+    it('ColumnOf leaves out the standard columns the table does not have', () => {
         expectTypeOf<AbsentColumn<Task>>().toEqualTypeOf<'parent' | 'parentfield' | 'parenttype'>()
         expectTypeOf<AbsentColumn<TaskDependsOn>>().toEqualTypeOf<
             '_user_tags' | '_comments' | '_assign' | '_liked_by'
         >()
         expectTypeOf<AbsentColumn<Loose>>().toEqualTypeOf<never>()
-        expectTypeOf<'parent'>().not.toExtend<ListFieldOf<Task>>()
-        expectTypeOf<'parent'>().toExtend<ListFieldOf<TaskDependsOn>>()
-        expectTypeOf<'_assign'>().not.toExtend<ListFieldOf<TaskDependsOn>>()
+        expectTypeOf<'parent'>().not.toExtend<ColumnOf<Task>>()
+        expectTypeOf<'parent'>().toExtend<ColumnOf<TaskDependsOn>>()
+        expectTypeOf<'_assign'>().not.toExtend<ColumnOf<TaskDependsOn>>()
     })
 
-    it('ListFieldOf leaves out tables and doctype, which are not columns', () => {
-        expectTypeOf<'subject'>().toExtend<ListFieldOf<Task>>()
-        expectTypeOf<'depends_on'>().not.toExtend<ListFieldOf<Task>>()
-        expectTypeOf<'doctype'>().not.toExtend<ListFieldOf<Task>>()
+    it('ColumnOf leaves out tables and doctype, which are not columns', () => {
+        expectTypeOf<'subject'>().toExtend<ColumnOf<Task>>()
+        expectTypeOf<'depends_on'>().not.toExtend<ColumnOf<Task>>()
+        expectTypeOf<'doctype'>().not.toExtend<ColumnOf<Task>>()
     })
 
     it('the optional standard columns can be requested', () => {
-        expectTypeOf<'_assign'>().toExtend<ListFieldOf<Task>>()
-        expectTypeOf<'_user_tags'>().toExtend<ListFieldOf<Task>>()
+        expectTypeOf<'_assign'>().toExtend<ColumnOf<Task>>()
+        expectTypeOf<'_user_tags'>().toExtend<ColumnOf<Task>>()
     })
 })
 
@@ -244,7 +246,7 @@ describe('FieldSelection', () => {
         >()
         expectTypeOf(list('Task', { fields: ['*'] })).toEqualTypeOf<ListRow<Task, readonly ['*']>[]>()
         expectTypeOf(list('Note', { fields: ['name', 'custom_field'] })).toEqualTypeOf<
-            { name: string; custom_field: unknown }[]
+            { name: string | number; custom_field: unknown }[]
         >()
     })
 
@@ -275,7 +277,7 @@ describe('ListRow', () => {
 
     it('gives a loose row for a DocType that was not generated', () => {
         expectTypeOf<ListRow<Loose, readonly ['name', 'custom_field']>>().toEqualTypeOf<{
-            name: string
+            name: string | number
             custom_field: unknown
         }>()
     })
@@ -322,7 +324,7 @@ describe('ListRow', () => {
     it('with * on a DocType that was not generated, standard columns keep their types', () => {
         type Row = ListRow<Loose, readonly ['*']>
 
-        expectTypeOf<Row['name']>().toEqualTypeOf<string>()
+        expectTypeOf<Row['name']>().toEqualTypeOf<string | number>()
         expectTypeOf<Row['docstatus']>().toEqualTypeOf<0 | 1 | 2>()
         expectTypeOf<Row['custom_field']>().toEqualTypeOf<unknown>()
     })
@@ -368,7 +370,7 @@ describe('Filters — object form', () => {
 
     it('rejects a field the document does not have', () => {
         // @ts-expect-error `assignee` is not a field of Task
-        const unknownField: Filters<Task> = { assignee: 'someone@example.com' }
+        const unknownField: Filters<Task> = { assignee: 'user@example.com' }
 
         expectTypeOf(unknownField).toExtend<Filters<Task>>()
     })
@@ -541,7 +543,7 @@ describe('request', () => {
     })
 
     it('accepts only the methods Frappe routes', () => {
-        expectTypeOf<NonNullable<RawRequest['method']>>().toEqualTypeOf<'GET' | 'POST' | 'PUT' | 'DELETE'>()
+        expectTypeOf<NonNullable<FrappeRequest['method']>>().toEqualTypeOf<'GET' | 'POST' | 'PUT' | 'DELETE'>()
         // @ts-expect-error Frappe has no PATCH route
         void frappe.request({ method: 'PATCH', path: '/api/resource/Task/T-1' })
         // @ts-expect-error path is required
@@ -558,7 +560,7 @@ describe('request', () => {
             list: ['name', 'status'],
             filters: { status: 'Open' },
         } satisfies Record<string, QueryValue>
-        expectTypeOf(query).toExtend<RawRequest['query']>()
+        expectTypeOf(query).toExtend<FrappeRequest['query']>()
         // @ts-expect-error a symbol cannot be encoded
         assertType<QueryValue>(Symbol('x'))
     })
@@ -625,7 +627,9 @@ describe('auth', () => {
         expectTypeOf(frappe.auth.login({ username: 'a', password: 'b' })).toEqualTypeOf<Promise<LoginResult>>()
         expectTypeOf<LoginResult>().toEqualTypeOf<{ fullName: string; homePage: string }>()
         expectTypeOf(frappe.auth.logout()).toEqualTypeOf<Promise<void>>()
-        expectTypeOf(frappe.auth.currentUser()).toEqualTypeOf<Promise<string | null>>()
+        expectTypeOf(frappe.auth.getLoggedUser()).toEqualTypeOf<Promise<string | null>>()
+        // Renamed to getLoggedUser, Frappe's own name.
+        expectTypeOf(frappe.auth).not.toHaveProperty('currentUser')
         // @ts-expect-error a password is required
         void frappe.auth.login({ username: 'a' })
     })

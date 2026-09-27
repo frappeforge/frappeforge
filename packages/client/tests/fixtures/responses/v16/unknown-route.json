@@ -14,7 +14,7 @@
     "expected": {
         "name": "NotFoundError",
         "status": 404,
-        "exception": "DoesNotExistError",
+        "exceptionType": "DoesNotExistError",
         "message": "Request failed with status 404 (GET /api/nope)"
     }
 }

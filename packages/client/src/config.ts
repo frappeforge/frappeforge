@@ -1,7 +1,7 @@
 // Client options: validated once, before any request, and frozen.
 
 import type { AuthStrategy } from './auth/strategy.js'
-import { ConfigurationError } from './errors.js'
+import { InvalidArgumentError } from './errors.js'
 import { SafeHeaders } from './http/headers.js'
 import { assertTimeout, type ResolvedConfig } from './http/send.js'
 
@@ -38,18 +38,18 @@ const DEFAULT_TIMEOUT = 30_000
 
 const credentialModes: ReadonlySet<unknown> = new Set(['include', 'omit', 'same-origin'])
 
-/** Validates the options and fills in defaults. Throws `ConfigurationError` on the first invalid option. */
+/** Validates the options and fills in defaults. Throws `InvalidArgumentError` on the first invalid option. */
 export function resolveConfig(options: ClientOptions): ResolvedConfig {
-    if (!isPlainObject(options)) throw new ConfigurationError('createClient() needs an options object with a `url`.')
+    if (!isPlainObject(options)) throw new InvalidArgumentError('createClient() needs an options object with a `url`.')
     const { url, headers = {}, timeout = DEFAULT_TIMEOUT, siteName, fetch, auth } = options
     // Visible ASCII: a site or host name, and always a valid header value.
     if (siteName !== undefined && (typeof siteName !== 'string' || !/^[!-~]+$/u.test(siteName))) {
-        throw new ConfigurationError(
+        throw new InvalidArgumentError(
             '`siteName` must be a non-empty string of visible ASCII characters, e.g. "site1.local".',
         )
     }
     if (fetch !== undefined && typeof fetch !== 'function') {
-        throw new ConfigurationError('`fetch` must be a function that takes a Request and returns a Response.')
+        throw new InvalidArgumentError('`fetch` must be a function that takes a Request and returns a Response.')
     }
     return Object.freeze({
         url: normalizeUrl(url),
@@ -76,7 +76,7 @@ function resolveAuth(auth: unknown): AuthStrategy | undefined {
         ) ||
         (strategy.credentials !== undefined && !credentialModes.has(strategy.credentials))
     ) {
-        throw new ConfigurationError('`auth` must be an AuthStrategy, such as tokenAuth({ apiKey, apiSecret }).')
+        throw new InvalidArgumentError('`auth` must be an AuthStrategy, such as tokenAuth({ apiKey, apiSecret }).')
     }
     return auth as AuthStrategy
 }
@@ -92,7 +92,7 @@ function normalizeUrl(url: unknown): string {
         parsed.search !== '' ||
         parsed.hash !== ''
     ) {
-        throw new ConfigurationError(
+        throw new InvalidArgumentError(
             `\`url\` must be an http(s) URL without credentials, query or fragment, e.g. "https://example.com".`,
         )
     }
@@ -101,14 +101,14 @@ function normalizeUrl(url: unknown): string {
 
 function resolveHeaders(headers: unknown): Readonly<Record<string, string>> {
     if (!isPlainObject(headers) || Object.values(headers).some((value) => typeof value !== 'string')) {
-        throw new ConfigurationError('`headers` must be a plain object of string values.')
+        throw new InvalidArgumentError('`headers` must be a plain object of string values.')
     }
     const copy = { ...(headers as Record<string, string>) }
     try {
         const probe = new SafeHeaders()
         for (const [name, value] of Object.entries(copy)) probe.set(name, value)
     } catch (cause) {
-        throw new ConfigurationError('`headers` contains an invalid header name or value.', { cause })
+        throw new InvalidArgumentError('`headers` contains an invalid header name or value.', { cause })
     }
     return Object.freeze(copy)
 }

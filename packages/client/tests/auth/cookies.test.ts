@@ -15,8 +15,13 @@ describe('parseSetCookie: name and value', () => {
             'abc',
         ],
         ['splits at the first "="', 'token=a=b==', 'token', 'a=b=='],
-        ['keeps double quotes, to send the value back as received', 'full_name="John Doe"', 'full_name', '"John Doe"'],
-        ['keeps percent-encoding', 'full_name=John%20Doe; Path=/', 'full_name', 'John%20Doe'],
+        [
+            'keeps double quotes, to send the value back as received',
+            'full_name="Test User"',
+            'full_name',
+            '"Test User"',
+        ],
+        ['keeps percent-encoding', 'full_name=Test%20User; Path=/', 'full_name', 'Test%20User'],
         ['trims spaces and tabs around the name and the value', ' \tsid  =  abc \t; path=/', 'sid', 'abc'],
         ['keeps an empty value', 'user_image=; Path=/', 'user_image', ''],
     ])('%s', (_title, header, name, value) => {
@@ -77,10 +82,10 @@ describe('serializeCookies', () => {
     it('joins name=value pairs in insertion order', () => {
         const jar = new Map([
             ['sid', 'abc'],
-            ['full_name', 'John%20Doe'],
+            ['full_name', 'Test%20User'],
             ['user_image', ''],
         ])
-        expect(serializeCookies(jar)).toBe('sid=abc; full_name=John%20Doe; user_image=')
+        expect(serializeCookies(jar)).toBe('sid=abc; full_name=Test%20User; user_image=')
     })
 
     it('is empty for an empty jar', () => {

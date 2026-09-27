@@ -1,6 +1,6 @@
 // OAuth bearer authentication, with an optional refresh shared by concurrent requests.
 
-import { ConfigurationError } from '../errors.js'
+import { InvalidArgumentError } from '../errors.js'
 import type { AuthStrategy } from './strategy.js'
 
 /** Options for {@link bearerAuth}. */
@@ -18,7 +18,7 @@ export interface BearerAuthOptions {
 }
 
 /** Frappe splits the header on a space: a token is visible ASCII. */
-const valid = /^[!-~]+$/u
+const bearerToken = /^[!-~]+$/u
 
 /**
  * Authenticates every request with an OAuth access token.
@@ -47,40 +47,40 @@ const valid = /^[!-~]+$/u
  */
 export function bearerAuth(options: BearerAuthOptions): AuthStrategy {
     const { token, refresh } = Object(options) as Partial<Record<keyof BearerAuthOptions, unknown>>
-    if (typeof token !== 'function' && (typeof token !== 'string' || !valid.test(token))) {
-        throw new ConfigurationError(
+    if (typeof token !== 'function' && (typeof token !== 'string' || !bearerToken.test(token))) {
+        throw new InvalidArgumentError(
             'bearerAuth() needs `token` as a non-empty string of visible ASCII characters, or a function returning one.',
         )
     }
     if (refresh !== undefined && typeof refresh !== 'function') {
-        throw new ConfigurationError('bearerAuth(): `refresh` must be a function.')
+        throw new InvalidArgumentError('bearerAuth(): `refresh` must be a function.')
     }
     if (refresh !== undefined && typeof token === 'string') {
-        throw new ConfigurationError(
+        throw new InvalidArgumentError(
             'bearerAuth(): `refresh` needs `token` to be a function, because a fixed string cannot change after a refresh.',
         )
     }
 
-    const read = async (): Promise<string> => {
+    const readAuthorization = async (): Promise<string> => {
         const value: unknown = typeof token === 'string' ? token : await (token as () => unknown)()
-        if (typeof value !== 'string' || !valid.test(value)) {
-            throw new ConfigurationError(
+        if (typeof value !== 'string' || !bearerToken.test(value)) {
+            throw new InvalidArgumentError(
                 'The bearer token function must return a non-empty string of visible ASCII characters.',
             )
         }
         return `Bearer ${value}`
     }
     const apply = async (headers: Headers): Promise<void> => {
-        headers.set('Authorization', await read())
+        headers.set('Authorization', await readAuthorization())
     }
     if (refresh === undefined) return Object.freeze({ apply })
 
     // The refresh in flight, shared by every 401 that arrives meanwhile; how many have settled; and
     // whether the last one renewed the token.
     let refreshing: Promise<boolean> | undefined
-    let settled = 0
+    let settledRefreshes = 0
     let renewed = false
-    const start = (): Promise<boolean> => {
+    const startRefresh = (): Promise<boolean> => {
         refreshing = Promise.resolve()
             .then(refresh as () => unknown)
             .then(
@@ -95,23 +95,23 @@ export function bearerAuth(options: BearerAuthOptions): AuthStrategy {
             )
             .finally(() => {
                 refreshing = undefined
-                settled += 1
+                settledRefreshes += 1
             })
         return refreshing
     }
     return Object.freeze({
         apply,
         async onUnauthorized(request: Request): Promise<boolean> {
-            const before = settled
+            const before = settledRefreshes
             // No usable token now (the app signed out, say): nothing to send again, so the 401 stands.
-            const current = await read().catch(() => undefined)
+            const current = await readAuthorization().catch(() => undefined)
             // A refresh is running, or one settled while the token was read, which may predate it.
             if (refreshing !== undefined) return refreshing
-            if (settled !== before) return renewed
+            if (settledRefreshes !== before) return renewed
             if (current === undefined) return false
             // Sent with a token that has been replaced since: send it again with the current one.
             if (request.headers.get('Authorization') !== current) return true
-            return start()
+            return startRefresh()
         },
     })
 }

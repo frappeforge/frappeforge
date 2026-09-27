@@ -4,8 +4,8 @@ import {
     AuthenticationError,
     type AuthStrategy,
     bearerAuth,
-    ConfigurationError,
     createClient,
+    InvalidArgumentError,
 } from '../../src/index.js'
 import { deferred, exposed } from '../support/expose.js'
 import { json, stubFetch } from '../support/fetch.js'
@@ -66,12 +66,12 @@ describe('bearerAuth: the token', () => {
     })
 
     it.each([[''], ['has space'], [`${SECRET}\u0000`], [42], [undefined]])(
-        'rejects a getter result of %j with a ConfigurationError, before any request',
+        'rejects a getter result of %j with an InvalidArgumentError, before any request',
         async (value) => {
             const { fetch, sent } = site(() => 'abc')
             const frappe = createClient({ url, fetch, auth: bearerAuth({ token: () => value as string }) })
             const error = await frappe.request({ path }).catch((reason: unknown) => reason)
-            expect(error).toBeInstanceOf(ConfigurationError)
+            expect(error).toBeInstanceOf(InvalidArgumentError)
             expect(exposed(error)).not.toContain(SECRET)
             expect(sent).toEqual([])
         },
@@ -107,12 +107,12 @@ describe('bearerAuth: the token', () => {
         } catch (caught) {
             error = caught
         }
-        expect(error).toBeInstanceOf(ConfigurationError)
+        expect(error).toBeInstanceOf(InvalidArgumentError)
         expect(exposed(error)).not.toContain(SECRET)
     })
 
     it('rejects missing options', () => {
-        expect(() => bearerAuth(undefined as never)).toThrow(ConfigurationError)
+        expect(() => bearerAuth(undefined as never)).toThrow(InvalidArgumentError)
     })
 })
 
@@ -336,9 +336,9 @@ describe('bearerAuth: no usable token after a 401', () => {
         const token = (): string => (signedOut ? after() : 'old')
         const frappe = createClient({ url, fetch, auth: bearerAuth({ token, refresh }) })
         await expect(frappe.request({ path })).rejects.toBeInstanceOf(AuthenticationError)
-        // A currentUser() in flight when the app signs out reads as signed out.
+        // A getLoggedUser() in flight when the app signs out reads as signed out.
         signedOut = false
-        await expect(frappe.auth.currentUser()).resolves.toBeNull()
+        await expect(frappe.auth.getLoggedUser()).resolves.toBeNull()
         expect(refresh).not.toHaveBeenCalled()
         expect(sent).toEqual(['Bearer old', 'Bearer old'])
     })

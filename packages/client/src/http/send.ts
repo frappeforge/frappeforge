@@ -1,16 +1,16 @@
 // The request pipeline, and the only place that calls `fetch`: headers, body, authentication,
-// timeout, cancellation, and every failure mapped to a typed error.
+// timeout, aborts, and every failure mapped to a typed error.
 
 import type { AuthStrategy } from '../auth/strategy.js'
 import {
-    CancelledError,
-    ConfigurationError,
+    AbortError,
     FrappeError,
     type FrappeRequestContext,
+    InvalidArgumentError,
     NetworkError,
     TimeoutError,
 } from '../errors.js'
-import type { RawRequest, RequestOptions } from '../types.js'
+import type { FrappeRequest, RequestOptions } from '../types.js'
 import { toError } from './decode.js'
 import { SafeHeaders } from './headers.js'
 import { buildUrl } from './url.js'
@@ -33,10 +33,10 @@ export interface ResolvedConfig {
 export type ReadResponse<T> = (response: Response, context: FrappeRequestContext) => Promise<T>
 
 /** The pipeline bound to one client's config, as resources use it. */
-export type Send = <T>(init: RawRequest, options: RequestOptions, read: ReadResponse<T>) => Promise<T>
+export type Send = <T>(init: FrappeRequest, options: RequestOptions, read: ReadResponse<T>) => Promise<T>
 
 /** Headers and body, built once per call, so that a replay sends exactly the same body. */
-interface Prepared {
+interface PreparedRequest {
     readonly headers: Headers
     readonly body: BodyInit | null
 }
@@ -51,7 +51,7 @@ const MAX_TIMEOUT = 2_147_483_647
 /** Checks a timeout: an integer number of milliseconds, `0` (disabled) up to about 24.8 days. */
 export function assertTimeout(value: unknown, what: string): number {
     if (typeof value !== 'number' || !Number.isInteger(value) || value < 0 || value > MAX_TIMEOUT) {
-        throw new ConfigurationError(
+        throw new InvalidArgumentError(
             `${what} must be an integer number of milliseconds from 0 to ${String(MAX_TIMEOUT)}; got ${String(value)}.`,
         )
     }
@@ -61,7 +61,7 @@ export function assertTimeout(value: unknown, what: string): number {
 /**
  * Sends one request and reads its response with `read`.
  *
- * Throws `ConfigurationError` for a request that cannot be built, `CancelledError` when the
+ * Throws `InvalidArgumentError` for a request that cannot be built, `AbortError` when the
  * caller's signal aborts (also while a strategy hook is pending), `TimeoutError` when an attempt's
  * time budget runs out (also while the body is read), `NetworkError` when no response arrives, and
  * the matching status error for a non-2xx response. A `401` is sent once more when the strategy's
@@ -69,12 +69,12 @@ export function assertTimeout(value: unknown, what: string): number {
  */
 export async function send<T>(
     config: ResolvedConfig,
-    init: RawRequest,
+    init: FrappeRequest,
     options: RequestOptions,
     read: ReadResponse<T>,
 ): Promise<T> {
-    // The request is checked in full first: a mistake in it is a `ConfigurationError` even when the
-    // caller has already cancelled.
+    // The request is checked in full first: a mistake in it is an `InvalidArgumentError` even when
+    // the caller has already aborted.
     const method = normalizeMethod(init)
     const url = buildUrl(config.url, init.path, init.query)
     const context: FrappeRequestContext = { method, url: config.url + init.path }
@@ -84,13 +84,13 @@ export async function send<T>(
     const first = await attempt(config, prepared, options, read, url, context, timeout)
     if ('value' in first) return first.value
     const { auth } = config
-    const { signal: caller } = options
+    const { signal: callerSignal } = options
     let last: Attempt<T> = first
     if (first.response.status === 401 && auth?.onUnauthorized !== undefined) {
         // Outside any time budget: renewing credentials is the strategy's own work. The caller can
-        // still cancel it, and a cancelled request never asks for new credentials.
-        throwIfCancelled(caller, context)
-        const renewed: unknown = await unlessCancelled(auth.onUnauthorized(first.request), caller, context)
+        // still abort it, and an aborted request never asks for new credentials.
+        throwIfAborted(callerSignal, context)
+        const renewed: unknown = await unlessAborted(auth.onUnauthorized(first.request), callerSignal, context)
         // Only `true` replays: a strategy written in JavaScript may resolve anything.
         if (renewed === true) last = await attempt(config, prepared, options, read, url, context, timeout)
     }
@@ -102,9 +102,9 @@ export async function send<T>(
  * The method, upper-cased: `fetch` upper-cases only the standard methods, so `patch` would be sent
  * as it is, and a strategy would see `post` where it checks for `POST`.
  */
-function normalizeMethod(init: RawRequest): string {
+function normalizeMethod(init: FrappeRequest): string {
     const { method = 'GET' } = init as { method?: unknown }
-    if (typeof method !== 'string') throw new ConfigurationError('Request method must be a string, such as "POST".')
+    if (typeof method !== 'string') throw new InvalidArgumentError('Request method must be a string, such as "POST".')
     return method.toUpperCase()
 }
 
@@ -115,7 +115,7 @@ function normalizeMethod(init: RawRequest): string {
  */
 async function attempt<T>(
     config: ResolvedConfig,
-    prepared: Prepared,
+    prepared: PreparedRequest,
     options: RequestOptions,
     read: ReadResponse<T>,
     url: string,
@@ -123,14 +123,14 @@ async function attempt<T>(
     timeout: number,
 ): Promise<Attempt<T>> {
     const { auth } = config
-    const { signal: caller } = options
-    // A cancelled request never asks the strategy for credentials.
-    throwIfCancelled(caller, context)
+    const { signal: callerSignal } = options
+    // An aborted request never asks the strategy for credentials.
+    throwIfAborted(callerSignal, context)
     const headers = new SafeHeaders(prepared.headers)
     // Before the timer: the time budget is the server's, not the strategy's. Awaited only when it
     // returns a promise, so a request without an async strategy is sent in the same tick.
     const applied = auth?.apply(headers, context.method)
-    if (applied !== undefined) await unlessCancelled(applied, caller, context)
+    if (applied !== undefined) await unlessAborted(applied, callerSignal, context)
 
     // One controller per attempt, aborted by the timer or the caller. Both are released in
     // `finally`, so nothing outlives the attempt: no timer, and no listener on a long-lived
@@ -138,7 +138,7 @@ async function attempt<T>(
     const controller = new AbortController()
     const request = createRequest(url, headers, prepared.body, auth?.credentials, controller.signal, context)
     // Checked again: `apply` itself may have aborted it, and an aborted signal fires no more events.
-    throwIfCancelled(caller, context)
+    throwIfAborted(callerSignal, context)
     const deadline =
         timeout === 0 ? undefined : new DOMException(`Timed out after ${String(timeout)} ms.`, 'TimeoutError')
     const timer =
@@ -147,10 +147,10 @@ async function attempt<T>(
             : setTimeout(() => {
                   controller.abort(deadline)
               }, timeout)
-    const cancel = (): void => {
-        controller.abort(caller?.reason)
+    const forwardAbort = (): void => {
+        controller.abort(callerSignal?.reason)
     }
-    caller?.addEventListener('abort', cancel, { once: true })
+    callerSignal?.addEventListener('abort', forwardAbort, { once: true })
 
     const classify = (cause: unknown): FrappeError => {
         if (cause instanceof FrappeError) return cause
@@ -158,15 +158,15 @@ async function attempt<T>(
         const { signal } = controller
         const reason: unknown = signal.reason
         if (signal.aborted && reason === deadline) {
-            return new TimeoutError(`Request timed out after ${String(timeout)} ms (${target(context)}).`, {
+            return new TimeoutError(`Request timed out after ${String(timeout)} ms (${describeRequest(context)}).`, {
                 cause,
                 request: context,
             })
         }
         if (signal.aborted) {
-            return new CancelledError(`Request cancelled (${target(context)}).`, { cause: reason, request: context })
+            return new AbortError(`Request aborted (${describeRequest(context)}).`, { cause: reason, request: context })
         }
-        return new NetworkError(`Network request failed (${target(context)}).`, { cause, request: context })
+        return new NetworkError(`Network request failed (${describeRequest(context)}).`, { cause, request: context })
     }
 
     try {
@@ -186,45 +186,45 @@ async function attempt<T>(
         }
     } finally {
         clearTimeout(timer)
-        caller?.removeEventListener('abort', cancel)
+        callerSignal?.removeEventListener('abort', forwardAbort)
     }
 }
 
-/** Throws `CancelledError` when the caller has already aborted: the attempt is not sent. */
-function throwIfCancelled(caller: AbortSignal | undefined, context: FrappeRequestContext): void {
-    if (caller?.aborted === true) throw cancelledBeforeSending(caller, context)
+/** Throws `AbortError` when the caller has already aborted: the attempt is not sent. */
+function throwIfAborted(callerSignal: AbortSignal | undefined, context: FrappeRequestContext): void {
+    if (callerSignal?.aborted === true) throw abortedBeforeSending(callerSignal, context)
 }
 
 /**
  * Waits for a strategy hook only while the caller still wants the response: an abort rejects at
  * once, and whatever the hook settles with later is ignored.
  */
-async function unlessCancelled<R>(
+async function unlessAborted<R>(
     pending: R | PromiseLike<R>,
-    caller: AbortSignal | undefined,
+    callerSignal: AbortSignal | undefined,
     context: FrappeRequestContext,
 ): Promise<R> {
-    if (caller === undefined) return pending
+    if (callerSignal === undefined) return pending
     // The hook may itself have aborted the signal, which then fires no more events.
-    throwIfCancelled(caller, context)
+    throwIfAborted(callerSignal, context)
     // Aborted once the hook settles, which removes the listener from the caller's signal.
     const settled = new AbortController()
-    const cancelled = new Promise<never>((_resolve, reject) => {
-        const cancel = (): void => {
-            reject(cancelledBeforeSending(caller, context))
+    const aborted = new Promise<never>((_resolve, reject) => {
+        const rejectAborted = (): void => {
+            reject(abortedBeforeSending(callerSignal, context))
         }
-        caller.addEventListener('abort', cancel, { once: true, signal: settled.signal })
+        callerSignal.addEventListener('abort', rejectAborted, { once: true, signal: settled.signal })
     })
     try {
-        return await Promise.race([pending, cancelled])
+        return await Promise.race([pending, aborted])
     } finally {
         settled.abort()
     }
 }
 
-function cancelledBeforeSending(caller: AbortSignal, context: FrappeRequestContext): CancelledError {
-    return new CancelledError(`Request cancelled before it was sent (${target(context)}).`, {
-        cause: caller.reason,
+function abortedBeforeSending(callerSignal: AbortSignal, context: FrappeRequestContext): AbortError {
+    return new AbortError(`Request aborted before it was sent (${describeRequest(context)}).`, {
+        cause: callerSignal.reason,
         request: context,
     })
 }
@@ -236,10 +236,10 @@ function cancelledBeforeSending(caller: AbortSignal, context: FrappeRequestConte
  */
 function prepare(
     config: ResolvedConfig,
-    init: RawRequest,
+    init: FrappeRequest,
     options: RequestOptions,
     context: FrappeRequestContext,
-): Prepared {
+): PreparedRequest {
     try {
         const headers = new SafeHeaders({ Accept: 'application/json' })
         if (config.siteName !== undefined) headers.set('X-Frappe-Site-Name', config.siteName)
@@ -247,7 +247,7 @@ function prepare(
         for (const [name, value] of Object.entries(options.headers ?? {})) headers.set(name, value)
         let body: BodyInit | null = null
         // Checked here, not only by the Request constructor, so that it is reported even when the
-        // caller has already cancelled.
+        // caller has already aborted.
         if (init.body !== undefined && (context.method === 'GET' || context.method === 'HEAD')) {
             throw new TypeError(`A ${context.method} request cannot have a body.`)
         }
@@ -291,11 +291,14 @@ function createRequest(
  * Keeps the runtime's error in `cause`: it names the problem, and never quotes a header value, since
  * every header is set through `SafeHeaders`.
  */
-function invalidRequest(cause: unknown, context: FrappeRequestContext): ConfigurationError {
-    return new ConfigurationError(`Invalid request (${target(context)}): check its method, headers and body.`, {
-        cause,
-        request: context,
-    })
+function invalidRequest(cause: unknown, context: FrappeRequestContext): InvalidArgumentError {
+    return new InvalidArgumentError(
+        `Invalid request (${describeRequest(context)}): check its method, headers and body.`,
+        {
+            cause,
+            request: context,
+        },
+    )
 }
 
 /**
@@ -317,6 +320,7 @@ function jsonBody(value: unknown): string {
     return json
 }
 
-function target(context: FrappeRequestContext): string {
+/** The request, for a message: its method, and the URL origin and path. */
+function describeRequest(context: FrappeRequestContext): string {
     return `${context.method} ${context.url}`
 }

@@ -7,8 +7,8 @@ export { tokenAuth, type TokenAuthOptions } from './auth/token.js'
 export { createClient, type FrappeClient } from './client.js'
 export type { ClientOptions } from './config.js'
 export * from './errors.js'
-export type { AuthNamespace, LoginResult } from './resources/auth.js'
-export type { DocNamespace } from './resources/doc.js'
+export type { AuthNamespace, LoginResult } from './namespaces/auth.js'
+export type { DocNamespace } from './namespaces/doc.js'
 export * from './types.js'
 
 /** The published version of this package, injected at build time. */

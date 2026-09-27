@@ -31,8 +31,8 @@ export interface FrappeErrorOptions {
     status?: number
     /** Messages parsed out of Frappe's `_server_messages` envelope. */
     serverMessages?: readonly ServerMessage[]
-    /** The server's exception class name, when it reported one. */
-    exception?: string
+    /** The server's exception class name, such as `DuplicateEntryError`, when it reported one. */
+    exceptionType?: string
     /** Which request failed. Its URL is reduced to origin and path, whatever the caller passes. */
     request?: FrappeRequestContext
     /** The underlying failure, such as the `TypeError` fetch throws on a network error. */
@@ -51,7 +51,7 @@ export interface FrappeErrorJSON {
     /** HTTP status, or `0` when the request never produced a response. */
     status: number
     /** The server's exception class name, when it reported one. */
-    exception: string | undefined
+    exceptionType: string | undefined
     /** Messages the server intended for a human. */
     serverMessages: readonly ServerMessage[]
     /** Which request failed: method, origin and path. */
@@ -69,7 +69,7 @@ export interface FrappeErrorJSON {
  * @example
  * ```ts
  * try {
- *     await frappe.doc.create('Task', { subject: 'Ship 1.0' })
+ *     await frappe.request({ method: 'POST', path: '/api/resource/Task', body: { subject: 'Ship 1.0' } })
  * } catch (error) {
  *     if (error instanceof ValidationError) return showMessages(error.serverMessages)
  *     if (error instanceof ConflictError) return showDuplicate()
@@ -85,8 +85,8 @@ export class FrappeError extends Error {
     readonly status: number
     /** Messages the server intended for a human, in the order it sent them. */
     readonly serverMessages: readonly ServerMessage[]
-    /** The server's exception class name, when it reported one. */
-    readonly exception: string | undefined
+    /** The server's exception class name, such as `DuplicateEntryError`, when it reported one. */
+    readonly exceptionType: string | undefined
     /** Which request failed: method, and URL origin and path only — never query, fragment or credentials. */
     readonly request: FrappeRequestContext | undefined
 
@@ -98,7 +98,7 @@ export class FrappeError extends Error {
         super(message, options.cause === undefined ? undefined : { cause: options.cause })
         this.status = options.status ?? 0
         this.serverMessages = options.serverMessages ?? []
-        this.exception = options.exception
+        this.exceptionType = options.exceptionType
         this.request =
             options.request === undefined
                 ? undefined
@@ -122,7 +122,7 @@ export class FrappeError extends Error {
             name: this.name,
             message: this.message,
             status: this.status,
-            exception: this.exception,
+            exceptionType: this.exceptionType,
             serverMessages: this.serverMessages,
             request: this.request,
         }
@@ -130,13 +130,13 @@ export class FrappeError extends Error {
 }
 
 /**
- * The client was given something it cannot work with — invalid options (a missing or malformed
- * URL, settings that cannot both hold) or invalid arguments to a call. Thrown before any request
- * is sent.
+ * An argument the client cannot work with: an invalid argument to a call (an empty DocType name, a
+ * field name that is not one, empty filters), invalid client or strategy options, or a request that
+ * cannot be built. Thrown before any request is sent: it is a bug in the calling code.
  */
-export class ConfigurationError extends FrappeError {
-    /** Always `ConfigurationError`. */
-    override readonly name = 'ConfigurationError' as const
+export class InvalidArgumentError extends FrappeError {
+    /** Always `InvalidArgumentError`. */
+    override readonly name = 'InvalidArgumentError' as const
 }
 
 /**
@@ -155,12 +155,13 @@ export class TimeoutError extends FrappeError {
 }
 
 /**
- * The caller's `AbortSignal` fired. Distinct from {@link TimeoutError} so that a deliberate
- * cancellation — a user navigating away — is never reported as a failure.
+ * The caller's `AbortSignal` aborted the request, as `fetch` names it. Distinct from
+ * {@link TimeoutError} so that a deliberate abort — a user navigating away — is never reported as
+ * a failure.
  */
-export class CancelledError extends FrappeError {
-    /** Always `CancelledError`. */
-    override readonly name = 'CancelledError' as const
+export class AbortError extends FrappeError {
+    /** Always `AbortError`. */
+    override readonly name = 'AbortError' as const
 }
 
 /** `401` — the request carried no valid session or token. */
@@ -183,7 +184,7 @@ export class NotFoundError extends FrappeError {
 
 /**
  * `409` — a document with this name already exists. Frappe raises `DuplicateEntryError` (or
- * `NameError`), which {@link FrappeError.exception} carries. A duplicate value in a unique field
+ * `NameError`), which {@link FrappeError.exceptionType} carries. A duplicate value in a unique field
  * is a {@link ValidationError} (`UniqueValidationError`, `417`).
  */
 export class ConflictError extends FrappeError {

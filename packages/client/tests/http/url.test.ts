@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 
-import { ConfigurationError } from '../../src/errors.js'
+import { InvalidArgumentError } from '../../src/errors.js'
 import { buildUrl } from '../../src/http/url.js'
 
 const base = 'https://example.com'
@@ -42,7 +42,7 @@ describe('buildUrl', () => {
     })
 
     it.each(['api/x', '', '/api/x?a=1', '/api/x#top'])('rejects the path %j', (path) => {
-        expect(() => buildUrl(base, path)).toThrow(ConfigurationError)
+        expect(() => buildUrl(base, path)).toThrow(InvalidArgumentError)
     })
 
     // The URL parser resolves these, so the request would leave a path prefix or reach another route.
@@ -58,7 +58,7 @@ describe('buildUrl', () => {
         '/..\n/admin',
         '/.. ',
     ])('rejects the path %j, which the URL parser would rewrite', (path) => {
-        expect(() => buildUrl(`${base}/frappe`, path)).toThrow(ConfigurationError)
+        expect(() => buildUrl(`${base}/frappe`, path)).toThrow(InvalidArgumentError)
     })
 
     it.each(['/api/resource/ToDo/a..b', '/api/resource/ToDo/...', '/api/method/frappe.ping', '/api/x/.hidden'])(
@@ -86,7 +86,7 @@ describe('buildUrl', () => {
         } catch (caught) {
             error = caught
         }
-        expect(error).toBeInstanceOf(ConfigurationError)
+        expect(error).toBeInstanceOf(InvalidArgumentError)
         expect(error).toMatchObject({ message: 'Query parameter "filters" cannot be encoded as JSON.' })
     })
 })

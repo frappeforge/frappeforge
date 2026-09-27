@@ -11,7 +11,7 @@ Zero-dependency, `fetch`-native TypeScript client for the Frappe Framework REST 
   and never its traceback.
 - **Authentication built in.** API keys, browser and Node sessions, and OAuth bearer tokens with
   refresh — and no credential is ever visible when you log the client.
-- **Timeouts and cancellation built in.** A 30-second default, per-request overrides, and `AbortSignal`.
+- **Timeouts and aborts built in.** A 30-second default, per-request overrides, and `AbortSignal`.
 - **No dependencies, no globals patched.** Bring your own `fetch` for tests or instrumentation.
 
 ## Install
@@ -33,7 +33,7 @@ const frappe = createClient({
     auth: tokenAuth({ apiKey: process.env.FRAPPE_API_KEY!, apiSecret: process.env.FRAPPE_API_SECRET! }),
 })
 
-const open = await frappe.doc.list('ToDo', {
+const open = await frappe.doc.getList('ToDo', {
     fields: ['name', 'description', 'priority'],
     filters: { status: 'Open' },
     orderBy: { field: 'modified', order: 'desc' },
@@ -45,7 +45,7 @@ Without `auth`, requests run as Guest, which can call only public methods such a
 
 ## Options
 
-`createClient()` checks its options at once and throws a `ConfigurationError` before any request is
+`createClient()` checks its options at once and throws an `InvalidArgumentError` before any request is
 sent.
 
 | Option     | Default        | Description                                                                                                                                                                            |
@@ -59,19 +59,20 @@ sent.
 
 ## Documents
 
-`frappe.doc` reads documents. Every method takes a `RequestOptions` object last, like `request()`.
+`frappe.doc` reads documents. Its methods take Frappe's own function names ([Coming from
+Frappe](#coming-from-frappe)), and every one takes a `RequestOptions` object last, like `request()`.
 
 ```ts
 const todo = await frappe.doc.get('ToDo', 'TODO-0001') // one document, with its child tables
 const settings = await frappe.doc.getSingle('System Settings') // a single DocType's record
 const count = await frappe.doc.count('ToDo', { status: 'Open' })
 
-const rows = await frappe.doc.list('ToDo', {
+const rows = await frappe.doc.getList('ToDo', {
     fields: ['name', 'description'], // default: `name` only; `['*']` for every column
     filters: { status: 'Open', priority: ['in', ['High', 'Medium']] },
     orFilters: [
-        ['allocated_to', '=', 'jane@example.com'],
-        ['owner', '=', 'jane@example.com'],
+        ['allocated_to', '=', 'user@example.com'],
+        ['owner', '=', 'user@example.com'],
     ],
     orderBy: [{ field: 'priority', order: 'desc' }, { field: 'modified' }], // `asc` by default
     limit: 50, // default 20
@@ -97,15 +98,57 @@ for await (const row of frappe.doc.paginate('ToDo', { fields: ['description'], p
   for the whole walk is visited exactly once, however many rows are created, changed or deleted
   meanwhile. A row created during the walk is visited only if its `name` sorts after the rows already
   read. It always includes `name`, sorts by it, and takes no `orderBy`, `groupBy`, `limit` or
-  `offset`. Aborting its signal ends the walk with `CancelledError`.
-- **Long queries:** a `list` or `count` whose path and query string would be longer than 3800
+  `offset`. Aborting its signal ends the walk with `AbortError`.
+- **Long queries:** a `getList` or `count` whose path and query string would be longer than 3800
   characters (the site URL is not counted), such as a long `in` filter, is sent as a POST to
   `frappe.client.get_list` or `frappe.client.get_count` instead, with the same result.
 - **Child tables** are listed with `parent`, the parent DocType:
-  `frappe.doc.list('Has Role', { fields: ['role'], parent: 'User' })`. Only that DocType's rows come
+  `frappe.doc.getList('Has Role', { fields: ['role'], parent: 'User' })`. Only that DocType's rows come
   back, though other DocTypes may use the same child table. Frappe rejects `parent` for any other
   DocType, so generated types accept it only on child tables.
-- **Names** are encoded for the URL, so `/`, `#`, `?` and spaces are safe.
+- **Names** are strings, or integers for DocTypes named by "Autoincrement". Every method accepts a
+  name either way, as a Link field holds it as a string: `frappe.doc.get('Counter', 5)` and
+  `frappe.doc.get('Counter', '5')` read the same document. Names are encoded for the URL, so `/`, `#`,
+  `?` and spaces are safe.
+
+### Single values and permissions
+
+```ts
+const status = await frappe.doc.getValue('ToDo', 'TODO-0001', 'status') // the value, or null
+const row = await frappe.doc.getValue('ToDo', { status: 'Open' }, ['name', 'allocated_to']) // a row, or null
+const country = await frappe.doc.getSingleValue('System Settings', 'country')
+
+await frappe.doc.exists('User', 'user@example.com') // true or false
+await frappe.doc.hasPermission('ToDo', 'TODO-0001', 'write') // default 'read'
+await frappe.doc.validateLink('User', 'user@example.com', ['full_name']) // { name, full_name } | null
+await frappe.doc.isAmended('Sales Invoice', 'SINV-0001') // true once the cancelled invoice is amended
+await frappe.doc.getPassword('Email Account', 'Support', 'password') // System Manager only
+```
+
+- **"Nothing" is `null`**: no matching document, or an empty field. To tell the two apart, ask for
+  `['field']`: a missing document is still `null`, an empty field is `{ field: null }`.
+- **By name or by filters.** `getValue` and `exists` take either. With filters that match several
+  documents, `getValue` reads the first in the DocType's default sort order; for another one, use
+  `getList({ filters, orderBy, limit: 1 })`. Empty filters are rejected, as they would match any
+  document.
+- **Child tables:** pass the parent DocType, as for `getList`:
+  `frappe.doc.exists('Has Role', { parent: 'user@example.com', role: 'System Manager' }, { parent: 'User' })`.
+  Without it, Frappe rejects the read.
+- **Single DocTypes:** use `getSingleValue`, which returns values cast to their field type. Frappe
+  casts a value never set too — `''` for text and select fields, `0` for numbers, `'0001-01-01'` for
+  dates — so only types such as Attach come back `null`. `getValue` and `exists` are no use on a
+  single: Frappe ignores the name and filters (so `exists` is always `true`), and Frappe 15 answers
+  every value as a string.
+- **Permissions:** `getValue`, `exists` and `validateLink` need read permission on the DocType, and
+  answer a `PermissionError` without it — never a misleading `null` or `false`. `hasPermission` takes
+  one of Frappe's permission types (`'read'`, `'write'`, `'submit'`, …); for Administrator it is
+  always `true`, and for anyone else a document that does not exist is a `NotFoundError`.
+- **`validateLink`** returns the name as stored. On MariaDB, names compare without regard to case, so
+  `'USER@example.com'` finds `'user@example.com'`; on PostgreSQL the case must match. Unlike Desk, it
+  does not apply a Link field's filters or custom query.
+- **`isAmended`** is sent as a POST, so a browser never answers it from its cache.
+- **`getPassword`** reads a Password field for a System Manager. A field with no stored password is a
+  `ValidationError` from Frappe. Keep the value out of logs and caches.
 
 ### Typed DocTypes
 
@@ -116,6 +159,7 @@ import type { FrappeDoc } from '@frappeforge/client'
 
 interface ToDo extends FrappeDoc {
     doctype: 'ToDo'
+    name: string
     status?: 'Open' | 'Closed' | 'Cancelled' | null
     priority?: 'High' | 'Medium' | 'Low' | null
     description: string
@@ -127,14 +171,36 @@ declare module '@frappeforge/client' {
     }
 }
 
-const rows = await frappe.doc.list('ToDo', { fields: ['description', 'status'] })
+const rows = await frappe.doc.getList('ToDo', { fields: ['description', 'status'] })
 // { description: string; status?: 'Open' | 'Closed' | 'Cancelled' | null }[]
 
-await frappe.doc.list('ToDo', { filters: { status: 'Opne' } }) // compile error: not a status
+await frappe.doc.getList('ToDo', { filters: { status: 'Opne' } }) // compile error: not a status
 ```
 
 To type one client only, pass the map instead: `createClient<{ ToDo: ToDo }>({ url })`. A DocType that
 is not in the map is still accepted, with `unknown` field values.
+
+## Coming from Frappe
+
+Methods take the name of the Frappe function they call, camelCased, without the word the namespace
+already says. Document methods take the DocType first.
+
+| FrappeForge                                 | Frappe function                                        |
+| ------------------------------------------- | ------------------------------------------------------ |
+| `frappe.doc.get(doctype, name)`             | `get_doc`                                              |
+| `frappe.doc.getSingle(doctype)`             | `get_single`                                           |
+| `frappe.doc.getList(doctype, args)`         | `get_list`                                             |
+| `frappe.doc.count(doctype, filters)`        | `count`                                                |
+| `frappe.doc.paginate(doctype, args)`        | none — every matching row, one page per request        |
+| `frappe.doc.getValue(doctype, name, field)` | `get_value`                                            |
+| `frappe.doc.getSingleValue(doctype, field)` | `get_single_value`                                     |
+| `frappe.doc.exists(doctype, name)`          | `exists`                                               |
+| `frappe.doc.hasPermission(doctype, name)`   | `has_permission`                                       |
+| `frappe.doc.validateLink(doctype, name)`    | `validate_link` (Frappe 15; built on `get_value` here) |
+| `frappe.doc.isAmended(doctype, name)`       | `is_document_amended`                                  |
+| `frappe.doc.getPassword(doctype, name, f)`  | `get_password`                                         |
+| `frappe.auth.login()` / `logout()`          | `login`, `logout`                                      |
+| `frappe.auth.getLoggedUser()`               | `get_logged_user` (`null` here for Guest)              |
 
 ## Requests
 
@@ -171,20 +237,20 @@ await frappe.request({
 Every failure is a `FrappeError`, so one `catch` handles them all. Branch on the subclass instead of
 reading status codes:
 
-| Error                 | When                                                                              |
-| --------------------- | --------------------------------------------------------------------------------- |
-| `ValidationError`     | `417`: the server rejected the data, e.g. a missing mandatory field.              |
-| `PermissionError`     | `403`: not allowed, or not signed in (Frappe answers a guest with 403).           |
-| `NotFoundError`       | `404`: no such document, method or route.                                         |
-| `ConflictError`       | `409`: a document with this name already exists.                                  |
-| `AuthenticationError` | `401`: invalid credentials; also a `login()` that did not complete.               |
-| `RateLimitError`      | `429`: too many requests; `retryAfter` holds the wait in milliseconds, when sent. |
-| `ServerError`         | `5xx`: the server, or a proxy in front of it, failed.                             |
-| `TimeoutError`        | The request exceeded its timeout.                                                 |
-| `CancelledError`      | Your `AbortSignal` fired.                                                         |
-| `NetworkError`        | No response arrived: DNS, a refused connection, or a browser CORS rejection.      |
-| `ConfigurationError`  | Invalid options, or a request that cannot be built (e.g. a `GET` with a body).    |
-| `FrappeError`         | Any other status, such as `400`.                                                  |
+| Error                  | When                                                                                                                                                  |
+| ---------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `ValidationError`      | `417`: the server rejected the data, e.g. a missing mandatory field.                                                                                  |
+| `PermissionError`      | `403`: not allowed, or not signed in (Frappe answers a guest with 403).                                                                               |
+| `NotFoundError`        | `404`: no such document, method or route.                                                                                                             |
+| `ConflictError`        | `409`: a document with this name already exists.                                                                                                      |
+| `AuthenticationError`  | `401`: invalid credentials; also a `login()` that did not complete.                                                                                   |
+| `RateLimitError`       | `429`: too many requests; `retryAfter` holds the wait in milliseconds, when sent.                                                                     |
+| `ServerError`          | `5xx`: the server, or a proxy in front of it, failed.                                                                                                 |
+| `TimeoutError`         | The request exceeded its timeout.                                                                                                                     |
+| `AbortError`           | Your `AbortSignal` aborted the request.                                                                                                               |
+| `NetworkError`         | No response arrived: DNS, a refused connection, or a browser CORS rejection.                                                                          |
+| `InvalidArgumentError` | An invalid argument: to a call, to the client or a strategy, or a request that cannot be built (e.g. a `GET` with a body). Thrown before any request. |
+| `FrappeError`          | Any other status, such as `400`.                                                                                                                      |
 
 ```ts
 import { ConflictError, FrappeError, ValidationError } from '@frappeforge/client'
@@ -194,7 +260,7 @@ try {
 } catch (error) {
     if (error instanceof ValidationError) {
         console.log(error.message) // "Error: Value missing for ToDo: Description"
-        console.log(error.exception) // "MandatoryError"
+        console.log(error.exceptionType) // "MandatoryError"
         console.log(error.serverMessages) // [{ message: 'Error: Value missing for ToDo: Description', title: 'Message' }]
     } else if (error instanceof ConflictError) {
         // …
@@ -206,7 +272,7 @@ try {
 
 - `message` is plain text, taken from the message the server raised. `serverMessages` keep the
   original HTML for interfaces that render it.
-- `exception` is the server's exception class, e.g. `DoesNotExistError`.
+- `exceptionType` is the server's exception class, e.g. `DoesNotExistError`.
 - `request` holds the method and the URL's origin and path only. The query string, which can carry
   filters and arguments, is never included.
 - `JSON.stringify(error)` gives a loggable object. The server's traceback is never read into an error.
@@ -221,7 +287,7 @@ try {
 
 Credentials are held in closures: `JSON.stringify` and `console.log` of a strategy, a client or an
 error the client throws never show them. A strategy's options are checked when it is created, and a
-mistake is a `ConfigurationError` that never quotes the value; so is an invalid header, anywhere.
+mistake is an `InvalidArgumentError` that never quotes the value; so is an invalid header, anywhere.
 
 ### Sessions
 
@@ -230,8 +296,8 @@ import { createClient, sessionAuth } from '@frappeforge/client'
 
 const frappe = createClient({ url: 'https://example.com', auth: sessionAuth() })
 
-const { fullName, homePage } = await frappe.auth.login({ username: 'jane@example.com', password })
-const user = await frappe.auth.currentUser() // 'jane@example.com', or null for Guest
+const { fullName, homePage } = await frappe.auth.login({ username: 'user@example.com', password })
+const user = await frappe.auth.getLoggedUser() // 'user@example.com', or null for Guest
 await frappe.auth.logout()
 ```
 
@@ -251,7 +317,7 @@ second factor or for a new password, since no session exists then. `logout()` fo
 cookies even if the request fails.
 
 An expired session is not a `401`: Frappe runs the request as Guest, and protected endpoints answer
-`403`. After a `PermissionError`, `currentUser()` tells "signed out" (`null`) from "not allowed".
+`403`. After a `PermissionError`, `getLoggedUser()` tells "signed out" (`null`) from "not allowed".
 
 ### Bearer tokens and refresh
 
@@ -294,20 +360,20 @@ const vaultAuth: AuthStrategy = {
 const frappe = createClient({ url: 'https://example.com', auth: vaultAuth })
 ```
 
-## Timeouts and cancellation
+## Timeouts and aborts
 
 ```ts
 // A shorter time budget for one request (overrides the client's `timeout`)
 await frappe.request({ path: '/api/method/frappe.ping' }, { timeout: 5_000 })
 
-// Cancel from your code, e.g. when a component unmounts
+// Abort from your code, e.g. when a component unmounts
 const controller = new AbortController()
 const pending = frappe.request({ path: '/api/resource/ToDo' }, { signal: controller.signal })
 controller.abort()
-await pending // rejects with CancelledError; the abort reason is its `cause`
+await pending // rejects with AbortError; the abort reason is its `cause`
 ```
 
-A timeout rejects with `TimeoutError` and a cancellation with `CancelledError`, so a user navigating
+A timeout rejects with `TimeoutError` and an abort with `AbortError`, as `fetch` names them, so a user navigating
 away is never reported as a failure. The timeout covers each attempt; the signal covers the whole
 call, including a strategy that is still fetching a token. `options.headers` adds or overrides headers for one request.
 

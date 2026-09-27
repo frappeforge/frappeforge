@@ -14,7 +14,7 @@
     "expected": {
         "name": "ConflictError",
         "status": 409,
-        "exception": "DuplicateEntryError",
+        "exceptionType": "DuplicateEntryError",
         "message": "Role System Manager already exists"
     }
 }

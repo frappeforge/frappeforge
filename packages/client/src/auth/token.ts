@@ -1,6 +1,6 @@
 // API key authentication: `Authorization: token <key>:<secret>`.
 
-import { ConfigurationError } from '../errors.js'
+import { InvalidArgumentError } from '../errors.js'
 import type { AuthStrategy } from './strategy.js'
 
 /** Options for {@link tokenAuth}. */
@@ -36,8 +36,8 @@ const credential = /^[!-9;-~]+$/u
  */
 export function tokenAuth(options: TokenAuthOptions): AuthStrategy {
     const { apiKey, apiSecret } = Object(options) as Partial<Record<keyof TokenAuthOptions, unknown>>
-    if (typeof apiKey !== 'string' || !credential.test(apiKey)) throw invalid('apiKey')
-    if (typeof apiSecret !== 'string' || !credential.test(apiSecret)) throw invalid('apiSecret')
+    if (typeof apiKey !== 'string' || !credential.test(apiKey)) throw invalidOption('apiKey')
+    if (typeof apiSecret !== 'string' || !credential.test(apiSecret)) throw invalidOption('apiSecret')
     const authorization = `token ${apiKey}:${apiSecret}`
     return Object.freeze({
         apply(headers: Headers): void {
@@ -46,8 +46,8 @@ export function tokenAuth(options: TokenAuthOptions): AuthStrategy {
     })
 }
 
-function invalid(name: keyof TokenAuthOptions): ConfigurationError {
-    return new ConfigurationError(
+function invalidOption(name: keyof TokenAuthOptions): InvalidArgumentError {
+    return new InvalidArgumentError(
         `tokenAuth() needs \`${name}\` as a non-empty string of visible ASCII characters without ":".`,
     )
 }

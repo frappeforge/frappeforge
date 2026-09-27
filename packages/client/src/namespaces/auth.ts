@@ -1,6 +1,6 @@
 // `frappe.auth`: sign in, sign out, and who is signed in.
 
-import { AuthenticationError, ConfigurationError, type FrappeRequestContext, PermissionError } from '../errors.js'
+import { AuthenticationError, type FrappeRequestContext, InvalidArgumentError, PermissionError } from '../errors.js'
 import { isRecord, readJson, readMember } from '../http/decode.js'
 import type { Send } from '../http/send.js'
 import type { RequestOptions } from '../types.js'
@@ -36,7 +36,7 @@ export interface AuthNamespace {
      *
      * @example
      * ```ts
-     * const { fullName, homePage } = await frappe.auth.login({ username: 'jane@example.com', password })
+     * const { fullName, homePage } = await frappe.auth.login({ username: 'user@example.com', password })
      * ```
      */
     readonly login: (
@@ -63,10 +63,10 @@ export interface AuthNamespace {
      *
      * @example
      * ```ts
-     * if ((await frappe.auth.currentUser()) === null) redirectToLogin()
+     * if ((await frappe.auth.getLoggedUser()) === null) redirectToLogin()
      * ```
      */
-    readonly currentUser: (options?: RequestOptions) => Promise<string | null>
+    readonly getLoggedUser: (options?: RequestOptions) => Promise<string | null>
 }
 
 /** Creates `frappe.auth` over the client's pipeline; `clear` forgets the strategy's credentials. */
@@ -78,7 +78,7 @@ export function createAuthNamespace(send: Send, clear: () => void): AuthNamespac
         ): Promise<LoginResult> => {
             const { username, password } = Object(credentials) as Partial<Record<'username' | 'password', unknown>>
             if (typeof username !== 'string' || username === '' || typeof password !== 'string' || password === '') {
-                throw new ConfigurationError('login() needs a `username` and a `password`, both non-empty strings.')
+                throw new InvalidArgumentError('login() needs a `username` and a `password`, both non-empty strings.')
             }
             return send(
                 { method: 'POST', path: '/api/method/login', body: { usr: username, pwd: password } },
@@ -93,7 +93,7 @@ export function createAuthNamespace(send: Send, clear: () => void): AuthNamespac
                 clear()
             }
         },
-        currentUser: async (options: RequestOptions = {}): Promise<string | null> => {
+        getLoggedUser: async (options: RequestOptions = {}): Promise<string | null> => {
             try {
                 const user = await send(
                     { path: '/api/method/frappe.auth.get_logged_user' },
@@ -107,7 +107,7 @@ export function createAuthNamespace(send: Send, clear: () => void): AuthNamespac
                 throw error
             }
         },
-    })
+    } satisfies AuthNamespace)
 }
 
 /**

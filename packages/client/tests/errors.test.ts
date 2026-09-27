@@ -1,12 +1,12 @@
 import { describe, expect, it } from 'vitest'
 
 import {
+    AbortError,
     AuthenticationError,
-    CancelledError,
-    ConfigurationError,
     ConflictError,
     FrappeError,
     type FrappeErrorOptions,
+    InvalidArgumentError,
     NetworkError,
     NotFoundError,
     PermissionError,
@@ -19,10 +19,10 @@ import {
 type FrappeErrorSubclass = new (message: string, options?: FrappeErrorOptions) => FrappeError
 
 const subclasses: readonly (readonly [string, FrappeErrorSubclass])[] = [
-    ['ConfigurationError', ConfigurationError],
+    ['InvalidArgumentError', InvalidArgumentError],
     ['NetworkError', NetworkError],
     ['TimeoutError', TimeoutError],
-    ['CancelledError', CancelledError],
+    ['AbortError', AbortError],
     ['AuthenticationError', AuthenticationError],
     ['PermissionError', PermissionError],
     ['NotFoundError', NotFoundError],
@@ -42,7 +42,7 @@ describe('FrappeError', () => {
         expect(error.message).toBe('something went wrong')
         expect(error.status).toBe(0)
         expect(error.serverMessages).toEqual([])
-        expect(error.exception).toBeUndefined()
+        expect(error.exceptionType).toBeUndefined()
         expect(error.request).toBeUndefined()
         expect(error.cause).toBeUndefined()
     })
@@ -53,7 +53,7 @@ describe('FrappeError', () => {
         const error = new FrappeError('could not save', {
             status: 417,
             serverMessages: [{ message: 'Subject is mandatory', title: 'Missing field', indicator: 'red' }],
-            exception: 'frappe.exceptions.ValidationError',
+            exceptionType: 'frappe.exceptions.ValidationError',
             request: { method: 'POST', url: 'https://example.com/api/resource/Task' },
             cause,
         })
@@ -62,7 +62,7 @@ describe('FrappeError', () => {
         expect(error.serverMessages).toEqual([
             { message: 'Subject is mandatory', title: 'Missing field', indicator: 'red' },
         ])
-        expect(error.exception).toBe('frappe.exceptions.ValidationError')
+        expect(error.exceptionType).toBe('frappe.exceptions.ValidationError')
         expect(error.request).toEqual({ method: 'POST', url: 'https://example.com/api/resource/Task' })
         expect(error.cause).toBe(cause)
     })
@@ -71,7 +71,7 @@ describe('FrappeError', () => {
         const error = new FrappeError('not permitted', {
             request: {
                 method: 'GET',
-                url: 'https://api:secret@example.com/api/resource/Task?filters=[["owner","=","a@example.com"]]#top',
+                url: 'https://api:secret@example.com/api/resource/Task?filters=[["owner","=","user@example.com"]]#top',
             },
         })
 
@@ -161,7 +161,7 @@ describe('JSON serialization', () => {
     it('returns every loggable field, including those that are unset', () => {
         const error = new ValidationError('could not save', {
             status: 417,
-            exception: 'MandatoryError',
+            exceptionType: 'MandatoryError',
             serverMessages: [{ message: 'Subject is mandatory' }],
         })
 
@@ -169,7 +169,7 @@ describe('JSON serialization', () => {
             name: 'ValidationError',
             message: 'could not save',
             status: 417,
-            exception: 'MandatoryError',
+            exceptionType: 'MandatoryError',
             serverMessages: [{ message: 'Subject is mandatory' }],
             request: undefined,
         })
