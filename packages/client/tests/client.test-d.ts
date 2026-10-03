@@ -2,6 +2,7 @@ import { describe, expectTypeOf, it } from 'vitest'
 
 import {
     createClient,
+    type DocInput,
     type DocNamespace,
     type FrappeClient,
     type FrappeDoc,
@@ -357,6 +358,98 @@ describe('doc.getPassword', () => {
     })
 })
 
+describe('the write methods', () => {
+    it('return the saved document, its name, or nothing', async () => {
+        const task = await frappe.doc.insert('Task', { subject: 'Ship 1.0', status: 'Open' })
+        const saved = await frappe.doc.setValue('Task', task.name, { status: 'Working' })
+        const submitted = await frappe.doc.submit('Task', task.name)
+        const cancelled = await frappe.doc.cancel('Task', task.name)
+        expectTypeOf([task, saved, submitted, cancelled]).toEqualTypeOf<Task[]>()
+        expectTypeOf(frappe.doc.delete).returns.toEqualTypeOf<Promise<void>>()
+    })
+
+    it('return names typed by the DocType', async () => {
+        expectTypeOf(await frappe.doc.insertMany('Task', [{ subject: 'One' }])).toEqualTypeOf<string[]>()
+        expectTypeOf(await frappe.doc.insertMany('Counter', [{ label: 'One' }])).toEqualTypeOf<number[]>()
+        expectTypeOf(await frappe.doc.insertMany('Note', [{ title: 'One' }])).toEqualTypeOf<(string | number)[]>()
+        expectTypeOf(await frappe.doc.rename('Task', 'TASK-1', 'TASK-2')).toEqualTypeOf<string>()
+        expectTypeOf(await frappe.doc.rename('Counter', 1, 2)).toEqualTypeOf<number>()
+        expectTypeOf(await frappe.doc.rename('Note', 'a', 'b', { merge: true })).toEqualTypeOf<string | number>()
+    })
+
+    it('check fields and values against the DocType', () => {
+        expectTypeOf<DocInput<Task>['status']>().toEqualTypeOf<'Open' | 'Working' | 'Completed' | null | undefined>()
+        expectTypeOf<DocInput<Task>['subject']>().toEqualTypeOf<string | undefined>()
+        void frappe.doc.insert('Task', { subject: 'x', status: null, priority: 1 })
+        // @ts-expect-error not a field of Task
+        void frappe.doc.insert('Task', { subjct: 'x' })
+        // @ts-expect-error not one of the Select options
+        void frappe.doc.insert('Task', { status: 'Opne' })
+        // @ts-expect-error subject is not nullable
+        void frappe.doc.insert('Task', { subject: null })
+        // @ts-expect-error priority is not nullable
+        void frappe.doc.setValue('Task', 'TASK-1', { priority: null })
+        // @ts-expect-error not a field of Task
+        void frappe.doc.setValue('Task', 'TASK-1', { subjct: 'x' })
+        // @ts-expect-error not a field of Task
+        void frappe.doc.insertMany('Task', [{ subject: 'x' }, { subjct: 'y' }])
+    })
+
+    it('reject the fields the server assigns', () => {
+        expectTypeOf<keyof DocInput<Task>>().toEqualTypeOf<
+            'name' | 'subject' | 'status' | 'priority' | 'salary' | 'depends_on'
+        >()
+        // @ts-expect-error assigned by the server
+        void frappe.doc.insert('Task', { owner: 'user@example.com' })
+        // @ts-expect-error assigned by the server
+        void frappe.doc.insert('Task', { modified: '2026-01-01 00:00:00' })
+        // @ts-expect-error changed by submit and cancel
+        void frappe.doc.setValue('Task', 'TASK-1', { docstatus: 1 })
+        // @ts-expect-error assigned by the server
+        void frappe.doc.setValue('Task', 'TASK-1', { idx: 2 })
+        // @ts-expect-error assigned by the server
+        void frappe.doc.setValue('Task', 'TASK-1', { parent: 'X' })
+        // @ts-expect-error the DocType is the first argument
+        void frappe.doc.insert('Task', { doctype: 'Task' })
+    })
+
+    it('type child rows by the child DocType', () => {
+        expectTypeOf<NonNullable<DocInput<Task>['depends_on']>>().toEqualTypeOf<readonly DocInput<TaskDependsOn>[]>()
+        const rows = [{ name: 'row-1', task: 'TASK-2' }, { task: 'TASK-3' }] as const
+        void frappe.doc.setValue('Task', 'TASK-1', { depends_on: rows })
+        void frappe.doc.insert('Task', { depends_on: [{ task: null }] })
+        // @ts-expect-error not a field of Task Depends On
+        void frappe.doc.insert('Task', { depends_on: [{ taks: 'TASK-2' }] })
+        // @ts-expect-error assigned by the server on child rows too
+        void frappe.doc.setValue('Task', 'TASK-1', { depends_on: [{ parent: 'TASK-1' }] })
+    })
+
+    it('take a name on insert only; setValue sends back a document read with get', async () => {
+        void frappe.doc.insert('Task', { name: 'TASK-1', subject: 'x' })
+        // @ts-expect-error use rename to change the name
+        void frappe.doc.setValue('Task', 'TASK-1', { name: 'TASK-2' })
+        const task = await frappe.doc.get('Task', 'TASK-1')
+        expectTypeOf(frappe.doc.setValue('Task', task.name, task)).resolves.toEqualTypeOf<Task>()
+    })
+
+    it('accept any field for a DocType that was not generated', () => {
+        expectTypeOf(frappe.doc.insert('Note', { title: 'x', anything: 1 })).resolves.toEqualTypeOf<UnknownDoc>()
+        void frappe.doc.setValue('Note', 'n', { content: 'y' })
+    })
+
+    it('take names as strings or numbers, and merge as a boolean', () => {
+        expectTypeOf(frappe.doc.submit('Counter', 5)).resolves.toEqualTypeOf<Counter>()
+        void frappe.doc.cancel('Counter', '5')
+        void frappe.doc.delete('Task', 'TASK-1')
+        // @ts-expect-error a name is a string or a number
+        void frappe.doc.delete('Task', true)
+        // @ts-expect-error a name is a string or a number
+        void frappe.doc.rename('Task', 'TASK-1', false)
+        // @ts-expect-error merge is a boolean
+        void frappe.doc.rename('Task', 'TASK-1', 'TASK-2', { merge: 1 })
+    })
+})
+
 describe('the examples in the method docs', () => {
     // A client without generated types, as a reader copying an example has.
     const frappe = createClient({ url })
@@ -399,5 +492,19 @@ describe('the examples in the method docs', () => {
         expectTypeOf(user).toEqualTypeOf<{ full_name: unknown; name: string | number } | null>()
         expectTypeOf([known, canEdit, amended]).toEqualTypeOf<boolean[]>()
         expectTypeOf(secret).toEqualTypeOf<string>()
+    })
+
+    it('compile the writes without generated types', async () => {
+        const todo = await frappe.doc.insert('ToDo', { description: 'Ship 1.0', priority: 'High' })
+        const names = await frappe.doc.insertMany('ToDo', [{ description: 'One' }, { description: 'Two' }])
+        const closed = await frappe.doc.setValue('ToDo', 'TODO-0001', { status: 'Closed' })
+        const name = await frappe.doc.rename('Customer', 'ACME', 'ACME Corp')
+        await frappe.doc.delete('ToDo', 'TODO-0001')
+        const invoice = await frappe.doc.submit('Sales Invoice', 'SINV-0001')
+        const cancelled = await frappe.doc.cancel('Sales Invoice', 'SINV-0001')
+
+        expectTypeOf([todo, closed, invoice, cancelled]).toEqualTypeOf<UnknownDoc[]>()
+        expectTypeOf(names).toEqualTypeOf<(string | number)[]>()
+        expectTypeOf(name).toEqualTypeOf<string | number>()
     })
 })

@@ -69,7 +69,7 @@ export interface FrappeErrorJSON {
  * @example
  * ```ts
  * try {
- *     await frappe.request({ method: 'POST', path: '/api/resource/Task', body: { subject: 'Ship 1.0' } })
+ *     await frappe.doc.insert('Task', { subject: 'Ship 1.0' })
  * } catch (error) {
  *     if (error instanceof ValidationError) return showMessages(error.serverMessages)
  *     if (error instanceof ConflictError) return showDuplicate()

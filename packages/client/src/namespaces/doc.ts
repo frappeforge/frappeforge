@@ -1,8 +1,8 @@
 // `frappe.doc`: read documents — one by name, a single DocType's record, lists, counts, every
-// matching row, single values, and checks on a document.
+// matching row, single values, and checks on a document — and write them.
 
 import { FrappeError, InvalidArgumentError } from '../errors.js'
-import { isRecord, readMember } from '../http/decode.js'
+import { isPlainObject, isRecord, readMember } from '../http/decode.js'
 import {
     assertFieldName,
     assertListArgs,
@@ -16,6 +16,7 @@ import {
 import type { ReadResponse, Send } from '../http/send.js'
 import type {
     ColumnOf,
+    DocInput,
     DocOf,
     DocTypeName,
     FieldSelection,
@@ -32,8 +33,8 @@ import type {
 } from '../types.js'
 
 /**
- * `frappe.doc`: read documents, single values, and checks on a document. Function properties, so
- * they can be destructured.
+ * `frappe.doc`: read documents, single values, and checks on a document; insert, change, rename,
+ * delete, submit and cancel them. Function properties, so they can be destructured.
  *
  * DocType names autocomplete from generated types (see `Register`), field names and filter
  * values are checked against them, and a list returns exactly the fields it asks for. A DocType
@@ -316,6 +317,156 @@ export interface DocNamespace<D extends object = RegisteredDocTypes> {
         field: ColumnOf<DocOf<D, K>>,
         options?: RequestOptions,
     ) => Promise<string>
+    /**
+     * Creates a document, with its child rows, and returns it as saved. Frappe runs the DocType's
+     * hooks and validation; a missing mandatory field is a `ValidationError` naming it, and a name
+     * that already exists a `ConflictError`.
+     *
+     * Every field is optional, because `validate` hooks often fill mandatory fields. A `name` is
+     * kept only for DocTypes named by the user ("Prompt"); every other naming rule replaces it.
+     * Child rows always get new names.
+     *
+     * @param doctype - The DocType, such as `'ToDo'`.
+     * @param data - The document's fields and child rows.
+     * @param options - A signal, and a timeout or headers for this request only.
+     *
+     * @example
+     * ```ts
+     * const todo = await frappe.doc.insert('ToDo', { description: 'Ship 1.0', priority: 'High' })
+     * ```
+     */
+    readonly insert: <K extends DocTypeName<D>>(
+        doctype: K,
+        data: DocInput<DocOf<D, K>>,
+        options?: RequestOptions,
+    ) => Promise<DocOf<D, K>>
+    /**
+     * Creates several documents of one DocType in one request and returns their names, in order.
+     * It is one database transaction: when one document fails, none is saved. Frappe accepts at
+     * most 200 documents per request and rejects more with a `ValidationError`.
+     *
+     * @param doctype - The DocType of every document.
+     * @param docs - The documents, as `insert` takes them.
+     * @param options - A signal, and a timeout or headers for this request only.
+     *
+     * @example
+     * ```ts
+     * const names = await frappe.doc.insertMany('ToDo', [{ description: 'One' }, { description: 'Two' }])
+     * ```
+     */
+    readonly insertMany: <K extends DocTypeName<D>>(
+        doctype: K,
+        docs: readonly DocInput<DocOf<D, K>>[],
+        options?: RequestOptions,
+    ) => Promise<DocOf<D, K>['name'][]>
+    /**
+     * Changes fields of a document and returns it as saved. It is a full save: Frappe runs the
+     * DocType's hooks and validation, as Desk does — unlike `frappe.db.set_value` in Python.
+     *
+     * Sending a child table **replaces** the table. Rows without a `name` are added; rows with a
+     * `name` are kept, but rebuilt from what is sent, so a field left out of a kept row is
+     * cleared — or, if it is mandatory, a `ValidationError`. Rows left out are deleted. A row
+     * whose `name` does not exist is not saved, though the returned document still lists it. To
+     * change one row, send the whole table, each kept row in full as `get` returned it.
+     *
+     * A document read with `get` can be sent back whole: its `modified` makes Frappe refuse the
+     * save with a `ValidationError` (`TimestampMismatchError`) when someone saved it in between.
+     * `values` cannot change the name: use `rename`. Change `docstatus` with `submit` and
+     * `cancel`. The types leave it out, with the other fields the server sets, but a value sent
+     * anyway reaches Frappe as it is.
+     *
+     * @param doctype - The DocType, such as `'ToDo'`.
+     * @param name - The document's name.
+     * @param values - The fields to change; at least one.
+     * @param options - A signal, and a timeout or headers for this request only.
+     *
+     * @example
+     * ```ts
+     * const todo = await frappe.doc.setValue('ToDo', 'TODO-0001', { status: 'Closed' })
+     * ```
+     */
+    readonly setValue: <K extends DocTypeName<D>>(
+        doctype: K,
+        name: string | number,
+        values: Omit<DocInput<DocOf<D, K>>, 'name'>,
+        options?: RequestOptions,
+    ) => Promise<DocOf<D, K>>
+    /**
+     * Renames a document, and updates every Link to it. Returns the new name as stored (Frappe
+     * trims it). The DocType must allow renaming; that, a new name already in use, and a missing
+     * write permission are each a `ValidationError` from Frappe.
+     *
+     * @param doctype - The DocType, such as `'Customer'`.
+     * @param name - The document's current name.
+     * @param newName - The new name.
+     * @param options - `merge: true` to merge into an existing document of the new name; a signal,
+     * and a timeout or headers for this request only.
+     *
+     * @example
+     * ```ts
+     * const name = await frappe.doc.rename('Customer', 'ACME', 'ACME Corp')
+     * ```
+     */
+    readonly rename: <K extends DocTypeName<D>>(
+        doctype: K,
+        name: string | number,
+        newName: string | number,
+        options?: RequestOptions & { readonly merge?: boolean },
+    ) => Promise<DocOf<D, K>['name']>
+    /**
+     * Deletes a document. A submitted document must be cancelled first, and a document other
+     * records link to cannot be deleted; both are a `ValidationError`. Delete a child row through
+     * its parent, by leaving it out of the table in `setValue`.
+     *
+     * @param doctype - The DocType, such as `'ToDo'`.
+     * @param name - The document's name.
+     * @param options - A signal, and a timeout or headers for this request only.
+     *
+     * @example
+     * ```ts
+     * await frappe.doc.delete('ToDo', 'TODO-0001')
+     * ```
+     */
+    readonly delete: (doctype: DocTypeName<D>, name: string | number, options?: RequestOptions) => Promise<void>
+    /**
+     * Submits a draft document and returns it, `docstatus` 1. Frappe checks the write and submit
+     * permissions and runs the submit hooks. Submitting a document that is already submitted is
+     * not an error: Frappe saves it again, and only `modified` changes.
+     *
+     * @param doctype - A submittable DocType, such as `'Sales Invoice'`.
+     * @param name - The document's name.
+     * @param options - A signal, and a timeout or headers for this request only.
+     *
+     * @example
+     * ```ts
+     * const invoice = await frappe.doc.submit('Sales Invoice', 'SINV-0001')
+     * ```
+     */
+    readonly submit: <K extends DocTypeName<D>>(
+        doctype: K,
+        name: string | number,
+        options?: RequestOptions,
+    ) => Promise<DocOf<D, K>>
+    /**
+     * Cancels a submitted document and returns it, `docstatus` 2. Frappe checks the cancel
+     * permission and runs the cancel hooks. A draft or a cancelled document is a
+     * `ValidationError`. To correct a cancelled document, insert its amendment with
+     * `amended_from` set to its name.
+     *
+     * @param doctype - A submittable DocType, such as `'Sales Invoice'`.
+     * @param name - The document's name.
+     * @param options - A signal, and a timeout or headers for this request only.
+     *
+     * @example
+     * ```ts
+     * const invoice = await frappe.doc.cancel('Sales Invoice', 'SINV-0001')
+     * ```
+     */
+    readonly cancel: <K extends DocTypeName<D>>(
+        doctype: K,
+        name: string | number,
+        options?: RequestOptions,
+    ) => Promise<DocOf<D, K>>
 }
 
 /**
@@ -329,6 +480,9 @@ type DocMethods = { readonly [K in keyof DocNamespace]: (...args: never[]) => un
 const pagingArgs = ['orderBy', 'groupBy', 'limit', 'offset'] as const
 
 const DEFAULT_PAGE_SIZE = 100
+
+/** Reads the document that a `/api/resource` answer carries in `data`. */
+const readDocument = readMember('data', isRecord, 'a document')
 
 /** Frappe's permission types. A `Record`, so that leaving one out is a compile error. */
 const permissionTypes = {
@@ -401,22 +555,16 @@ export function createDocNamespace<D extends object>(send: Send): DocNamespace<D
         return row === undefined || Object.keys(row).length === 0 ? null : row
     }
 
+    /** `submit` and `cancel`: Frappe's own `submit()` / `cancel()` set `docstatus`, then save. */
+    const setDocstatus = async (doctype: unknown, name: unknown, docstatus: 1 | 2, options: RequestOptions) =>
+        send({ method: 'PUT', path: documentPath(doctype, name), body: { data: { docstatus } } }, options, readDocument)
+
     const namespace = {
         get: async (doctype: unknown, name: unknown, options: RequestOptions = {}) =>
-            send(
-                {
-                    path: `/api/resource/${encodeURIComponent(assertDoctype(doctype))}/${encodeURIComponent(assertDocName(name))}`,
-                },
-                options,
-                readMember('data', isRecord, 'a document'),
-            ),
+            send({ path: documentPath(doctype, name) }, options, readDocument),
         getSingle: async (doctype: unknown, options: RequestOptions = {}) => {
             const encoded = encodeURIComponent(assertDoctype(doctype))
-            return send(
-                { path: `/api/resource/${encoded}/${encoded}` },
-                options,
-                readMember('data', isRecord, 'a document'),
-            )
+            return send({ path: `/api/resource/${encoded}/${encoded}` }, options, readDocument)
         },
         getList: async (doctype: unknown, args: unknown = {}, options: RequestOptions = {}) =>
             listRows(doctype, toListParams(args), options),
@@ -503,6 +651,81 @@ export function createDocNamespace<D extends object>(send: Send): DocNamespace<D
                 options,
             )
         },
+        insert: async (doctype: unknown, data: unknown, options: RequestOptions = {}) =>
+            send(
+                {
+                    method: 'POST',
+                    path: `/api/resource/${encodeURIComponent(assertDoctype(doctype))}`,
+                    // Under `data`: Frappe takes a top-level `data` key as the whole document, so a
+                    // field of that name would otherwise replace the others.
+                    body: { data: assertWriteInput(data, '`data`') },
+                },
+                options,
+                readDocument,
+            ),
+        insertMany: async (doctype: unknown, docs: unknown, options: RequestOptions = {}) => {
+            const doctypeName = assertDoctype(doctype)
+            if (!Array.isArray(docs) || docs.length === 0) {
+                throw new InvalidArgumentError('`docs` must be a non-empty array of documents.')
+            }
+            // Frappe reads each document's DocType from the document itself.
+            const body = docs.map((doc) => ({ ...assertWriteInput(doc, 'Each document'), doctype: doctypeName }))
+            return send(
+                { method: 'POST', path: '/api/method/frappe.client.insert_many', body: { docs: body } },
+                options,
+                readMember('message', isNameList, 'a list of names'),
+            )
+        },
+        setValue: async (doctype: unknown, name: unknown, values: unknown, options: RequestOptions = {}) => {
+            const path = documentPath(doctype, name)
+            const fields = assertWriteInput(values, '`values`')
+            // Nothing to save, yet Frappe would still change `modified`; `undefined` vanishes in JSON,
+            // and `name` and `doctype` only say which document it is.
+            const changes = Object.entries(fields).filter(([key]) => key !== 'name' && key !== 'doctype')
+            if (!changes.some(([, value]) => value !== undefined)) {
+                throw new InvalidArgumentError('`values` must set at least one field.')
+            }
+            // Frappe would take `name` from the values and save the document of that name instead.
+            // The same name passes, so a whole document read with `get` can be sent back.
+            const target = fields['name']
+            if (target !== undefined && !(isName(target) && String(target) === assertDocName(name))) {
+                throw new InvalidArgumentError(
+                    "`values.name` must be the document's own name; use `rename` to change it.",
+                )
+            }
+            return send({ method: 'PUT', path, body: { data: fields } }, options, readDocument)
+        },
+        rename: async (
+            doctype: unknown,
+            name: unknown,
+            newName: unknown,
+            { merge = false, ...options }: RequestOptions & { readonly merge?: unknown } = {},
+        ) => {
+            const doctypeName = assertDoctype(doctype)
+            const oldName = assertDocName(name)
+            const renamed = assertDocName(newName, '`newName`')
+            if (typeof merge !== 'boolean') throw new InvalidArgumentError('`merge` must be a boolean.')
+            return send(
+                {
+                    method: 'POST',
+                    path: '/api/method/frappe.client.rename_doc',
+                    body: { doctype: doctypeName, old_name: oldName, new_name: renamed, merge },
+                },
+                options,
+                readMember('message', isName, 'a name'),
+            )
+        },
+        delete: async (doctype: unknown, name: unknown, options: RequestOptions = {}) => {
+            await send(
+                { method: 'DELETE', path: documentPath(doctype, name) },
+                options,
+                readMember('message', isAny, 'a value'),
+            )
+        },
+        submit: async (doctype: unknown, name: unknown, options: RequestOptions = {}) =>
+            setDocstatus(doctype, name, 1, options),
+        cancel: async (doctype: unknown, name: unknown, options: RequestOptions = {}) =>
+            setDocstatus(doctype, name, 2, options),
         paginate: async function* (
             doctype: unknown,
             args: unknown = {},
@@ -578,10 +801,24 @@ function assertDoctype(value: unknown): string {
  * for DocTypes named by "Autoincrement". A number is sent as its decimal string, which an integer
  * `name` column compares as a number and a text column as text.
  */
-function assertDocName(value: unknown): string {
+function assertDocName(value: unknown, label = '`name`'): string {
     if (typeof value === 'string' && value !== '') return value
     if (typeof value === 'number' && Number.isSafeInteger(value) && value > 0) return String(value)
-    throw new InvalidArgumentError('`name` must be a non-empty string or a positive integer.')
+    throw new InvalidArgumentError(`${label} must be a non-empty string or a positive integer.`)
+}
+
+/** The REST path of one document, its DocType and name checked and encoded. */
+function documentPath(doctype: unknown, name: unknown): string {
+    return `/api/resource/${encodeURIComponent(assertDoctype(doctype))}/${encodeURIComponent(assertDocName(name))}`
+}
+
+/**
+ * A document to write: a plain object, sent as JSON. Anything else — an array, `null`, a `Date`,
+ * `FormData` — is a mistake, which `send` would turn into a different request.
+ */
+function assertWriteInput(value: unknown, label: string): Readonly<Record<string, unknown>> {
+    if (isPlainObject(value)) return value
+    throw new InvalidArgumentError(`${label} must be a plain object of fields.`)
 }
 
 /**
@@ -610,7 +847,7 @@ function assertFieldNames(fields: readonly unknown[], emptyAllowed = false): str
 /** A row's `name`: a string, or a number for DocTypes named by `autoincrement`. */
 function rowName(row: unknown): string | number | undefined {
     const name = isRecord(row) ? row['name'] : undefined
-    return typeof name === 'string' || typeof name === 'number' ? name : undefined
+    return isName(name) ? name : undefined
 }
 
 function isList(value: unknown): value is readonly unknown[] {
@@ -623,6 +860,15 @@ function isCount(value: unknown): value is number {
 
 function isString(value: unknown): value is string {
     return typeof value === 'string'
+}
+
+/** A document name: a string, or a number for DocTypes named by "Autoincrement". */
+function isName(value: unknown): value is string | number {
+    return typeof value === 'string' || typeof value === 'number'
+}
+
+function isNameList(value: unknown): value is (string | number)[] {
+    return Array.isArray(value) && value.every(isName)
 }
 
 /** Frappe leaves `message` out when a method returns `None`. */

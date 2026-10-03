@@ -5,8 +5,8 @@ Zero-dependency, `fetch`-native TypeScript client for the Frappe Framework REST 
 
 > **Status: pre-release.** The API may change before `1.0.0`. Supported Frappe versions: v15 and v16.
 
-- **Typed documents.** DocType names autocomplete, field names and filter values are type-checked, and
-  a list returns exactly the fields you ask for.
+- **Typed documents.** DocType names autocomplete, field names, filter values and the fields you write
+  are type-checked, and a list returns exactly the fields you ask for.
 - **Typed errors.** Every failure is a `FrappeError` subclass that carries the server's own messages,
   and never its traceback.
 - **Authentication built in.** API keys, browser and Node sessions, and OAuth bearer tokens with
@@ -59,7 +59,7 @@ sent.
 
 ## Documents
 
-`frappe.doc` reads documents. Its methods take Frappe's own function names ([Coming from
+`frappe.doc` reads and writes documents. Its methods take Frappe's own function names ([Coming from
 Frappe](#coming-from-frappe)), and every one takes a `RequestOptions` object last, like `request()`.
 
 ```ts
@@ -150,6 +150,57 @@ await frappe.doc.getPassword('Email Account', 'Support', 'password') // System M
 - **`getPassword`** reads a Password field for a System Manager. A field with no stored password is a
   `ValidationError` from Frappe. Keep the value out of logs and caches.
 
+### Writing documents
+
+```ts
+const todo = await frappe.doc.insert('ToDo', { description: 'Ship 1.0', priority: 'High' })
+await frappe.doc.setValue('ToDo', todo.name, { status: 'Closed' }) // returns the saved document
+const names = await frappe.doc.insertMany('ToDo', [{ description: 'One' }, { description: 'Two' }])
+const renamed = await frappe.doc.rename('ToDo', todo.name, 'TODO-SHIP') // the stored new name
+await frappe.doc.delete('ToDo', renamed)
+
+await frappe.doc.submit('Sales Invoice', 'SINV-0001') // docstatus 1
+await frappe.doc.cancel('Sales Invoice', 'SINV-0001') // docstatus 2
+```
+
+Each method is one request, and Frappe runs the DocType's permissions, validation and hooks, as a
+save in Desk does.
+
+- **Every field is optional** in the types, because `validate` hooks often fill mandatory fields. A
+  field that is still missing is a `ValidationError` naming it. The types of a generated DocType
+  leave out the fields the server sets (`owner`, `modified`, `docstatus`, `idx`, …). They are not
+  checked at runtime, so a document read with `get` can be sent back, and its `docstatus` reaches
+  Frappe as it is: change `docstatus` with `submit` and `cancel`.
+- **Child tables in `setValue` replace the table.** Rows without a `name` are added. Rows with a `name`
+  are kept, but **rebuilt from what you send**: a field you leave out of a kept row is cleared, or is a
+  `ValidationError` if it is mandatory. Rows you leave out are deleted. A row whose `name` does not
+  exist is not saved, though the document `setValue` returns still lists it. To change one row, send
+  the whole table, with each row you keep in full, as `get` returned it:
+
+    ```ts
+    const order = await frappe.doc.get('Sales Order', 'SO-0001')
+    const items = order.items.map((item) => (item.item_code === 'X' ? { ...item, qty: 2 } : item))
+    await frappe.doc.setValue('Sales Order', 'SO-0001', { items })
+    ```
+
+- **Sending a document back.** A document read with `get` can be passed to `setValue` whole. Its
+  `modified` makes Frappe refuse the save with a `ValidationError` (`exceptionType`
+  `TimestampMismatchError`) when someone saved the document in between, as Desk does.
+- **Names.** `insert` keeps a `name` only for DocTypes named by the user ("Prompt"); other naming
+  rules replace it. `setValue` never changes a name — a different `name` in its values is an
+  `InvalidArgumentError` — use `rename`, which also updates every Link to the document. The DocType
+  must allow renaming.
+- **`insertMany`** saves up to 200 documents in one transaction: when one fails, none is saved. It
+  returns their names, in order.
+- **Submit and cancel** set `docstatus`, exactly as Frappe's `submit()` and `cancel()` do. Submitting a
+  document that is already submitted is not an error: Frappe saves it again. Cancelling a draft, or
+  changing a cancelled document, is a `ValidationError`.
+- **Amending** a cancelled document is an insert with `amended_from`; Frappe names it `<name>-1`:
+  `frappe.doc.insert('Sales Invoice', { ...fieldsToCopy, amended_from: 'SINV-0001' })`.
+- **Deleting** a submitted document, or one that other records link to, is a `ValidationError`. Delete
+  a child row through its parent, by leaving it out of the table in `setValue`: deleting the row by its
+  own name skips the parent's save and hooks.
+
 ### Typed DocTypes
 
 Declare your DocTypes once, and every call is checked against them:
@@ -185,22 +236,29 @@ is not in the map is still accepted, with `unknown` field values.
 Methods take the name of the Frappe function they call, camelCased, without the word the namespace
 already says. Document methods take the DocType first.
 
-| FrappeForge                                 | Frappe function                                        |
-| ------------------------------------------- | ------------------------------------------------------ |
-| `frappe.doc.get(doctype, name)`             | `get_doc`                                              |
-| `frappe.doc.getSingle(doctype)`             | `get_single`                                           |
-| `frappe.doc.getList(doctype, args)`         | `get_list`                                             |
-| `frappe.doc.count(doctype, filters)`        | `count`                                                |
-| `frappe.doc.paginate(doctype, args)`        | none — every matching row, one page per request        |
-| `frappe.doc.getValue(doctype, name, field)` | `get_value`                                            |
-| `frappe.doc.getSingleValue(doctype, field)` | `get_single_value`                                     |
-| `frappe.doc.exists(doctype, name)`          | `exists`                                               |
-| `frappe.doc.hasPermission(doctype, name)`   | `has_permission`                                       |
-| `frappe.doc.validateLink(doctype, name)`    | `validate_link` (Frappe 15; built on `get_value` here) |
-| `frappe.doc.isAmended(doctype, name)`       | `is_document_amended`                                  |
-| `frappe.doc.getPassword(doctype, name, f)`  | `get_password`                                         |
-| `frappe.auth.login()` / `logout()`          | `login`, `logout`                                      |
-| `frappe.auth.getLoggedUser()`               | `get_logged_user` (`null` here for Guest)              |
+| FrappeForge                                  | Frappe function                                        |
+| -------------------------------------------- | ------------------------------------------------------ |
+| `frappe.doc.get(doctype, name)`              | `get_doc`                                              |
+| `frappe.doc.getSingle(doctype)`              | `get_single`                                           |
+| `frappe.doc.getList(doctype, args)`          | `get_list`                                             |
+| `frappe.doc.count(doctype, filters)`         | `count`                                                |
+| `frappe.doc.paginate(doctype, args)`         | none — every matching row, one page per request        |
+| `frappe.doc.getValue(doctype, name, field)`  | `get_value`                                            |
+| `frappe.doc.getSingleValue(doctype, field)`  | `get_single_value`                                     |
+| `frappe.doc.exists(doctype, name)`           | `exists`                                               |
+| `frappe.doc.hasPermission(doctype, name)`    | `has_permission`                                       |
+| `frappe.doc.validateLink(doctype, name)`     | `validate_link` (Frappe 15; built on `get_value` here) |
+| `frappe.doc.isAmended(doctype, name)`        | `is_document_amended`                                  |
+| `frappe.doc.getPassword(doctype, name, f)`   | `get_password`                                         |
+| `frappe.doc.insert(doctype, data)`           | `insert` (Desk passes `{ doctype, … }`)                |
+| `frappe.doc.insertMany(doctype, docs)`       | `insert_many`                                          |
+| `frappe.doc.setValue(doctype, name, values)` | `set_value`; also replaces `frappe.client.save`        |
+| `frappe.doc.rename(doctype, name, newName)`  | `rename_doc`                                           |
+| `frappe.doc.delete(doctype, name)`           | `delete_doc`                                           |
+| `frappe.doc.submit(doctype, name)`           | `submit`                                               |
+| `frappe.doc.cancel(doctype, name)`           | `cancel`                                               |
+| `frappe.auth.login()` / `logout()`           | `login`, `logout`                                      |
+| `frappe.auth.getLoggedUser()`                | `get_logged_user` (`null` here for Guest)              |
 
 ## Requests
 

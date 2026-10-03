@@ -83,6 +83,13 @@ describe('createClient', () => {
             'validateLink',
             'isAmended',
             'getPassword',
+            'insert',
+            'insertMany',
+            'setValue',
+            'rename',
+            'delete',
+            'submit',
+            'cancel',
             'paginate',
         ])
         expect(Object.isFrozen(frappe.doc)).toBe(true)
