@@ -8,6 +8,7 @@ import {
     type FrappeRequestContext,
     InvalidArgumentError,
     NetworkError,
+    type ServerMessage,
     TimeoutError,
 } from '../errors.js'
 import type { FrappeRequest, RequestOptions } from '../types.js'
@@ -27,10 +28,20 @@ export interface ResolvedConfig {
     readonly fetch: ((request: Request) => Promise<Response>) | undefined
     /** How requests authenticate; `undefined` sends them as Guest. */
     readonly auth: AuthStrategy | undefined
+    /** Receives the messages of successful answers. */
+    readonly onServerMessages: ((messages: readonly ServerMessage[], request: FrappeRequestContext) => void) | undefined
 }
 
-/** Reads a successful response. Runs inside the pipeline's failure classification. */
-export type ReadResponse<T> = (response: Response, context: FrappeRequestContext) => Promise<T>
+/**
+ * Reads a successful response. Runs inside the pipeline's failure classification. A reader of
+ * JSON passes `messages` to `readJson`, which adds the answer's messages to it; they reach
+ * `onServerMessages` only when the reader resolves.
+ */
+export type ReadResponse<T> = (
+    response: Response,
+    context: FrappeRequestContext,
+    messages: ServerMessage[],
+) => Promise<T>
 
 /** The pipeline bound to one client's config, as resources use it. */
 export type Send = <T>(init: FrappeRequest, options: RequestOptions, read: ReadResponse<T>) => Promise<T>
@@ -41,9 +52,13 @@ interface PreparedRequest {
     readonly body: BodyInit | null
 }
 
-/** One attempt's outcome: the value read from a 2xx response, or the non-2xx response and its body. */
+/**
+ * One attempt's outcome: the value read from a 2xx response with the answer's messages, or the
+ * non-2xx response and its body.
+ */
 type Attempt<T> =
-    { readonly value: T } | { readonly request: Request; readonly response: Response; readonly text: string }
+    | { readonly value: T; readonly messages: readonly ServerMessage[] }
+    | { readonly request: Request; readonly response: Response; readonly text: string }
 
 /** The largest delay `setTimeout` supports; above it, timers fire after 1 ms. */
 const MAX_TIMEOUT = 2_147_483_647
@@ -82,7 +97,10 @@ export async function send<T>(
     const prepared = prepare(config, init, options, context)
 
     const first = await attempt(config, prepared, options, read, url, context, timeout)
-    if ('value' in first) return first.value
+    if ('value' in first) {
+        deliverMessages(config, first.messages, context)
+        return first.value
+    }
     const { auth } = config
     const { signal: callerSignal } = options
     let last: Attempt<T> = first
@@ -94,8 +112,32 @@ export async function send<T>(
         // Only `true` replays: a strategy written in JavaScript may resolve anything.
         if (renewed === true) last = await attempt(config, prepared, options, read, url, context, timeout)
     }
-    if ('value' in last) return last.value
+    if ('value' in last) {
+        deliverMessages(config, last.messages, context)
+        return last.value
+    }
     throw toError(last.response, last.text, context)
+}
+
+/**
+ * Hands the messages of a successful answer to `onServerMessages`, when there are any. What the
+ * callback throws is thrown again from a microtask: the application sees it as an uncaught
+ * error, but the request still resolves, so a bug in a toast never loses saved data.
+ */
+function deliverMessages(
+    config: ResolvedConfig,
+    messages: readonly ServerMessage[],
+    context: FrappeRequestContext,
+): void {
+    const { onServerMessages } = config
+    if (onServerMessages === undefined || messages.length === 0) return
+    try {
+        onServerMessages(messages, context)
+    } catch (error) {
+        queueMicrotask(() => {
+            throw error
+        })
+    }
 }
 
 /**
@@ -180,7 +222,8 @@ async function attempt<T>(
         auth?.onResponse?.(response)
         try {
             if (!response.ok) return { request, response, text: await response.text() }
-            return { value: await read(response, context) }
+            const messages: ServerMessage[] = []
+            return { value: await read(response, context, messages), messages }
         } catch (cause) {
             throw classify(cause)
         }

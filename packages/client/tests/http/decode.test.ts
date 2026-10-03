@@ -10,6 +10,7 @@ import {
     PermissionError,
     RateLimitError,
     ServerError,
+    type ServerMessage,
     ValidationError,
 } from '../../src/errors.js'
 import { readJson, readMember, toError, toPlainText } from '../../src/http/decode.js'
@@ -25,6 +26,7 @@ interface ResponseFixture {
 
 const site = 'https://example.com'
 const context = { method: 'POST', url: `${site}/api/resource/Task` }
+const isNumber = (value: unknown): value is number => typeof value === 'number'
 
 /** Responses recorded from real Frappe sites, one folder per major version. */
 function loadFixtures(): (readonly [string, ResponseFixture])[] {
@@ -71,7 +73,7 @@ describe('recorded responses', () => {
 
     it.each(successes)('%s reads as the expected value', async (_file, { request, response }, expected) => {
         const body = new Response(response.body, { status: response.status, headers: response.headers })
-        await expect(readJson(body, { method: request.method, url: site + request.path })).resolves.toEqual(
+        await expect(readJson(body, { method: request.method, url: site + request.path }, [])).resolves.toEqual(
             expected.value,
         )
     })
@@ -92,19 +94,19 @@ describe('recorded responses', () => {
 
 describe('readJson', () => {
     it('parses a JSON body', async () => {
-        await expect(readJson(new Response('{"message":"pong"}'), context)).resolves.toEqual({ message: 'pong' })
+        await expect(readJson(new Response('{"message":"pong"}'), context, [])).resolves.toEqual({ message: 'pong' })
     })
 
     it('returns undefined for 204 and for an empty body', async () => {
-        await expect(readJson(new Response(null, { status: 204 }), context)).resolves.toBeUndefined()
-        await expect(readJson(new Response(''), context)).resolves.toBeUndefined()
+        await expect(readJson(new Response(null, { status: 204 }), context, [])).resolves.toBeUndefined()
+        await expect(readJson(new Response(''), context, [])).resolves.toBeUndefined()
     })
 
     it('explains a 2xx body that is not JSON', async () => {
         const response = new Response('<!doctype html><title>App</title>', {
             headers: { 'content-type': 'text/html; charset=utf-8' },
         })
-        const error = await readJson(response, context).catch((error: unknown) => error)
+        const error = await readJson(response, context, []).catch((error: unknown) => error)
         expect(error).toBeInstanceOf(FrappeError)
         expect(error).toMatchObject({
             name: 'FrappeError',
@@ -116,7 +118,7 @@ describe('readJson', () => {
 
     it('says so when the content type is missing', async () => {
         const response = new Response(new Blob(['not json']))
-        await expect(readJson(response, context)).rejects.toThrow('received an unknown content type.')
+        await expect(readJson(response, context, [])).rejects.toThrow('received an unknown content type.')
     })
 })
 
@@ -125,9 +127,9 @@ describe('readMember', () => {
 
     it('returns `message` or `data` when it is of the expected kind', async () => {
         const read = readMember('message', isString, 'a string')
-        await expect(read(new Response('{"message":"pong"}'), context)).resolves.toBe('pong')
+        await expect(read(new Response('{"message":"pong"}'), context, [])).resolves.toBe('pong')
         const data = readMember('data', Array.isArray, 'a list')
-        await expect(data(new Response('{"data":[1]}'), context)).resolves.toEqual([1])
+        await expect(data(new Response('{"data":[1]}'), context, [])).resolves.toEqual([1])
     })
 
     it.each([
@@ -136,17 +138,68 @@ describe('readMember', () => {
         ['a body that is not an object', '["pong"]'],
         ['an empty body', ''],
     ])('rejects %s', async (_title, body) => {
-        const error = await readMember(
-            'message',
-            isString,
-            'a string',
-        )(new Response(body), context).catch((error: unknown) => error)
+        const error = await readMember('message', isString, 'a string')(new Response(body), context, []).catch(
+            (error: unknown) => error,
+        )
         expect(error).toBeInstanceOf(FrappeError)
         expect(error).toMatchObject({
             status: 200,
             request: context,
             message: `Expected a string in \`message\` from POST ${site}/api/resource/Task.`,
         })
+    })
+})
+
+describe('server messages on success', () => {
+    it('collects them, parsed, for the pipeline to hand on', async () => {
+        const messages: ServerMessage[] = []
+        const body = {
+            message: 'ok',
+            _server_messages: serverMessages(
+                { message: 'Saved', title: 'Done', indicator: 'green' },
+                { message: 'Two' },
+            ),
+        }
+        await expect(readJson(new Response(JSON.stringify(body)), context, messages)).resolves.toEqual(body)
+        expect(messages).toEqual([{ message: 'Saved', title: 'Done', indicator: 'green' }, { message: 'Two' }])
+    })
+
+    it('collects them through readMember', async () => {
+        const messages: ServerMessage[] = []
+        const body = JSON.stringify({ message: 1, _server_messages: serverMessages({ message: 'Saved' }) })
+        await expect(readMember('message', isNumber, 'a number')(new Response(body), context, messages)).resolves.toBe(
+            1,
+        )
+        expect(messages).toEqual([{ message: 'Saved' }])
+    })
+
+    it('puts them on the error when the answer is not of the expected kind', async () => {
+        const messages: ServerMessage[] = []
+        const body = JSON.stringify({ _server_messages: serverMessages({ message: 'Saved' }) })
+        const error = await readMember('data', isNumber, 'a number')(new Response(body), context, messages).catch(
+            (error: unknown) => error,
+        )
+        expect(error).toBeInstanceOf(FrappeError)
+        expect(error).toMatchObject({ serverMessages: [{ message: 'Saved' }] })
+    })
+
+    it.each([
+        ['no `_server_messages`', { message: 'ok' }],
+        ['an empty list', { message: 'ok', _server_messages: '[]' }],
+        ['no usable message', { message: 'ok', _server_messages: serverMessages({ title: 'no text' }) }],
+        ['a body that is not an object', ['ok']],
+    ])('collects nothing for %s', async (_title, body) => {
+        const messages: ServerMessage[] = []
+        await readJson(new Response(JSON.stringify(body)), context, messages)
+        expect(messages).toEqual([])
+    })
+
+    it('needs somewhere to put them', () => {
+        // Never called: a reader that drops the messages must not compile.
+        const dropping = async (response: Response): Promise<unknown> =>
+            // @ts-expect-error -- the messages argument is required
+            readJson(response, context)
+        expect(dropping).toBeTypeOf('function')
     })
 })
 

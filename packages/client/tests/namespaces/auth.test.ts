@@ -67,6 +67,26 @@ describe('auth.login', () => {
         })
     })
 
+    it('hands the messages of a sign-in to onServerMessages, and keeps them on the error when it is not complete', async () => {
+        const onServerMessages = vi.fn()
+        const _server_messages = JSON.stringify([JSON.stringify({ message: 'Welcome back' })])
+        const { fetch } = stubFetch([
+            json(200, { message: 'Logged In', home_page: '/app', full_name: 'Test User', _server_messages }),
+            json(200, { tmp_id: 'a1b2c3d4', _server_messages }),
+        ])
+        const frappe = createClient({ url, fetch, onServerMessages })
+        await frappe.auth.login({ username: 'user', password: PASSWORD })
+        expect(onServerMessages).toHaveBeenCalledExactlyOnceWith([{ message: 'Welcome back' }], {
+            method: 'POST',
+            url: `${url}/api/method/login`,
+        })
+        await expect(frappe.auth.login({ username: 'user', password: PASSWORD })).rejects.toMatchObject({
+            name: 'AuthenticationError',
+            serverMessages: [{ message: 'Welcome back' }],
+        })
+        expect(onServerMessages).toHaveBeenCalledOnce()
+    })
+
     it('rejects when the password has expired, because there is no session', async () => {
         const { frappe } = client([
             json(200, { message: 'Password Reset', redirect_to: '/update-password?key=abc&password_expired=true' }),

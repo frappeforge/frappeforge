@@ -4,6 +4,7 @@ import {
     createClient,
     type DocInput,
     type DocNamespace,
+    type FileDoc,
     type FrappeClient,
     type FrappeDoc,
     type GetValueResult,
@@ -12,6 +13,7 @@ import {
     type PermissionType,
     tokenAuth,
     type UnknownDoc,
+    type UploadOptions,
     type ValueField,
 } from '../src/index.js'
 
@@ -450,6 +452,54 @@ describe('the write methods', () => {
     })
 })
 
+describe('calls and document methods', () => {
+    it('return what the caller asserts, unknown by default', async () => {
+        expectTypeOf(await frappe.call.get<string>('frappe.ping')).toEqualTypeOf<string>()
+        expectTypeOf(await frappe.call.post('my_app.api.total', { name: 'SO-0001' })).toEqualTypeOf<unknown>()
+        expectTypeOf(await frappe.doc.runMethod<{ name: string }>('Task', 'TASK-1', 'make_copy')).toEqualTypeOf<{
+            name: string
+        }>()
+        expectTypeOf(await frappe.doc.runMethod('Counter', 1, 'bump')).toEqualTypeOf<unknown>()
+    })
+
+    it('check their arguments', () => {
+        expectTypeOf(frappe.call.post).parameter(0).toEqualTypeOf<string>()
+        expectTypeOf(frappe.doc.runMethod).parameter(1).toEqualTypeOf<string | number>()
+        expectTypeOf(frappe.doc.runMethod).parameter(2).toEqualTypeOf<string>()
+        // @ts-expect-error -- the method name comes first
+        void frappe.call.post({ name: 'SO-0001' })
+        // @ts-expect-error -- the DocType comes first, then the name, then the method
+        void frappe.doc.runMethod('make_copy', 'Task', 'TASK-1', {}, {}, {})
+        // @ts-expect-error -- a name is a string or a number
+        void frappe.doc.runMethod('Task', true, 'make_copy')
+    })
+})
+
+describe('files', () => {
+    it('upload a Blob and return its File document; download a Blob', async () => {
+        const file = await frappe.file.upload(new Blob(['x']), { fileName: 'a.txt', isPrivate: false })
+        expectTypeOf(file).toEqualTypeOf<FileDoc>()
+        expectTypeOf(file.file_url).toEqualTypeOf<string>()
+        expectTypeOf(file.is_private).toEqualTypeOf<0 | 1>()
+        expectTypeOf(await frappe.file.download(file.file_url)).toEqualTypeOf<Blob>()
+    })
+
+    it('take the request options with the upload options', () => {
+        expectTypeOf<UploadOptions>().toHaveProperty('signal')
+        void frappe.file.upload(new File(['x'], 'a.txt'), {
+            attachTo: { doctype: 'Task', name: 'TASK-1', field: 'scan' },
+            signal: AbortSignal.timeout(1000),
+            timeout: 60_000,
+        })
+        // @ts-expect-error -- a file is a Blob, not its path
+        void frappe.file.upload('./invoice.pdf')
+        // @ts-expect-error -- isPrivate is a boolean
+        void frappe.file.upload(new Blob(['x']), { isPrivate: 'no' })
+        // @ts-expect-error -- attachTo needs the document's name
+        void frappe.file.upload(new Blob(['x']), { attachTo: { doctype: 'Task' } })
+    })
+})
+
 describe('the examples in the method docs', () => {
     // A client without generated types, as a reader copying an example has.
     const frappe = createClient({ url })
@@ -502,8 +552,19 @@ describe('the examples in the method docs', () => {
         await frappe.doc.delete('ToDo', 'TODO-0001')
         const invoice = await frappe.doc.submit('Sales Invoice', 'SINV-0001')
         const cancelled = await frappe.doc.cancel('Sales Invoice', 'SINV-0001')
+        const comment = await frappe.doc.runMethod<{ name: string }>('Sales Order', 'SO-0001', 'add_comment', {
+            comment_type: 'Comment',
+            text: 'Checked',
+        })
+        const pong = await frappe.call.get<string>('frappe.ping')
+        const total = await frappe.call.post<number>('my_app.api.recalculate', { name: 'SO-0001' })
+        const blob = await frappe.file.download('/private/files/invoice.pdf')
 
         expectTypeOf([todo, closed, invoice, cancelled]).toEqualTypeOf<UnknownDoc[]>()
+        expectTypeOf(comment).toEqualTypeOf<{ name: string }>()
+        expectTypeOf(pong).toEqualTypeOf<string>()
+        expectTypeOf(total).toEqualTypeOf<number>()
+        expectTypeOf(blob).toEqualTypeOf<Blob>()
         expectTypeOf(names).toEqualTypeOf<(string | number)[]>()
         expectTypeOf(name).toEqualTypeOf<string | number>()
     })

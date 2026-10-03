@@ -1,8 +1,8 @@
 // `frappe.doc`: read documents — one by name, a single DocType's record, lists, counts, every
-// matching row, single values, and checks on a document — and write them.
+// matching row, single values, and checks on a document — write them, and run their methods.
 
 import { FrappeError, InvalidArgumentError } from '../errors.js'
-import { isPlainObject, isRecord, readMember } from '../http/decode.js'
+import { isAny, isPlainObject, isRecord, readMember } from '../http/decode.js'
 import {
     assertFieldName,
     assertListArgs,
@@ -13,6 +13,7 @@ import {
     normalizeFilters,
     toListParams,
 } from '../http/list-query.js'
+import { assertDocName, assertDoctype } from '../http/names.js'
 import type { ReadResponse, Send } from '../http/send.js'
 import type {
     ColumnOf,
@@ -34,7 +35,8 @@ import type {
 
 /**
  * `frappe.doc`: read documents, single values, and checks on a document; insert, change, rename,
- * delete, submit and cancel them. Function properties, so they can be destructured.
+ * delete, submit and cancel them, and run their whitelisted methods. Function properties, so they
+ * can be destructured.
  *
  * DocType names autocomplete from generated types (see `Register`), field names and filter
  * values are checked against them, and a list returns exactly the fields it asks for. A DocType
@@ -467,6 +469,35 @@ export interface DocNamespace<D extends object = RegisteredDocTypes> {
         name: string | number,
         options?: RequestOptions,
     ) => Promise<DocOf<D, K>>
+    /**
+     * Runs a whitelisted method of a document's controller, as Desk's `frm.call` does, and returns
+     * its result; a method that returns nothing resolves `undefined`. Frappe checks the `write`
+     * permission on the document. A method that is not whitelisted is a `PermissionError`.
+     *
+     * The method changes and saves the document itself, if it does. `T` describes the result you
+     * expect; it is not checked at runtime.
+     *
+     * @param doctype - The DocType, such as `'Sales Order'`.
+     * @param name - The document's name.
+     * @param method - The method's name on the controller, such as `'add_comment'`.
+     * @param args - The method's arguments, sent as JSON. `run_method` is not allowed.
+     * @param options - A signal, and a timeout or headers for this request only.
+     *
+     * @example
+     * ```ts
+     * const comment = await frappe.doc.runMethod<{ name: string }>('Sales Order', 'SO-0001', 'add_comment', {
+     *     comment_type: 'Comment',
+     *     text: 'Checked',
+     * })
+     * ```
+     */
+    readonly runMethod: <T = unknown>(
+        doctype: DocTypeName<D>,
+        name: string | number,
+        method: string,
+        args?: Readonly<Record<string, unknown>>,
+        options?: RequestOptions,
+    ) => Promise<T>
 }
 
 /**
@@ -726,6 +757,29 @@ export function createDocNamespace<D extends object>(send: Send): DocNamespace<D
             setDocstatus(doctype, name, 1, options),
         cancel: async (doctype: unknown, name: unknown, options: RequestOptions = {}) =>
             setDocstatus(doctype, name, 2, options),
+        runMethod: async (
+            doctype: unknown,
+            name: unknown,
+            method: unknown,
+            args: unknown = {},
+            options: RequestOptions = {},
+        ) => {
+            const path = documentPath(doctype, name)
+            if (typeof method !== 'string' || !/^[A-Za-z_]\w*$/u.test(method)) {
+                throw new InvalidArgumentError('`method` must be the name of a method, such as "add_comment".')
+            }
+            if (!isPlainObject(args)) throw new InvalidArgumentError('`args` must be a plain object of arguments.')
+            // Frappe takes the method's name from `run_method`, so an argument of that name would replace it.
+            if (Object.hasOwn(args, 'run_method')) {
+                throw new InvalidArgumentError('`args` cannot contain `run_method`: pass the method as `method`.')
+            }
+            // Frappe passes the body's other keys to the method as they are, so `data` is an ordinary argument here.
+            return send(
+                { method: 'POST', path, body: { run_method: method, ...args } },
+                options,
+                readMember('data', isAny, 'a value'),
+            )
+        },
         paginate: async function* (
             doctype: unknown,
             args: unknown = {},
@@ -783,28 +837,6 @@ export function createDocNamespace<D extends object>(send: Send): DocNamespace<D
     } satisfies DocMethods
     // The methods are the same for every DocType map: `D` only types their arguments and results.
     return Object.freeze(namespace) as unknown as DocNamespace<D>
-}
-
-/**
- * A DocType name: a non-empty string. It goes into the path through `encodeURIComponent`, so `/`,
- * `#`, `?` and `%` are safe.
- */
-function assertDoctype(value: unknown): string {
-    if (typeof value !== 'string' || value === '') {
-        throw new InvalidArgumentError('`doctype` must be a non-empty string.')
-    }
-    return value
-}
-
-/**
- * A document name, as the string Frappe compares: a non-empty string, or a positive safe integer
- * for DocTypes named by "Autoincrement". A number is sent as its decimal string, which an integer
- * `name` column compares as a number and a text column as text.
- */
-function assertDocName(value: unknown, label = '`name`'): string {
-    if (typeof value === 'string' && value !== '') return value
-    if (typeof value === 'number' && Number.isSafeInteger(value) && value > 0) return String(value)
-    throw new InvalidArgumentError(`${label} must be a non-empty string or a positive integer.`)
 }
 
 /** The REST path of one document, its DocType and name checked and encoded. */
@@ -878,10 +910,6 @@ function isRecordOrMissing(value: unknown): value is Readonly<Record<string, unk
 
 function isPermissionAnswer(value: unknown): value is { readonly has_permission: boolean } {
     return isRecord(value) && typeof value['has_permission'] === 'boolean'
-}
-
-function isAny(_value: unknown): _value is unknown {
-    return true
 }
 
 function isAmendment(value: unknown): value is string | number | false | null | undefined {

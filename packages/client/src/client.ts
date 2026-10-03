@@ -4,7 +4,9 @@ import { type ClientOptions, resolveConfig } from './config.js'
 import { readJson } from './http/decode.js'
 import { type Send, send as sendRequest } from './http/send.js'
 import { type AuthNamespace, createAuthNamespace } from './namespaces/auth.js'
+import { type CallNamespace, createCallNamespace } from './namespaces/call.js'
 import { createDocNamespace, type DocNamespace } from './namespaces/doc.js'
+import { createFileNamespace, type FileNamespace } from './namespaces/file.js'
 import type { FrappeRequest, RegisteredDocTypes, RequestOptions } from './types.js'
 
 /**
@@ -41,8 +43,12 @@ export interface FrappeClient<D extends object = RegisteredDocTypes> {
     readonly request: <T = unknown>(init: FrappeRequest, options?: RequestOptions) => Promise<T>
     /** Sign in, sign out, and who is signed in. */
     readonly auth: AuthNamespace
-    /** Read documents: one by name, lists, counts, and every matching row. */
+    /** Read and write documents, and run their whitelisted methods. */
     readonly doc: DocNamespace<D>
+    /** Call whitelisted server methods. */
+    readonly call: CallNamespace
+    /** Upload and download files. */
+    readonly file: FileNamespace
 }
 
 /**
@@ -70,5 +76,7 @@ export function createClient<D extends object = RegisteredDocTypes>(options: Cli
             config.auth?.clear?.()
         }),
         doc: createDocNamespace<D>(send),
+        call: createCallNamespace(send),
+        file: createFileNamespace(send),
     } satisfies FrappeClient<D>)
 }
