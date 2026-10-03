@@ -1,5 +1,14 @@
 # @frappeforge/client
 
+## 0.3.0
+
+### Minor Changes
+
+- [#23](https://github.com/frappeforge/frappeforge/pull/23) [`c1c8de0`](https://github.com/frappeforge/frappeforge/commit/c1c8de0318dc7abb2d20fc7ce70886a92ad4f117) Thanks [@dhiashalabi](https://github.com/dhiashalabi)! - Write documents with Frappe's function names: `frappe.doc.insert`, `insertMany`, `setValue`, `rename`,
+  `delete`, `submit` and `cancel`. Inputs are typed from your DocTypes, every call is a single request, and
+  failures arrive as `ValidationError`, `ConflictError`, `PermissionError` or `NotFoundError` with the
+  server's message.
+
 ## 0.2.0
 
 ### Minor Changes
