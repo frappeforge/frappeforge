@@ -76,7 +76,9 @@ export type DocInput<T> = { [K in keyof T as K extends ServerField ? never : K]?
 
 // @public
 export interface DocNamespace<D extends object = RegisteredDocTypes> {
+    readonly cancel: <K extends DocTypeName<D>>(doctype: K, name: string | number, options?: RequestOptions) => Promise<DocOf<D, K>>;
     readonly count: <K extends DocTypeName<D>>(doctype: K, filters?: Filters<DocOf<D, K>>, options?: RequestOptions) => Promise<number>;
+    readonly delete: (doctype: DocTypeName<D>, name: string | number, options?: RequestOptions) => Promise<void>;
     readonly exists: <K extends DocTypeName<D>>(doctype: K, nameOrFilters: string | number | Filters<DocOf<D, K>>, options?: RequestOptions & Pick<ListArgs<DocOf<D, K>>, "parent">) => Promise<boolean>;
     readonly get: <K extends DocTypeName<D>>(doctype: K, name: string | number, options?: RequestOptions) => Promise<DocOf<D, K>>;
     readonly getList: <K extends DocTypeName<D>, const F extends FieldSelection<DocOf<D, K>> = readonly ["name"]>(doctype: K, args?: ListArgs<DocOf<D, K>, F>, options?: RequestOptions) => Promise<ListRow<DocOf<D, K>, F>[]>;
@@ -85,8 +87,15 @@ export interface DocNamespace<D extends object = RegisteredDocTypes> {
     readonly getSingleValue: <K extends DocTypeName<D>, F extends ColumnOf<DocOf<D, K>>>(doctype: K, field: F, options?: RequestOptions) => Promise<Exclude<DocOf<D, K>[F], undefined> | null | ([Extract<DocOf<D, K>[F], string>] extends [never] ? never : "")>;
     readonly getValue: <K extends DocTypeName<D>, const F extends ValueField<DocOf<D, K>> | readonly ValueField<DocOf<D, K>>[]>(doctype: K, nameOrFilters: string | number | Filters<DocOf<D, K>>, fields: F, options?: RequestOptions & Pick<ListArgs<DocOf<D, K>>, "parent">) => Promise<GetValueResult<DocOf<D, K>, F> | null>;
     readonly hasPermission: (doctype: DocTypeName<D>, name: string | number, permission?: PermissionType, options?: RequestOptions) => Promise<boolean>;
+    readonly insert: <K extends DocTypeName<D>>(doctype: K, data: DocInput<DocOf<D, K>>, options?: RequestOptions) => Promise<DocOf<D, K>>;
+    readonly insertMany: <K extends DocTypeName<D>>(doctype: K, docs: readonly DocInput<DocOf<D, K>>[], options?: RequestOptions) => Promise<DocOf<D, K>["name"][]>;
     readonly isAmended: (doctype: DocTypeName<D>, name: string | number, options?: RequestOptions) => Promise<boolean>;
     readonly paginate: <K extends DocTypeName<D>, const F extends FieldSelection<DocOf<D, K>> = readonly ["name"]>(doctype: K, args?: PaginateArgs<DocOf<D, K>, F>, options?: RequestOptions) => AsyncGenerator<ListRow<DocOf<D, K>, F extends readonly ["*"] ? F : readonly [...F, "name"]>, void, undefined>;
+    readonly rename: <K extends DocTypeName<D>>(doctype: K, name: string | number, newName: string | number, options?: RequestOptions & {
+        readonly merge?: boolean;
+    }) => Promise<DocOf<D, K>["name"]>;
+    readonly setValue: <K extends DocTypeName<D>>(doctype: K, name: string | number, values: Omit<DocInput<DocOf<D, K>>, "name">, options?: RequestOptions) => Promise<DocOf<D, K>>;
+    readonly submit: <K extends DocTypeName<D>>(doctype: K, name: string | number, options?: RequestOptions) => Promise<DocOf<D, K>>;
     readonly validateLink: <K extends DocTypeName<D>, const F extends readonly ValueField<DocOf<D, K>>[] = readonly []>(doctype: K, name: string | number, fields?: F, options?: RequestOptions) => Promise<ListRow<DocOf<D, K>, readonly ["name", ...F]> | null>;
 }
 

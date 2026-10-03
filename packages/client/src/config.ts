@@ -2,6 +2,7 @@
 
 import type { AuthStrategy } from './auth/strategy.js'
 import { InvalidArgumentError } from './errors.js'
+import { isPlainObject } from './http/decode.js'
 import { SafeHeaders } from './http/headers.js'
 import { assertTimeout, type ResolvedConfig } from './http/send.js'
 
@@ -111,10 +112,4 @@ function resolveHeaders(headers: unknown): Readonly<Record<string, string>> {
         throw new InvalidArgumentError('`headers` contains an invalid header name or value.', { cause })
     }
     return Object.freeze(copy)
-}
-
-function isPlainObject(value: unknown): value is Readonly<Record<string, unknown>> {
-    if (typeof value !== 'object' || value === null) return false
-    const prototype: unknown = Object.getPrototypeOf(value)
-    return prototype === Object.prototype || prototype === null
 }
