@@ -1,4 +1,5 @@
-// Response decoding: JSON bodies, and Frappe's error envelope mapped to typed errors.
+// Response decoding: JSON bodies, the messages Frappe sends with a successful answer, and Frappe's
+// error envelope mapped to typed errors.
 //
 // `exc` (the server traceback), `_exc_source` and `_debug_messages` are never read: a traceback
 // must not reach an error message, a log or a UI.
@@ -52,13 +53,21 @@ export function toPlainText(html: string): string {
 /**
  * Reads a successful response as JSON. An empty body (including `204`) is `undefined`. A body
  * that is not JSON — typically an SPA dev server or proxy answering `/api/*` with `index.html` —
- * is a `FrappeError` that says so.
+ * is a `FrappeError` that says so. The messages in the body's `_server_messages` are added to
+ * `messages`: the pipeline hands them to `onServerMessages` once the whole answer has been read.
  */
-export async function readJson(response: Response, context: FrappeRequestContext): Promise<unknown> {
+export async function readJson(
+    response: Response,
+    context: FrappeRequestContext,
+    messages: ServerMessage[],
+): Promise<unknown> {
     const text = await response.text()
     if (text === '') return undefined
     const body = parseJson(text)
-    if (body !== undefined) return body
+    if (body !== undefined) {
+        if (isRecord(body)) messages.push(...parseServerMessages(body['_server_messages']).messages)
+        return body
+    }
     const type = response.headers.get('content-type')
     const received = type === null ? 'an unknown content type' : type.replace(/;.*$/su, '').trim()
     throw new FrappeError(
@@ -69,19 +78,21 @@ export async function readJson(response: Response, context: FrappeRequestContext
 
 /**
  * Reads `data` (`/api/resource/`) or `message` (`/api/method/`) from a successful response. A
- * value that is not of the expected kind, `what`, is a `FrappeError` that says so.
+ * value that is not of the expected kind, `what`, is a `FrappeError` that says so, with the
+ * answer's messages.
  */
 export function readMember<T>(
     key: 'data' | 'message',
     is: (value: unknown) => value is T,
     what: string,
-): (response: Response, context: FrappeRequestContext) => Promise<T> {
-    return async (response, context) => {
-        const body = await readJson(response, context)
+): (response: Response, context: FrappeRequestContext, messages: ServerMessage[]) => Promise<T> {
+    return async (response, context, messages) => {
+        const body = await readJson(response, context, messages)
         const value = isRecord(body) ? body[key] : undefined
         if (is(value)) return value
         throw new FrappeError(`Expected ${what} in \`${key}\` from ${context.method} ${context.url}.`, {
             status: response.status,
+            serverMessages: messages,
             request: context,
         })
     }
@@ -193,6 +204,11 @@ export function isPlainObject(value: unknown): value is Readonly<Record<string, 
     if (typeof value !== 'object' || value === null) return false
     const prototype: unknown = Object.getPrototypeOf(value)
     return prototype === Object.prototype || prototype === null
+}
+
+/** Accepts any value, absent included: for answers whose shape only the caller knows. */
+export function isAny(_value: unknown): _value is unknown {
+    return true
 }
 
 function stringOrUndefined(value: unknown): string | undefined {

@@ -66,9 +66,26 @@ describe('createClient', () => {
         await expect(frappe.request({ path: '/api/resource/ToDo/nope' })).rejects.toBeInstanceOf(NotFoundError)
     })
 
-    it('exposes the auth and doc namespaces on the frozen client', () => {
+    it('hands the messages of a successful answer to onServerMessages, with the request but not its query', async () => {
+        const onServerMessages = vi.fn()
+        const _server_messages = JSON.stringify([JSON.stringify({ message: 'echo received' })])
+        const { fetch, requests } = stubFetch([
+            json(200, { message: { a: '1' }, _server_messages }),
+            json(200, { message: 'pong' }),
+        ])
+        const frappe = createClient({ url, fetch, onServerMessages })
+        await expect(frappe.call.get('my_app.api.echo', { a: 1, token: 'SECRET9f2c' })).resolves.toEqual({ a: '1' })
+        await frappe.call.get('frappe.ping')
+        expect(requests[0]?.url).toContain('token=SECRET9f2c')
+        expect(onServerMessages).toHaveBeenCalledExactlyOnceWith([{ message: 'echo received' }], {
+            method: 'GET',
+            url: `${url}/api/method/my_app.api.echo`,
+        })
+    })
+
+    it('exposes the namespaces on the frozen client', () => {
         const frappe = createClient({ url })
-        expect(Object.keys(frappe)).toEqual(['url', 'siteName', 'request', 'auth', 'doc'])
+        expect(Object.keys(frappe)).toEqual(['url', 'siteName', 'request', 'auth', 'doc', 'call', 'file'])
         expect(Object.keys(frappe.auth)).toEqual(['login', 'logout', 'getLoggedUser'])
         expect(Object.isFrozen(frappe.auth)).toBe(true)
         expect(Object.keys(frappe.doc)).toEqual([
@@ -90,9 +107,14 @@ describe('createClient', () => {
             'delete',
             'submit',
             'cancel',
+            'runMethod',
             'paginate',
         ])
         expect(Object.isFrozen(frappe.doc)).toBe(true)
+        expect(Object.keys(frappe.call)).toEqual(['get', 'post'])
+        expect(Object.isFrozen(frappe.call)).toBe(true)
+        expect(Object.keys(frappe.file)).toEqual(['upload', 'download'])
+        expect(Object.isFrozen(frappe.file)).toBe(true)
     })
 
     it.each([

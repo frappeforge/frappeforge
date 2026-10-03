@@ -83,6 +83,11 @@ const byName = [
         (frappe: ReturnType<typeof client>['frappe'], doctype: unknown, name: unknown) =>
             frappe.doc.cancel(doctype as string, name as string),
     ],
+    [
+        'runMethod',
+        (frappe: ReturnType<typeof client>['frappe'], doctype: unknown, name: unknown) =>
+            frappe.doc.runMethod(doctype as string, name as string, 'submit'),
+    ],
 ] as const
 
 describe('doc.insert', () => {
@@ -458,6 +463,73 @@ describe.each([
                 message: `Expected a document in \`data\` from PUT ${resource('Sales%20Invoice/SINV-0001')}.`,
             }),
         )
+    })
+})
+
+describe('doc.runMethod', () => {
+    it('posts `run_method` and the arguments to the document, and returns `data`', async () => {
+        const { frappe, requests } = client([json(200, { data: { name: 'COMM-0001' } })])
+        await expect(
+            frappe.doc.runMethod('Sales Order', 'SO/0001', 'add_comment', { comment_type: 'Comment', text: 'Checked' }),
+        ).resolves.toEqual({ name: 'COMM-0001' })
+        const request = only(requests)
+        expect(request.method).toBe('POST')
+        expect(request.url).toBe(resource('Sales%20Order/SO%2F0001'))
+        expect(await bodyOf(request)).toEqual({ run_method: 'add_comment', comment_type: 'Comment', text: 'Checked' })
+    })
+
+    it('sends `data` as an ordinary argument', async () => {
+        const { frappe, requests } = client([json(200, {})])
+        await frappe.doc.runMethod('Sales Order', 'SO-0001', 'recalculate', { data: { qty: 2 } })
+        // Frappe passes the body's keys to the method as they are, not through `data`.
+        expect(await bodyOf(only(requests))).toEqual({ run_method: 'recalculate', data: { qty: 2 } })
+    })
+
+    it('sends only `run_method` without arguments, and resolves undefined when the method returned nothing', async () => {
+        const { frappe, requests } = client([json(200, {})])
+        await expect(frappe.doc.runMethod('Sales Order', 'SO-0001', 'submit')).resolves.toBeUndefined()
+        expect(await bodyOf(only(requests))).toEqual({ run_method: 'submit' })
+    })
+
+    it('takes a numeric name', async () => {
+        const { frappe, requests } = client([json(200, { data: 1 })])
+        await expect(frappe.doc.runMethod('FF Counter', 7, 'bump')).resolves.toBe(1)
+        expect(only(requests).url).toBe(resource('FF%20Counter/7'))
+    })
+
+    it('passes a method that is not whitelisted through as a PermissionError', async () => {
+        const { frappe } = client([json(403, { exc_type: 'PermissionError' })])
+        await expect(frappe.doc.runMethod('ToDo', 'TODO-0001', 'validate')).rejects.toThrow(PermissionError)
+    })
+
+    it.each([
+        ['an empty name', ''],
+        ['a dotted path', 'frappe.ping'],
+        ['a hyphenated name', 'add-comment'],
+        ['a name starting with a digit', '1st'],
+        ['a number', 1],
+    ])('rejects %s as the method, before any request', async (_title, methodName) => {
+        const { frappe, requests } = client()
+        await expect(frappe.doc.runMethod('ToDo', 'TODO-0001', methodName as string)).rejects.toThrow(
+            new InvalidArgumentError('`method` must be the name of a method, such as "add_comment".'),
+        )
+        expect(requests).toHaveLength(0)
+    })
+
+    it.each(notObjects)('rejects %s as the arguments, before any request', async (_title, args) => {
+        const { frappe, requests } = client()
+        await expect(
+            frappe.doc.runMethod('ToDo', 'TODO-0001', 'submit', args as unknown as Record<string, unknown>),
+        ).rejects.toThrow(new InvalidArgumentError('`args` must be a plain object of arguments.'))
+        expect(requests).toHaveLength(0)
+    })
+
+    it('rejects a `run_method` argument, before any request', async () => {
+        const { frappe, requests } = client()
+        await expect(frappe.doc.runMethod('ToDo', 'TODO-0001', 'submit', { run_method: 'cancel' })).rejects.toThrow(
+            new InvalidArgumentError('`args` cannot contain `run_method`: pass the method as `method`.'),
+        )
+        expect(requests).toHaveLength(0)
     })
 })
 
