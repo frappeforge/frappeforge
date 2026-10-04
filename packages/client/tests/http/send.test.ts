@@ -1,6 +1,6 @@
 import { getEventListeners } from 'node:events'
 
-import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, type MockInstance, vi } from 'vitest'
 
 import type { AuthStrategy } from '../../src/auth/strategy.js'
 import { resolveConfig } from '../../src/config.js'
@@ -16,7 +16,7 @@ import {
     TimeoutError,
     ValidationError,
 } from '../../src/errors.js'
-import { readJson } from '../../src/http/decode.js'
+import { readJson, readMember } from '../../src/http/decode.js'
 import { send } from '../../src/http/send.js'
 import type { FrappeRequest, RequestOptions } from '../../src/types.js'
 import { deferred, exposed } from '../support/expose.js'
@@ -436,6 +436,57 @@ describe('send: failures', () => {
         const error = await rejection(sendWith([text(200, '<!doctype html>')]).result)
         expect(error).toBeInstanceOf(FrappeError)
         expect(error).toMatchObject({ name: 'FrappeError', status: 200 })
+    })
+})
+
+describe('send: server messages on success', () => {
+    const _server_messages = JSON.stringify([JSON.stringify({ message: 'Saved' })])
+    const isNumber = (value: unknown): value is number => typeof value === 'number'
+
+    it('hands them to onServerMessages once the answer is read, with the request but not its query', async () => {
+        const onServerMessages = vi.fn()
+        const { fetch } = stubFetch([json(200, { message: 1, _server_messages })])
+        const config = resolveConfig({ url, fetch, onServerMessages })
+        const init = { path: '/api/method/my_app.api.total', query: { token: SECRET } }
+        await expect(send(config, init, {}, readMember('message', isNumber, 'a number'))).resolves.toBe(1)
+        expect(onServerMessages).toHaveBeenCalledExactlyOnceWith([{ message: 'Saved' }], {
+            method: 'GET',
+            url: `${url}/api/method/my_app.api.total`,
+        })
+    })
+
+    it('does not call onServerMessages without messages', async () => {
+        const onServerMessages = vi.fn()
+        const { fetch } = stubFetch([json(200, { message: 1 })])
+        await send(resolveConfig({ url, fetch, onServerMessages }), ping, {}, readJson)
+        expect(onServerMessages).not.toHaveBeenCalled()
+    })
+
+    it('keeps them on the error, not in onServerMessages, when the answer then fails to read', async () => {
+        const onServerMessages = vi.fn()
+        const { fetch } = stubFetch([json(200, { _server_messages })])
+        const config = resolveConfig({ url, fetch, onServerMessages })
+        const error = await rejection(send(config, ping, {}, readMember('message', isNumber, 'a number')))
+        expect(error).toBeInstanceOf(FrappeError)
+        expect(error).toMatchObject({ serverMessages: [{ message: 'Saved' }] })
+        expect(onServerMessages).not.toHaveBeenCalled()
+    })
+
+    it('still resolves when onServerMessages throws, and throws its error again from a microtask', async () => {
+        const bug = new Error('toast failed')
+        let queued: MockInstance<typeof queueMicrotask> | undefined
+        const onServerMessages = (): void => {
+            // Armed here, not before the request: Node's own fetch internals queue microtasks too.
+            queued = vi.spyOn(globalThis, 'queueMicrotask').mockImplementationOnce(() => undefined)
+            throw bug
+        }
+        const { fetch } = stubFetch([json(200, { message: 'saved', _server_messages })])
+        const config = resolveConfig({ url, fetch, onServerMessages })
+        await expect(send(config, ping, {}, readJson)).resolves.toEqual({ message: 'saved', _server_messages })
+        expect(queued).toHaveBeenCalledOnce()
+        const task = queued?.mock.calls[0]?.[0]
+        expect(task).toBeTypeOf('function')
+        expect(task).toThrow(bug)
     })
 })
 

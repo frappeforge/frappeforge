@@ -21,14 +21,24 @@ describe('resolveConfig', () => {
             siteName: undefined,
             fetch: undefined,
             auth: undefined,
+            onServerMessages: undefined,
         })
     })
 
     it('keeps every option it was given', () => {
         const fetch = (): Promise<Response> => Promise.resolve(new Response())
         const auth = tokenAuth({ apiKey: 'key', apiSecret: 'secret' })
+        const onServerMessages = (): void => undefined
         expect(
-            resolveConfig({ url, headers: { 'X-Trace': '1' }, timeout: 0, siteName: 'site1.local', fetch, auth }),
+            resolveConfig({
+                url,
+                headers: { 'X-Trace': '1' },
+                timeout: 0,
+                siteName: 'site1.local',
+                fetch,
+                auth,
+                onServerMessages,
+            }),
         ).toEqual({
             url,
             headers: { 'X-Trace': '1' },
@@ -36,6 +46,7 @@ describe('resolveConfig', () => {
             siteName: 'site1.local',
             fetch,
             auth,
+            onServerMessages,
         })
         expect(resolveConfig({ url, auth }).auth).toBe(auth)
     })
@@ -140,6 +151,10 @@ describe('resolveConfig', () => {
 
     it('rejects a fetch that is not a function', () => {
         expect(() => resolveUntyped({ url, fetch: 'fetch' })).toThrow('`fetch` must be a function')
+    })
+
+    it.each(['toast', null, {}])('rejects the onServerMessages %o', (onServerMessages) => {
+        expect(() => resolveUntyped({ url, onServerMessages })).toThrow('`onServerMessages` must be a function')
     })
 
     it.each([

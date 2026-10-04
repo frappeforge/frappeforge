@@ -1,6 +1,12 @@
 // `frappe.auth`: sign in, sign out, and who is signed in.
 
-import { AuthenticationError, type FrappeRequestContext, InvalidArgumentError, PermissionError } from '../errors.js'
+import {
+    AuthenticationError,
+    type FrappeRequestContext,
+    InvalidArgumentError,
+    PermissionError,
+    type ServerMessage,
+} from '../errors.js'
 import { isRecord, readJson, readMember } from '../http/decode.js'
 import type { Send } from '../http/send.js'
 import type { RequestOptions } from '../types.js'
@@ -114,8 +120,12 @@ export function createAuthNamespace(send: Send, clear: () => void): AuthNamespac
  * A completed sign-in has `full_name` and `home_page`. Frappe answers `200` without a session when
  * it asks for a second factor (`tmp_id`) or for a new password (`Password Reset`).
  */
-async function readLogin(response: Response, context: FrappeRequestContext): Promise<LoginResult> {
-    const body = await readJson(response, context)
+async function readLogin(
+    response: Response,
+    context: FrappeRequestContext,
+    messages: ServerMessage[],
+): Promise<LoginResult> {
+    const body = await readJson(response, context, messages)
     const record = isRecord(body) ? body : {}
     const { full_name: fullName, home_page: homePage } = record
     if (typeof fullName === 'string' && typeof homePage === 'string') return { fullName, homePage }
@@ -125,7 +135,7 @@ async function readLogin(response: Response, context: FrappeRequestContext): Pro
             : record['message'] === 'Password Reset'
               ? 'The password has expired and must be reset before signing in.'
               : 'The server did not complete the sign-in.'
-    throw new AuthenticationError(message, { status: response.status, request: context })
+    throw new AuthenticationError(message, { status: response.status, serverMessages: messages, request: context })
 }
 
 function isString(value: unknown): value is string {

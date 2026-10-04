@@ -1,7 +1,7 @@
 // Client options: validated once, before any request, and frozen.
 
 import type { AuthStrategy } from './auth/strategy.js'
-import { InvalidArgumentError } from './errors.js'
+import { type FrappeRequestContext, InvalidArgumentError, type ServerMessage } from './errors.js'
 import { isPlainObject } from './http/decode.js'
 import { SafeHeaders } from './http/headers.js'
 import { assertTimeout, type ResolvedConfig } from './http/send.js'
@@ -33,6 +33,27 @@ export interface ClientOptions {
      * your own {@link AuthStrategy}. Default: none — requests run as Guest.
      */
     auth?: AuthStrategy
+    /**
+     * Receives the messages Frappe sent with a successful answer — what the server code showed
+     * with `frappe.msgprint`, which Desk would show as a dialog or toast. Called once per answer
+     * that has messages, before the call resolves, with the request's method and URL (without
+     * its query). Messages of a failed request are on the error instead, as `serverMessages`.
+     *
+     * What the callback throws does not reject the call: it is thrown again from a microtask, so
+     * it reaches the runtime's handler for uncaught errors, and the call still resolves. In Node,
+     * that is `uncaughtException`, which ends the process unless it is handled.
+     *
+     * @example
+     * ```ts
+     * const frappe = createClient({
+     *     url: 'https://example.com',
+     *     onServerMessages: (messages) => {
+     *         for (const { message } of messages) showToast(message)
+     *     },
+     * })
+     * ```
+     */
+    onServerMessages?: (messages: readonly ServerMessage[], request: FrappeRequestContext) => void
 }
 
 const DEFAULT_TIMEOUT = 30_000
@@ -42,7 +63,7 @@ const credentialModes: ReadonlySet<unknown> = new Set(['include', 'omit', 'same-
 /** Validates the options and fills in defaults. Throws `InvalidArgumentError` on the first invalid option. */
 export function resolveConfig(options: ClientOptions): ResolvedConfig {
     if (!isPlainObject(options)) throw new InvalidArgumentError('createClient() needs an options object with a `url`.')
-    const { url, headers = {}, timeout = DEFAULT_TIMEOUT, siteName, fetch, auth } = options
+    const { url, headers = {}, timeout = DEFAULT_TIMEOUT, siteName, fetch, auth, onServerMessages } = options
     // Visible ASCII: a site or host name, and always a valid header value.
     if (siteName !== undefined && (typeof siteName !== 'string' || !/^[!-~]+$/u.test(siteName))) {
         throw new InvalidArgumentError(
@@ -52,6 +73,9 @@ export function resolveConfig(options: ClientOptions): ResolvedConfig {
     if (fetch !== undefined && typeof fetch !== 'function') {
         throw new InvalidArgumentError('`fetch` must be a function that takes a Request and returns a Response.')
     }
+    if (onServerMessages !== undefined && typeof onServerMessages !== 'function') {
+        throw new InvalidArgumentError('`onServerMessages` must be a function that takes the messages and the request.')
+    }
     return Object.freeze({
         url: normalizeUrl(url),
         headers: resolveHeaders(headers),
@@ -59,6 +83,7 @@ export function resolveConfig(options: ClientOptions): ResolvedConfig {
         siteName,
         fetch,
         auth: resolveAuth(auth),
+        onServerMessages,
     })
 }
 

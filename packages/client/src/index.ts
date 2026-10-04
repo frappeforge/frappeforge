@@ -8,7 +8,9 @@ export { createClient, type FrappeClient } from './client.js'
 export type { ClientOptions } from './config.js'
 export * from './errors.js'
 export type { AuthNamespace, LoginResult } from './namespaces/auth.js'
+export type { CallNamespace } from './namespaces/call.js'
 export type { DocNamespace } from './namespaces/doc.js'
+export type { FileDoc, FileNamespace, UploadOptions } from './namespaces/file.js'
 export * from './types.js'
 
 /** The published version of this package, injected at build time. */

@@ -48,14 +48,15 @@ Without `auth`, requests run as Guest, which can call only public methods such a
 `createClient()` checks its options at once and throws an `InvalidArgumentError` before any request is
 sent.
 
-| Option     | Default        | Description                                                                                                                                                                            |
-| ---------- | -------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `url`      | —              | Site URL. A path prefix is allowed (`https://example.com/frappe`); credentials, a query or a fragment are not.                                                                         |
-| `headers`  | `{}`           | Headers sent with every request.                                                                                                                                                       |
-| `timeout`  | `30000`        | Time budget per attempt in milliseconds, including reading the response; a replay after a `401` gets its own, and a strategy's `token()` or `refresh()` is not timed. `0` disables it. |
-| `siteName` | —              | Sends `X-Frappe-Site-Name`, for a site reached through a host name that differs from the site name (visible ASCII, e.g. `site1.local`). In browsers it triggers a CORS preflight.      |
-| `fetch`    | global `fetch` | A fetch-compatible function, for tests or instrumentation. It must honor `request.signal`.                                                                                             |
-| `auth`     | —              | How requests authenticate: `tokenAuth`, `sessionAuth`, `bearerAuth` or your own `AuthStrategy` ([Authentication](#authentication)). Without it, requests run as Guest.                 |
+| Option             | Default        | Description                                                                                                                                                                            |
+| ------------------ | -------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `url`              | —              | Site URL. A path prefix is allowed (`https://example.com/frappe`); credentials, a query or a fragment are not.                                                                         |
+| `headers`          | `{}`           | Headers sent with every request.                                                                                                                                                       |
+| `timeout`          | `30000`        | Time budget per attempt in milliseconds, including reading the response; a replay after a `401` gets its own, and a strategy's `token()` or `refresh()` is not timed. `0` disables it. |
+| `siteName`         | —              | Sends `X-Frappe-Site-Name`, for a site reached through a host name that differs from the site name (visible ASCII, e.g. `site1.local`). In browsers it triggers a CORS preflight.      |
+| `fetch`            | global `fetch` | A fetch-compatible function, for tests or instrumentation. It must honor `request.signal`.                                                                                             |
+| `auth`             | —              | How requests authenticate: `tokenAuth`, `sessionAuth`, `bearerAuth` or your own `AuthStrategy` ([Authentication](#authentication)). Without it, requests run as Guest.                 |
+| `onServerMessages` | —              | Receives the messages Frappe sent with a successful answer ([Server messages](#server-messages)).                                                                                      |
 
 ## Documents
 
@@ -201,6 +202,23 @@ save in Desk does.
   a child row through its parent, by leaving it out of the table in `setValue`: deleting the row by its
   own name skips the parent's save and hooks.
 
+### Document methods
+
+`frappe.doc.runMethod` runs a whitelisted method of a document's controller, as Desk's `frm.call` does,
+and returns its result. Frappe checks the `write` permission on the document, and a method that is not
+whitelisted is a `PermissionError`. The method saves the document itself, if it changes it.
+
+```ts
+const comment = await frappe.doc.runMethod<{ name: string }>('Sales Order', 'SO-0001', 'add_comment', {
+    comment_type: 'Comment',
+    text: 'Checked',
+})
+await frappe.doc.runMethod('Sales Order', 'SO-0001', 'submit')
+```
+
+The type argument describes the result you expect; it is not checked at runtime. A method that returns
+nothing resolves `undefined`.
+
 ### Typed DocTypes
 
 Declare your DocTypes once, and every call is checked against them:
@@ -231,34 +249,134 @@ await frappe.doc.getList('ToDo', { filters: { status: 'Opne' } }) // compile err
 To type one client only, pass the map instead: `createClient<{ ToDo: ToDo }>({ url })`. A DocType that
 is not in the map is still accepted, with `unknown` field values.
 
+## Calling methods
+
+`frappe.call.get` and `frappe.call.post` call a whitelisted server method, or a Server Script's API
+method, and resolve with what it returned (Frappe's `message`); a method that returns nothing resolves
+`undefined`.
+
+```ts
+const pong = await frappe.call.get<string>('frappe.ping')
+const total = await frappe.call.post<number>('my_app.api.recalculate', { name: 'SO-0001' })
+```
+
+- **`get`** sends the arguments in the query string, so the method receives them as strings (booleans
+  as `1` / `0`, arrays and objects as JSON). A `GET` needs no CSRF token.
+- **`post`** sends them as JSON, so numbers, booleans, lists and objects arrive as they are.
+- Whitelisted methods accept `GET`, `POST`, `PUT` and `DELETE` unless the method restricts them; Desk
+  uses only `GET` and `POST`. For a method restricted to `PUT` or `DELETE`, use
+  [`frappe.request()`](#requests).
+- The type argument describes the result you expect; it is not checked at runtime.
+
+## Files
+
+`frappe.file.upload` stores a `Blob` or a `File` and resolves with its `File` document. **Uploads are
+private by default**, unlike in Frappe: only users who may read the file can download it. Pass
+`isPrivate: false` to make a file public.
+
+```ts
+// `picked`: a File, such as one from an <input type="file">
+const file = await frappe.file.upload(picked, {
+    attachTo: { doctype: 'Sales Invoice', name: 'SINV-0001' },
+})
+file.file_url // '/private/files/…'
+```
+
+In Node.js, `openAsBlob` streams a file from disk without reading it into memory. Give the `Blob` a
+`fileName` with an extension: Frappe guesses the file type from it, and users without Desk access may
+upload only images, PDF, text, CSV and Office documents.
+
+```ts
+import { openAsBlob } from 'node:fs'
+
+const file = await frappe.file.upload(await openAsBlob('./invoice.pdf'), {
+    fileName: 'invoice.pdf',
+    folder: 'Home/Attachments',
+    attachTo: { doctype: 'Sales Invoice', name: 'SINV-0001', field: 'scan' },
+})
+// Frappe records the field on the File, but does not set it on the document:
+await frappe.doc.setValue('Sales Invoice', 'SINV-0001', { scan: file.file_url })
+```
+
+| Option      | Default                        | Description                                                                |
+| ----------- | ------------------------------ | -------------------------------------------------------------------------- |
+| `fileName`  | the `File`'s name, else `file` | The stored file name.                                                      |
+| `isPrivate` | `true`                         | `false` makes the file public, served from `/files/…`.                     |
+| `folder`    | `Home`                         | The folder to store it in.                                                 |
+| `attachTo`  | —                              | `{ doctype, name, field? }`: the document, and the Attach field it is for. |
+| `optimize`  | `false`                        | Asks Frappe to shrink an image.                                            |
+
+Sending the file counts against the timeout, so pass a longer `timeout` for a large file. A file larger
+than the site's maximum file size is a `ValidationError`. `fetch` cannot report upload progress.
+
+`frappe.file.download` returns a file the current user can read, public or private, as a `Blob`, with
+every kind of authentication. Pass the file's `file_url` as Frappe returned it (`/files/…` or
+`/private/files/…`). The file is read from that URL, exactly as it is stored. A private file that does
+not exist, or that the user cannot read, is a `PermissionError`: Frappe does not tell the two apart.
+An HTML page in place of a file that is not HTML — what a dev server that forwards only `/api` to Frappe
+answers — is a `FrappeError`. The whole file is held in memory, and reading it counts against the
+timeout, so pass a longer one for a large file:
+
+```ts
+const blob = await frappe.file.download(file.file_url, { timeout: 120_000 })
+```
+
+## Server messages
+
+Server code shows messages with `frappe.msgprint`, which Desk displays as a dialog or a toast. Frappe
+sends them with the answer, also when the request succeeds. Pass `onServerMessages` to receive those:
+
+```ts
+const frappe = createClient({
+    url: 'https://example.com',
+    onServerMessages: (messages, request) => {
+        for (const { message, indicator } of messages) showToast(message, indicator)
+    },
+})
+```
+
+- It is called once for each successful answer that has messages, before the call resolves. `request`
+  holds the method and the URL, without the query string.
+- Each message has `message` (HTML, as the server sent it), and `title` and `indicator` when the server
+  set them.
+- What the callback throws does not reject the call: it is thrown again from a microtask, so it reaches
+  your runtime's handler for uncaught errors, and the call still resolves with its result. In Node.js
+  that is `uncaughtException`, which ends the process unless you handle it: catch errors in the
+  callback.
+- The messages of a failed request are on the error instead, as `serverMessages` ([Errors](#errors)).
+
 ## Coming from Frappe
 
 Methods take the name of the Frappe function they call, camelCased, without the word the namespace
 already says. Document methods take the DocType first.
 
-| FrappeForge                                  | Frappe function                                        |
-| -------------------------------------------- | ------------------------------------------------------ |
-| `frappe.doc.get(doctype, name)`              | `get_doc`                                              |
-| `frappe.doc.getSingle(doctype)`              | `get_single`                                           |
-| `frappe.doc.getList(doctype, args)`          | `get_list`                                             |
-| `frappe.doc.count(doctype, filters)`         | `count`                                                |
-| `frappe.doc.paginate(doctype, args)`         | none — every matching row, one page per request        |
-| `frappe.doc.getValue(doctype, name, field)`  | `get_value`                                            |
-| `frappe.doc.getSingleValue(doctype, field)`  | `get_single_value`                                     |
-| `frappe.doc.exists(doctype, name)`           | `exists`                                               |
-| `frappe.doc.hasPermission(doctype, name)`    | `has_permission`                                       |
-| `frappe.doc.validateLink(doctype, name)`     | `validate_link` (Frappe 15; built on `get_value` here) |
-| `frappe.doc.isAmended(doctype, name)`        | `is_document_amended`                                  |
-| `frappe.doc.getPassword(doctype, name, f)`   | `get_password`                                         |
-| `frappe.doc.insert(doctype, data)`           | `insert` (Desk passes `{ doctype, … }`)                |
-| `frappe.doc.insertMany(doctype, docs)`       | `insert_many`                                          |
-| `frappe.doc.setValue(doctype, name, values)` | `set_value`; also replaces `frappe.client.save`        |
-| `frappe.doc.rename(doctype, name, newName)`  | `rename_doc`                                           |
-| `frappe.doc.delete(doctype, name)`           | `delete_doc`                                           |
-| `frappe.doc.submit(doctype, name)`           | `submit`                                               |
-| `frappe.doc.cancel(doctype, name)`           | `cancel`                                               |
-| `frappe.auth.login()` / `logout()`           | `login`, `logout`                                      |
-| `frappe.auth.getLoggedUser()`                | `get_logged_user` (`null` here for Guest)              |
+| FrappeForge                                   | Frappe function                                        |
+| --------------------------------------------- | ------------------------------------------------------ |
+| `frappe.doc.get(doctype, name)`               | `get_doc`                                              |
+| `frappe.doc.getSingle(doctype)`               | `get_single`                                           |
+| `frappe.doc.getList(doctype, args)`           | `get_list`                                             |
+| `frappe.doc.count(doctype, filters)`          | `count`                                                |
+| `frappe.doc.paginate(doctype, args)`          | none — every matching row, one page per request        |
+| `frappe.doc.getValue(doctype, name, field)`   | `get_value`                                            |
+| `frappe.doc.getSingleValue(doctype, field)`   | `get_single_value`                                     |
+| `frappe.doc.exists(doctype, name)`            | `exists`                                               |
+| `frappe.doc.hasPermission(doctype, name)`     | `has_permission`                                       |
+| `frappe.doc.validateLink(doctype, name)`      | `validate_link` (Frappe 15; built on `get_value` here) |
+| `frappe.doc.isAmended(doctype, name)`         | `is_document_amended`                                  |
+| `frappe.doc.getPassword(doctype, name, f)`    | `get_password`                                         |
+| `frappe.doc.insert(doctype, data)`            | `insert` (Desk passes `{ doctype, … }`)                |
+| `frappe.doc.insertMany(doctype, docs)`        | `insert_many`                                          |
+| `frappe.doc.setValue(doctype, name, values)`  | `set_value`; also replaces `frappe.client.save`        |
+| `frappe.doc.rename(doctype, name, newName)`   | `rename_doc`                                           |
+| `frappe.doc.delete(doctype, name)`            | `delete_doc`                                           |
+| `frappe.doc.submit(doctype, name)`            | `submit`                                               |
+| `frappe.doc.cancel(doctype, name)`            | `cancel`                                               |
+| `frappe.doc.runMethod(doctype, name, method)` | `run_doc_method`; Desk's `frm.call`                    |
+| `frappe.call.get(method, args)` / `post(…)`   | `frappe.call`, `frappe.xcall`                          |
+| `frappe.file.upload(file, options)`           | `upload_file`                                          |
+| `frappe.file.download(fileUrl)`               | `download_file` (reads the file's own URL here)        |
+| `frappe.auth.login()` / `logout()`            | `login`, `logout`                                      |
+| `frappe.auth.getLoggedUser()`                 | `get_logged_user` (`null` here for Guest)              |
 
 ## Requests
 

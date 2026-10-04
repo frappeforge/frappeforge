@@ -48,6 +48,12 @@ export interface BearerAuthOptions {
 }
 
 // @public
+export interface CallNamespace {
+    readonly get: <T = unknown>(method: string, args?: Readonly<Record<string, QueryValue>>, options?: RequestOptions) => Promise<T>;
+    readonly post: <T = unknown>(method: string, args?: Readonly<Record<string, unknown>>, options?: RequestOptions) => Promise<T>;
+}
+
+// @public
 export type ChildFilterTuple<T> = string extends FieldOf<T> ? readonly [childDocType: string, field: string, ...condition: FilterCondition] : { [K in TableFieldOf<T>]-?: NonNullable<T[K]> extends readonly (infer C extends FrappeDoc)[] ? readonly [childDocType: C["doctype"], field: ColumnOf<C>, ...condition: FilterCondition] : never; }[TableFieldOf<T>];
 
 // @public
@@ -55,6 +61,7 @@ export interface ClientOptions {
     auth?: AuthStrategy;
     fetch?: (request: Request) => Promise<Response>;
     headers?: Record<string, string>;
+    onServerMessages?: (messages: readonly ServerMessage[], request: FrappeRequestContext) => void;
     siteName?: string;
     timeout?: number;
     url: string;
@@ -94,6 +101,7 @@ export interface DocNamespace<D extends object = RegisteredDocTypes> {
     readonly rename: <K extends DocTypeName<D>>(doctype: K, name: string | number, newName: string | number, options?: RequestOptions & {
         readonly merge?: boolean;
     }) => Promise<DocOf<D, K>["name"]>;
+    readonly runMethod: <T = unknown>(doctype: DocTypeName<D>, name: string | number, method: string, args?: Readonly<Record<string, unknown>>, options?: RequestOptions) => Promise<T>;
     readonly setValue: <K extends DocTypeName<D>>(doctype: K, name: string | number, values: Omit<DocInput<DocOf<D, K>>, "name">, options?: RequestOptions) => Promise<DocOf<D, K>>;
     readonly submit: <K extends DocTypeName<D>>(doctype: K, name: string | number, options?: RequestOptions) => Promise<DocOf<D, K>>;
     readonly validateLink: <K extends DocTypeName<D>, const F extends readonly ValueField<DocOf<D, K>>[] = readonly []>(doctype: K, name: string | number, fields?: F, options?: RequestOptions) => Promise<ListRow<DocOf<D, K>, readonly ["name", ...F]> | null>;
@@ -115,6 +123,28 @@ export type FieldOf<T> = Extract<keyof T, string>;
 export type FieldSelection<T> = readonly (ColumnOf<T> | "name")[] | readonly ["*"];
 
 // @public
+export interface FileDoc extends FrappeDoc {
+    attached_to_doctype?: string;
+    attached_to_field?: string;
+    attached_to_name?: string | number;
+    content_hash?: string;
+    doctype: "File";
+    file_name: string;
+    file_size?: number;
+    file_type?: string;
+    file_url: string;
+    folder?: string;
+    is_private: 0 | 1;
+    name: string;
+}
+
+// @public
+export interface FileNamespace {
+    readonly download: (fileUrl: string, options?: RequestOptions) => Promise<Blob>;
+    readonly upload: (file: Blob, options?: UploadOptions) => Promise<FileDoc>;
+}
+
+// @public
 export type FilterCondition = readonly ["=" | "!=" | ">" | "<" | ">=" | "<=" | "like" | "not like", string | number | boolean | null] | readonly ["in" | "not in", readonly (string | number)[]] | readonly ["is", "set" | "not set"] | readonly ["between", readonly [string | number, string | number]] | readonly ["timespan", Timespan] | readonly ["descendants of" | "not descendants of" | "ancestors of" | "not ancestors of", string];
 
 // @public
@@ -131,7 +161,9 @@ export type FilterTuple<T> = readonly [field: ColumnOf<T>, ...condition: FilterC
 // @public
 export interface FrappeClient<D extends object = RegisteredDocTypes> {
     readonly auth: AuthNamespace;
+    readonly call: CallNamespace;
     readonly doc: DocNamespace<D>;
+    readonly file: FileNamespace;
     readonly request: <T = unknown>(init: FrappeRequest, options?: RequestOptions) => Promise<T>;
     readonly siteName: string | undefined;
     readonly url: string;
@@ -338,6 +370,19 @@ export interface TokenAuthOptions {
 
 // @public
 export type UnknownDoc = FrappeDoc & Record<string, unknown>;
+
+// @public
+export interface UploadOptions extends RequestOptions {
+    attachTo?: {
+        doctype: string;
+        name: string | number;
+        field?: string;
+    };
+    fileName?: string;
+    folder?: string;
+    isPrivate?: boolean;
+    optimize?: boolean;
+}
 
 // @public
 export class ValidationError extends FrappeError {
