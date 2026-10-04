@@ -1,5 +1,13 @@
 # @frappeforge/client
 
+## 0.4.0
+
+### Minor Changes
+
+- [#25](https://github.com/frappeforge/frappeforge/pull/25) [`01991fb`](https://github.com/frappeforge/frappeforge/commit/01991fb1369b1324d7dbd8c193b8ece916660fe2) Thanks [@dhiashalabi](https://github.com/dhiashalabi)! - Add `frappe.call.get` / `post` for whitelisted methods, `frappe.doc.runMethod` for a document's own
+  whitelisted methods, `frappe.file.upload` / `download`, and the `onServerMessages` option for messages Frappe
+  sends with successful responses. Uploads are private unless you pass `isPrivate: false`.
+
 ## 0.3.0
 
 ### Minor Changes
