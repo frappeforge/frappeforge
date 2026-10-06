@@ -1,5 +1,12 @@
 # @frappeforge/client
 
+## 0.5.0
+
+### Minor Changes
+
+- [#34](https://github.com/frappeforge/frappeforge/pull/34) [`7841d5a`](https://github.com/frappeforge/frappeforge/commit/7841d5a5b65bfe1ec4d46735d32ad5a5d3b1370a) Thanks [@dhiashalabi](https://github.com/dhiashalabi)! - Add the `retry` option. When enabled, read requests are retried on network errors, 429, 502, 503 and
+  504 with exponential backoff and jitter, honoring `Retry-After`. Writes are never retried.
+
 ## 0.4.0
 
 ### Minor Changes
