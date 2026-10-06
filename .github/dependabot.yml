@@ -6,9 +6,10 @@ updates:
           interval: weekly
           day: monday
       open-pull-requests-limit: 10
-      # Longer than pnpm's 24 h minimumReleaseAge, so every proposed version is installable.
+      # A week: longer than pnpm's 24 h minimumReleaseAge, so every proposed version is installable,
+      # and long enough for a bad release to be caught first. Security updates ignore the cooldown.
       cooldown:
-          default-days: 3
+          default-days: 7
       labels: [deps]
       commit-message:
           prefix: 'chore(deps)'
@@ -44,7 +45,7 @@ updates:
           day: monday
       open-pull-requests-limit: 5
       cooldown:
-          default-days: 3
+          default-days: 7
       labels: [ci]
       commit-message:
           prefix: 'chore(ci)'
