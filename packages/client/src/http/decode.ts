@@ -168,7 +168,7 @@ function parseServerMessages(value: unknown): {
  * A date must start with a day name and end in `GMT` (IMF-fixdate, or the obsolete RFC 850 form):
  * `Date.parse` alone also accepts `1.5` or `-5`, and reads an asctime date as local time.
  */
-function parseRetryAfter(value: string | null): number | undefined {
+export function parseRetryAfter(value: string | null): number | undefined {
     const trimmed = value?.trim() ?? ''
     if (/^\d+$/u.test(trimmed)) return Number(trimmed) * 1000
     const date = /^[a-z]{3,9}, .+ GMT$/iu.test(trimmed) ? Date.parse(trimmed) : Number.NaN

@@ -48,15 +48,16 @@ Without `auth`, requests run as Guest, which can call only public methods such a
 `createClient()` checks its options at once and throws an `InvalidArgumentError` before any request is
 sent.
 
-| Option             | Default        | Description                                                                                                                                                                            |
-| ------------------ | -------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `url`              | —              | Site URL. A path prefix is allowed (`https://example.com/frappe`); credentials, a query or a fragment are not.                                                                         |
-| `headers`          | `{}`           | Headers sent with every request.                                                                                                                                                       |
-| `timeout`          | `30000`        | Time budget per attempt in milliseconds, including reading the response; a replay after a `401` gets its own, and a strategy's `token()` or `refresh()` is not timed. `0` disables it. |
-| `siteName`         | —              | Sends `X-Frappe-Site-Name`, for a site reached through a host name that differs from the site name (visible ASCII, e.g. `site1.local`). In browsers it triggers a CORS preflight.      |
-| `fetch`            | global `fetch` | A fetch-compatible function, for tests or instrumentation. It must honor `request.signal`.                                                                                             |
-| `auth`             | —              | How requests authenticate: `tokenAuth`, `sessionAuth`, `bearerAuth` or your own `AuthStrategy` ([Authentication](#authentication)). Without it, requests run as Guest.                 |
-| `onServerMessages` | —              | Receives the messages Frappe sent with a successful answer ([Server messages](#server-messages)).                                                                                      |
+| Option             | Default        | Description                                                                                                                                                                                            |
+| ------------------ | -------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `url`              | —              | Site URL. A path prefix is allowed (`https://example.com/frappe`); credentials, a query or a fragment are not.                                                                                         |
+| `headers`          | `{}`           | Headers sent with every request.                                                                                                                                                                       |
+| `timeout`          | `30000`        | Time budget per attempt in milliseconds, including reading the response; a replay after a `401` and each retry get their own, and a strategy's `token()` or `refresh()` is not timed. `0` disables it. |
+| `siteName`         | —              | Sends `X-Frappe-Site-Name`, for a site reached through a host name that differs from the site name (visible ASCII, e.g. `site1.local`). In browsers it triggers a CORS preflight.                      |
+| `fetch`            | global `fetch` | A fetch-compatible function, for tests or instrumentation. It must honor `request.signal`.                                                                                                             |
+| `auth`             | —              | How requests authenticate: `tokenAuth`, `sessionAuth`, `bearerAuth` or your own `AuthStrategy` ([Authentication](#authentication)). Without it, requests run as Guest.                                 |
+| `onServerMessages` | —              | Receives the messages Frappe sent with a successful answer ([Server messages](#server-messages)).                                                                                                      |
+| `retry`            | off            | Retries reads after a transient failure: `{}` for the defaults, or `{ retries, baseDelay, maxDelay }` ([Retries](#retries)).                                                                           |
 
 ## Documents
 
@@ -261,7 +262,8 @@ const total = await frappe.call.post<number>('my_app.api.recalculate', { name: '
 ```
 
 - **`get`** sends the arguments in the query string, so the method receives them as strings (booleans
-  as `1` / `0`, arrays and objects as JSON). A `GET` needs no CSRF token.
+  as `1` / `0`, arrays and objects as JSON). A `GET` needs no CSRF token. With [`retry`](#retries) on,
+  a `get` is retried like every read: call a method that changes data with `post`.
 - **`post`** sends them as JSON, so numbers, booleans, lists and objects arrive as they are.
 - Whitelisted methods accept `GET`, `POST`, `PUT` and `DELETE` unless the method restricts them; Desk
   uses only `GET` and `POST`. For a method restricted to `PUT` or `DELETE`, use
@@ -552,6 +554,40 @@ await pending // rejects with AbortError; the abort reason is its `cause`
 A timeout rejects with `TimeoutError` and an abort with `AbortError`, as `fetch` names them, so a user navigating
 away is never reported as a failure. The timeout covers each attempt; the signal covers the whole
 call, including a strategy that is still fetching a token. `options.headers` adds or overrides headers for one request.
+
+## Retries
+
+Retries are off by default. Turn them on for jobs that must ride out a restart or a busy proxy:
+
+```ts
+const frappe = createClient({
+    url: 'https://example.com',
+    auth: tokenAuth({ apiKey: process.env.FRAPPE_API_KEY!, apiSecret: process.env.FRAPPE_API_SECRET! }),
+    retry: { retries: 3 },
+})
+```
+
+| Option      | Default | Description                                                                 |
+| ----------- | ------- | --------------------------------------------------------------------------- |
+| `retries`   | `2`     | Retries after the first attempt (`2` means three attempts in total).        |
+| `baseDelay` | `300`   | Base delay of the exponential backoff, in milliseconds.                     |
+| `maxDelay`  | `10000` | Upper bound of any single wait, in milliseconds, including a `Retry-After`. |
+
+- **Only reads are retried:** every `GET` (`frappe.doc` reads, `call.get`, `file.download`,
+  `auth.getLoggedUser`, and `request()` with `GET`), and the `frappe.doc` reads that are sent as a `POST`
+  (a list or a lookup whose query is too long for a URL, and `isAmended`). Writes, `call.post`,
+  `file.upload`, `login` and `logout` are never retried: when an answer is lost, the write may have been
+  applied, and Frappe would run its hooks again.
+- **Retried failures:** no response at all (`NetworkError`), `429`, `502`, `503` and `504`. A `500`, any
+  other status, a `TimeoutError` and an `AbortError` are thrown at once.
+- **Waits:** a random number of milliseconds below `baseDelay × 2^n`, at most `maxDelay` ("full
+  jitter"), so that many clients do not retry in step. A `Retry-After` on a `429` or `503` is waited
+  for exactly; one longer than `maxDelay` is not waited for, and the error is thrown at once.
+- In a browser on another origin, `Retry-After` is readable only when the response lists it in
+  `Access-Control-Expose-Headers`, which Frappe does not send. There the client waits with the backoff
+  instead.
+- Each attempt has its own `timeout`; the waits are not timed, but your `signal` covers them and aborts
+  at once. When every attempt fails, the last error is thrown as it is.
 
 ## Testing and instrumentation
 

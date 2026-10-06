@@ -62,6 +62,7 @@ export interface ClientOptions {
     fetch?: (request: Request) => Promise<Response>;
     headers?: Record<string, string>;
     onServerMessages?: (messages: readonly ServerMessage[], request: FrappeRequestContext) => void;
+    retry?: RetryOptions | false;
     siteName?: string;
     timeout?: number;
     url: string;
@@ -323,6 +324,13 @@ export interface RequestOptions {
     headers?: Record<string, string>;
     signal?: AbortSignal;
     timeout?: number;
+}
+
+// @public
+export interface RetryOptions {
+    baseDelay?: number;
+    maxDelay?: number;
+    retries?: number;
 }
 
 // @public

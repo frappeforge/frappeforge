@@ -535,6 +535,14 @@ const permissionTypes = {
 
 /** Creates `frappe.doc` over the client's pipeline. */
 export function createDocNamespace<D extends object>(send: Send): DocNamespace<D> {
+    /** A POST that only reads: idempotent, so it is retried like a GET. */
+    const idempotentPost = async <T>(
+        path: string,
+        body: Readonly<Record<string, unknown>>,
+        options: RequestOptions,
+        read: ReadResponse<T>,
+    ): Promise<T> => send({ method: 'POST', path, body }, options, read, true)
+
     const listRows = async (
         doctype: unknown,
         params: ListParams,
@@ -544,23 +552,25 @@ export function createDocNamespace<D extends object>(send: Send): DocNamespace<D
         const path = `/api/resource/${encodeURIComponent(doctypeName)}`
         const query = { ...params }
         if (fitsInGet(path, query)) return send({ path, query }, options, readMember('data', isList, 'a list'))
-        return send(
-            { method: 'POST', path: '/api/method/frappe.client.get_list', body: { doctype: doctypeName, ...params } },
+        return idempotentPost(
+            '/api/method/frappe.client.get_list',
+            { doctype: doctypeName, ...params },
             options,
             readMember('message', isList, 'a list'),
         )
     }
 
-    /** A whitelisted method, as a GET, or as a POST when its query would not fit in a URL. */
+    /**
+     * A whitelisted method that only reads, as a GET, or as a POST when its query would not fit in
+     * a URL.
+     */
     const callMethod = async <T>(
         path: string,
         query: Readonly<Record<string, QueryValue>>,
         read: ReadResponse<T>,
         options: RequestOptions,
     ): Promise<T> =>
-        fitsInGet(path, query)
-            ? send({ path, query }, options, read)
-            : send({ method: 'POST', path, body: query }, options, read)
+        fitsInGet(path, query) ? send({ path, query }, options, read) : idempotentPost(path, query, options, read)
 
     /** `get_value`: the row of the first match with `fields`, or `null`. */
     const getValueRow = async (
@@ -658,12 +668,9 @@ export function createDocNamespace<D extends object>(send: Send): DocNamespace<D
         isAmended: async (doctype: unknown, name: unknown, options: RequestOptions = {}) => {
             const doctypeName = assertDoctype(doctype)
             // A POST: Frappe 16 marks the GET answer as cacheable for 10 minutes.
-            const amendment = await send(
-                {
-                    method: 'POST',
-                    path: '/api/method/frappe.client.is_document_amended',
-                    body: { doctype: doctypeName, docname: assertDocName(name) },
-                },
+            const amendment = await idempotentPost(
+                '/api/method/frappe.client.is_document_amended',
+                { doctype: doctypeName, docname: assertDocName(name) },
                 options,
                 readMember('message', isAmendment, 'a name, null or false'),
             )
