@@ -22,6 +22,7 @@ describe('resolveConfig', () => {
             fetch: undefined,
             auth: undefined,
             onServerMessages: undefined,
+            retry: undefined,
         })
     })
 
@@ -38,6 +39,7 @@ describe('resolveConfig', () => {
                 fetch,
                 auth,
                 onServerMessages,
+                retry: { retries: 5, baseDelay: 100, maxDelay: 1000 },
             }),
         ).toEqual({
             url,
@@ -47,6 +49,7 @@ describe('resolveConfig', () => {
             fetch,
             auth,
             onServerMessages,
+            retry: { retries: 5, baseDelay: 100, maxDelay: 1000 },
         })
         expect(resolveConfig({ url, auth }).auth).toBe(auth)
     })
@@ -152,6 +155,69 @@ describe('resolveConfig', () => {
     it('rejects a fetch that is not a function', () => {
         expect(() => resolveUntyped({ url, fetch: 'fetch' })).toThrow('`fetch` must be a function')
     })
+
+    it.each([
+        ['off by default', undefined, undefined],
+        ['off with false', false, undefined],
+        ['the defaults for {}', {}, { retries: 2, baseDelay: 300, maxDelay: 10_000 }],
+        ['a partial object over the defaults', { retries: 0 }, { retries: 0, baseDelay: 300, maxDelay: 10_000 }],
+        ['equal delays', { baseDelay: 500, maxDelay: 500 }, { retries: 2, baseDelay: 500, maxDelay: 500 }],
+        [
+            'the largest delays',
+            { baseDelay: 0, maxDelay: 2_147_483_647 },
+            { retries: 2, baseDelay: 0, maxDelay: 2_147_483_647 },
+        ],
+        [
+            'an object without a prototype',
+            Object.assign(Object.create(null) as object, { retries: 1 }),
+            { retries: 1, baseDelay: 300, maxDelay: 10_000 },
+        ],
+    ])('resolves retry: %s', (_case, retry, expected) => {
+        const config = resolveUntyped({ url, retry })
+        expect(config.retry).toEqual(expected)
+        expect(config.retry === undefined || Object.isFrozen(config.retry)).toBe(true)
+    })
+
+    it.each([true, null, 3, 'on', [], new Map()])('rejects the retry %o', (retry) => {
+        expect(() => resolveUntyped({ url, retry })).toThrow(
+            new InvalidArgumentError(
+                '`retry` must be `false` or an object, such as `{ retries: 3 }`; `{}` uses the defaults.',
+            ),
+        )
+    })
+
+    it.each([-1, 1.5, Number.NaN, Number.POSITIVE_INFINITY, 2 ** 53, '2', null])(
+        'rejects retry.retries %o',
+        (retries) => {
+            expect(() => resolveUntyped({ url, retry: { retries } })).toThrow(
+                new InvalidArgumentError(`\`retry.retries\` must be an integer of 0 or more; got ${String(retries)}.`),
+            )
+        },
+    )
+
+    it.each([
+        ['baseDelay', -1],
+        ['baseDelay', 1.5],
+        ['baseDelay', '300'],
+        ['maxDelay', 2_147_483_648],
+        ['maxDelay', Number.NaN],
+        ['maxDelay', null],
+    ])('rejects retry.%s %o', (key, value) => {
+        expect(() => resolveUntyped({ url, retry: { [key]: value } })).toThrow(
+            new InvalidArgumentError(
+                `\`retry.${key}\` must be an integer number of milliseconds from 0 to 2147483647; got ${String(value)}.`,
+            ),
+        )
+    })
+
+    it.each([[{ baseDelay: 500, maxDelay: 499 }], [{ baseDelay: 20_000 }], [{ maxDelay: 299 }]])(
+        'rejects a maxDelay below the baseDelay: %o',
+        (retry) => {
+            expect(() => resolveUntyped({ url, retry })).toThrow(
+                new InvalidArgumentError('`retry.maxDelay` must not be less than `retry.baseDelay`.'),
+            )
+        },
+    )
 
     it.each(['toast', null, {}])('rejects the onServerMessages %o', (onServerMessages) => {
         expect(() => resolveUntyped({ url, onServerMessages })).toThrow('`onServerMessages` must be a function')

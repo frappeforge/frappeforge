@@ -428,6 +428,23 @@ export interface RequestOptions {
 }
 
 /**
+ * How reads are retried after a transient failure, as `ClientOptions.retry`. Each wait is a
+ * random time up to `baseDelay × 2^n`, at most `maxDelay`, unless the server asked for a wait
+ * with `Retry-After`.
+ */
+export interface RetryOptions {
+    /** Retries after the first attempt. Default `2` (three attempts in total). */
+    retries?: number
+    /** Base delay of the exponential backoff, in milliseconds. Default `300`. */
+    baseDelay?: number
+    /**
+     * Upper bound of any single wait, in milliseconds, including a server's `Retry-After`: a
+     * longer `Retry-After` is not waited for, and the error is thrown at once. Default `10_000`.
+     */
+    maxDelay?: number
+}
+
+/**
  * A value accepted in {@link FrappeRequest.query}. Strings are sent as they are, numbers via
  * `String`, booleans as `1` / `0`, and arrays and objects as JSON; `null` and `undefined` are
  * left out of the query string. A `Date` is an object too, so it would be sent as quoted JSON:

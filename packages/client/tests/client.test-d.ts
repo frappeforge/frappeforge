@@ -11,6 +11,7 @@ import {
     type ListRow,
     type PaginateArgs,
     type PermissionType,
+    type RetryOptions,
     tokenAuth,
     type UnknownDoc,
     type UploadOptions,
@@ -75,6 +76,25 @@ describe('createClient', () => {
     it('keeps FrappeClient usable without a type argument', () => {
         const client: FrappeClient = createClient({ url })
         expectTypeOf(client.doc.get('Task', 'TASK-0001')).resolves.toEqualTypeOf<UnknownDoc>()
+    })
+})
+
+describe('retry', () => {
+    it('takes RetryOptions or false', () => {
+        expectTypeOf(createClient).toBeCallableWith({ url, retry: { retries: 3 } })
+        expectTypeOf(createClient).toBeCallableWith({ url, retry: {} })
+        expectTypeOf(createClient).toBeCallableWith({ url, retry: { retries: 1, baseDelay: 100, maxDelay: 1000 } })
+        expectTypeOf(createClient).toBeCallableWith({ url, retry: false })
+        expectTypeOf<RetryOptions>().toEqualTypeOf<{ retries?: number; baseDelay?: number; maxDelay?: number }>()
+    })
+
+    it('rejects true and values that are not numbers', () => {
+        // @ts-expect-error `{}` turns retries on; `true` is not accepted.
+        expectTypeOf(createClient).toBeCallableWith({ url, retry: true })
+        // @ts-expect-error delays are numbers of milliseconds.
+        expectTypeOf(createClient).toBeCallableWith({ url, retry: { baseDelay: '300' } })
+        // @ts-expect-error not an option.
+        expectTypeOf(createClient).toBeCallableWith({ url, retry: { attempts: 3 } })
     })
 })
 

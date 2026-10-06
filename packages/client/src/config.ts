@@ -4,7 +4,9 @@ import type { AuthStrategy } from './auth/strategy.js'
 import { type FrappeRequestContext, InvalidArgumentError, type ServerMessage } from './errors.js'
 import { isPlainObject } from './http/decode.js'
 import { SafeHeaders } from './http/headers.js'
+import type { ResolvedRetry } from './http/retry.js'
 import { assertTimeout, type ResolvedConfig } from './http/send.js'
+import type { RetryOptions } from './types.js'
 
 /** Options for {@link createClient}. */
 export interface ClientOptions {
@@ -14,8 +16,8 @@ export interface ClientOptions {
     headers?: Record<string, string>
     /**
      * Time budget of each attempt in milliseconds, including reading the response; a replay after a
-     * `401` gets its own, and a strategy's work (such as a token refresh) is not timed. Default
-     * `30_000`; `0` disables the timeout.
+     * `401` and each retry get their own, and neither a strategy's work (such as a token refresh)
+     * nor the wait between retries is timed. Default `30_000`; `0` disables the timeout.
      */
     timeout?: number
     /**
@@ -54,16 +56,36 @@ export interface ClientOptions {
      * ```
      */
     onServerMessages?: (messages: readonly ServerMessage[], request: FrappeRequestContext) => void
+    /**
+     * Retries reads after a transient failure: no response at all (`NetworkError`), `429`, `502`,
+     * `503` or `504`. Default: off. `{}` turns it on with the defaults of {@link RetryOptions}.
+     *
+     * Only reads are retried: every `GET` — `call.get` and `request()` included, so call a method
+     * that changes data with `call.post` — and the reads of `doc` that are sent as a `POST`.
+     * Writes, `call.post` and uploads are never retried: when an answer is lost, the write may
+     * have been applied. A `500`, a `TimeoutError` and an `AbortError` are not retried either.
+     *
+     * A `Retry-After` on a `429` or `503` is waited for exactly, unless it is longer than
+     * `maxDelay`. The caller's `signal` covers the waits too; the last failure is thrown as it is.
+     *
+     * @example
+     * ```ts
+     * const frappe = createClient({ url: 'https://example.com', retry: { retries: 3 } })
+     * ```
+     */
+    retry?: RetryOptions | false
 }
 
 const DEFAULT_TIMEOUT = 30_000
+
+const DEFAULT_RETRY: ResolvedRetry = { retries: 2, baseDelay: 300, maxDelay: 10_000 }
 
 const credentialModes: ReadonlySet<unknown> = new Set(['include', 'omit', 'same-origin'])
 
 /** Validates the options and fills in defaults. Throws `InvalidArgumentError` on the first invalid option. */
 export function resolveConfig(options: ClientOptions): ResolvedConfig {
     if (!isPlainObject(options)) throw new InvalidArgumentError('createClient() needs an options object with a `url`.')
-    const { url, headers = {}, timeout = DEFAULT_TIMEOUT, siteName, fetch, auth, onServerMessages } = options
+    const { url, headers = {}, timeout = DEFAULT_TIMEOUT, siteName, fetch, auth, onServerMessages, retry } = options
     // Visible ASCII: a site or host name, and always a valid header value.
     if (siteName !== undefined && (typeof siteName !== 'string' || !/^[!-~]+$/u.test(siteName))) {
         throw new InvalidArgumentError(
@@ -84,7 +106,35 @@ export function resolveConfig(options: ClientOptions): ResolvedConfig {
         fetch,
         auth: resolveAuth(auth),
         onServerMessages,
+        retry: resolveRetry(retry),
     })
+}
+
+/** `undefined` (off) for `undefined` or `false`; otherwise the options, with their defaults. */
+function resolveRetry(retry: unknown): ResolvedRetry | undefined {
+    if (retry === undefined || retry === false) return undefined
+    if (!isPlainObject(retry)) {
+        throw new InvalidArgumentError(
+            '`retry` must be `false` or an object, such as `{ retries: 3 }`; `{}` uses the defaults.',
+        )
+    }
+    const {
+        retries = DEFAULT_RETRY.retries,
+        baseDelay = DEFAULT_RETRY.baseDelay,
+        maxDelay = DEFAULT_RETRY.maxDelay,
+    } = retry as RetryOptions
+    if (!Number.isSafeInteger(retries) || retries < 0) {
+        throw new InvalidArgumentError(`\`retry.retries\` must be an integer of 0 or more; got ${String(retries)}.`)
+    }
+    const resolved = {
+        retries,
+        baseDelay: assertTimeout(baseDelay, '`retry.baseDelay`'),
+        maxDelay: assertTimeout(maxDelay, '`retry.maxDelay`'),
+    }
+    if (resolved.maxDelay < resolved.baseDelay) {
+        throw new InvalidArgumentError('`retry.maxDelay` must not be less than `retry.baseDelay`.')
+    }
+    return Object.freeze(resolved)
 }
 
 /**

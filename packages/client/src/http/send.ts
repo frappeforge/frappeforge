@@ -1,5 +1,5 @@
 // The request pipeline, and the only place that calls `fetch`: headers, body, authentication,
-// timeout, aborts, and every failure mapped to a typed error.
+// timeout, aborts, retries, and every failure mapped to a typed error.
 
 import type { AuthStrategy } from '../auth/strategy.js'
 import {
@@ -12,8 +12,9 @@ import {
     TimeoutError,
 } from '../errors.js'
 import type { FrappeRequest, RequestOptions } from '../types.js'
-import { toError } from './decode.js'
+import { parseRetryAfter, toError } from './decode.js'
 import { SafeHeaders } from './headers.js'
+import { type ResolvedRetry, retryDelay, sleep } from './retry.js'
 import { buildUrl } from './url.js'
 
 /** Validated client options: what the pipeline needs to send a request. */
@@ -30,6 +31,8 @@ export interface ResolvedConfig {
     readonly auth: AuthStrategy | undefined
     /** Receives the messages of successful answers. */
     readonly onServerMessages: ((messages: readonly ServerMessage[], request: FrappeRequestContext) => void) | undefined
+    /** How reads are retried; `undefined` tries each request once. */
+    readonly retry: ResolvedRetry | undefined
 }
 
 /**
@@ -43,8 +46,17 @@ export type ReadResponse<T> = (
     messages: ServerMessage[],
 ) => Promise<T>
 
-/** The pipeline bound to one client's config, as resources use it. */
-export type Send = <T>(init: FrappeRequest, options: RequestOptions, read: ReadResponse<T>) => Promise<T>
+/**
+ * The pipeline bound to one client's config, as resources use it. `idempotent` marks a POST that
+ * only reads, such as a list sent as a POST because its query is too long for a URL: it is retried
+ * like a GET. An argument, not a property of `init`, so that no request a caller builds carries it.
+ */
+export type Send = <T>(
+    init: FrappeRequest,
+    options: RequestOptions,
+    read: ReadResponse<T>,
+    idempotent?: boolean,
+) => Promise<T>
 
 /** Headers and body, built once per call, so that a replay sends exactly the same body. */
 interface PreparedRequest {
@@ -53,12 +65,13 @@ interface PreparedRequest {
 }
 
 /**
- * One attempt's outcome: the value read from a 2xx response with the answer's messages, or the
- * non-2xx response and its body.
+ * One attempt's outcome: the value read from a 2xx response with the answer's messages, the
+ * non-2xx response and its body, or the failure of a request that got no response.
  */
 type Attempt<T> =
     | { readonly value: T; readonly messages: readonly ServerMessage[] }
     | { readonly request: Request; readonly response: Response; readonly text: string }
+    | { readonly error: NetworkError }
 
 /** The largest delay `setTimeout` supports; above it, timers fire after 1 ms. */
 const MAX_TIMEOUT = 2_147_483_647
@@ -77,16 +90,20 @@ export function assertTimeout(value: unknown, what: string): number {
  * Sends one request and reads its response with `read`.
  *
  * Throws `InvalidArgumentError` for a request that cannot be built, `AbortError` when the
- * caller's signal aborts (also while a strategy hook is pending), `TimeoutError` when an attempt's
- * time budget runs out (also while the body is read), `NetworkError` when no response arrives, and
- * the matching status error for a non-2xx response. A `401` is sent once more when the strategy's
- * `onUnauthorized` resolves `true`; what the strategy's hooks throw reaches the caller unchanged.
+ * caller's signal aborts (also while a strategy hook is pending, or between retries),
+ * `TimeoutError` when an attempt's time budget runs out (also while the body is read),
+ * `NetworkError` when no response arrives, and the matching status error for a non-2xx response.
+ * A `401` is sent once more when the strategy's `onUnauthorized` resolves `true`; what the
+ * strategy's hooks throw reaches the caller unchanged. With `retry` configured, a `GET` or an
+ * `idempotent` POST that got no response, a `429`, `502`, `503` or `504` is tried again; the last
+ * failure is thrown unchanged.
  */
 export async function send<T>(
     config: ResolvedConfig,
     init: FrappeRequest,
     options: RequestOptions,
     read: ReadResponse<T>,
+    idempotent = false,
 ): Promise<T> {
     // The request is checked in full first: a mistake in it is an `InvalidArgumentError` even when
     // the caller has already aborted.
@@ -95,28 +112,51 @@ export async function send<T>(
     const context: FrappeRequestContext = { method, url: config.url + init.path }
     const timeout = options.timeout === undefined ? config.timeout : assertTimeout(options.timeout, '`timeout`')
     const prepared = prepare(config, init, options, context)
+    // Only reads are retried: a write whose answer was lost may have been applied, and Frappe
+    // runs its hooks again on every repeat.
+    const retry = method === 'GET' || idempotent ? config.retry : undefined
 
+    for (let retryCount = 0; ; retryCount += 1) {
+        // A timeout, an abort, and what a reader or a strategy hook throws are thrown from here:
+        // never retried.
+        const outcome = await attemptWithReplay(config, prepared, options, read, url, context, timeout)
+        if ('value' in outcome) {
+            deliverMessages(config, outcome.messages, context)
+            return outcome.value
+        }
+        const failure = 'error' in outcome ? outcome.error : toError(outcome.response, outcome.text, context)
+        const retryAfter =
+            'response' in outcome ? parseRetryAfter(outcome.response.headers.get('retry-after')) : undefined
+        const delay = retry === undefined ? undefined : retryDelay(retry, retryCount, failure.status, retryAfter)
+        if (delay === undefined) throw failure
+        // Returns early when the caller aborts: the next attempt then rejects with `AbortError`.
+        await sleep(delay, options.signal)
+    }
+}
+
+/**
+ * One try: an attempt, and the replay after a `401` when the strategy renewed its credentials.
+ * Returns the last attempt's outcome.
+ */
+async function attemptWithReplay<T>(
+    config: ResolvedConfig,
+    prepared: PreparedRequest,
+    options: RequestOptions,
+    read: ReadResponse<T>,
+    url: string,
+    context: FrappeRequestContext,
+    timeout: number,
+): Promise<Attempt<T>> {
     const first = await attempt(config, prepared, options, read, url, context, timeout)
-    if ('value' in first) {
-        deliverMessages(config, first.messages, context)
-        return first.value
-    }
     const { auth } = config
+    if (!('response' in first) || first.response.status !== 401 || auth?.onUnauthorized === undefined) return first
+    // Outside any time budget: renewing credentials is the strategy's own work. The caller can
+    // still abort it, and an aborted request never asks for new credentials.
     const { signal: callerSignal } = options
-    let last: Attempt<T> = first
-    if (first.response.status === 401 && auth?.onUnauthorized !== undefined) {
-        // Outside any time budget: renewing credentials is the strategy's own work. The caller can
-        // still abort it, and an aborted request never asks for new credentials.
-        throwIfAborted(callerSignal, context)
-        const renewed: unknown = await unlessAborted(auth.onUnauthorized(first.request), callerSignal, context)
-        // Only `true` replays: a strategy written in JavaScript may resolve anything.
-        if (renewed === true) last = await attempt(config, prepared, options, read, url, context, timeout)
-    }
-    if ('value' in last) {
-        deliverMessages(config, last.messages, context)
-        return last.value
-    }
-    throw toError(last.response, last.text, context)
+    throwIfAborted(callerSignal, context)
+    const renewed: unknown = await unlessAborted(auth.onUnauthorized(first.request), callerSignal, context)
+    // Only `true` replays: a strategy written in JavaScript may resolve anything.
+    return renewed === true ? attempt(config, prepared, options, read, url, context, timeout) : first
 }
 
 /**
@@ -152,8 +192,8 @@ function normalizeMethod(init: FrappeRequest): string {
 
 /**
  * One attempt, with its own time budget: the strategy's headers, the `Request`, `fetch`, and the
- * body read. Failures to get a response are classified here; a non-2xx response is returned with
- * its body, for `send` to decide.
+ * body read. Failures to get a response are classified here: a timeout or an abort is thrown, and
+ * a network failure is returned, as is a non-2xx response with its body, for `send` to decide.
  */
 async function attempt<T>(
     config: ResolvedConfig,
@@ -194,21 +234,27 @@ async function attempt<T>(
     }
     callerSignal?.addEventListener('abort', forwardAbort, { once: true })
 
-    const classify = (cause: unknown): FrappeError => {
-        if (cause instanceof FrappeError) return cause
+    // What a reader (or a custom `fetch`) throws as a `FrappeError` is its own, and thrown as it is.
+    const failedAttempt = (cause: unknown): Attempt<T> => {
+        if (cause instanceof FrappeError) throw cause
         // Our own signal decides, not the error's name: runtimes disagree on what fetch rejects with.
         const { signal } = controller
         const reason: unknown = signal.reason
         if (signal.aborted && reason === deadline) {
-            return new TimeoutError(`Request timed out after ${String(timeout)} ms (${describeRequest(context)}).`, {
+            throw new TimeoutError(`Request timed out after ${String(timeout)} ms (${describeRequest(context)}).`, {
                 cause,
                 request: context,
             })
         }
         if (signal.aborted) {
-            return new AbortError(`Request aborted (${describeRequest(context)}).`, { cause: reason, request: context })
+            throw new AbortError(`Request aborted (${describeRequest(context)}).`, { cause: reason, request: context })
         }
-        return new NetworkError(`Network request failed (${describeRequest(context)}).`, { cause, request: context })
+        return {
+            error: new NetworkError(`Network request failed (${describeRequest(context)}).`, {
+                cause,
+                request: context,
+            }),
+        }
     }
 
     try {
@@ -216,7 +262,7 @@ async function attempt<T>(
         try {
             response = await (config.fetch === undefined ? globalThis.fetch(request) : config.fetch(request))
         } catch (cause) {
-            throw classify(cause)
+            return failedAttempt(cause)
         }
         // Outside the classification: a response arrived, so what the hook throws is its own.
         auth?.onResponse?.(response)
@@ -225,7 +271,7 @@ async function attempt<T>(
             const messages: ServerMessage[] = []
             return { value: await read(response, context, messages), messages }
         } catch (cause) {
-            throw classify(cause)
+            return failedAttempt(cause)
         }
     } finally {
         clearTimeout(timer)

@@ -66,7 +66,8 @@ export interface FrappeClient<D extends object = RegisteredDocTypes> {
  */
 export function createClient<D extends object = RegisteredDocTypes>(options: ClientOptions): FrappeClient<D> {
     const config = resolveConfig(options)
-    const send: Send = (init, requestOptions, read) => sendRequest(config, init, requestOptions, read)
+    const send: Send = (init, requestOptions, read, idempotent) =>
+        sendRequest(config, init, requestOptions, read, idempotent)
     return Object.freeze({
         url: config.url,
         siteName: config.siteName,
