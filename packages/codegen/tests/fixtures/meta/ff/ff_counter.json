@@ -1,0 +1,22 @@
+{
+    "doctype": "FF Counter",
+    "docs": [
+        {
+            "name": "FF Counter",
+            "module": "Custom",
+            "autoname": "autoincrement",
+            "fields": [
+                {
+                    "fieldname": "label",
+                    "fieldtype": "Data",
+                    "label": "Label"
+                },
+                {
+                    "fieldname": "secret",
+                    "fieldtype": "Password",
+                    "label": "Secret"
+                }
+            ]
+        }
+    ]
+}

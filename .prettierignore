@@ -5,3 +5,5 @@ temp/
 pnpm-lock.yaml
 CHANGELOG.md
 packages/*/etc/*.api.md
+# Generated output, compared byte for byte by the codegen tests
+packages/codegen/tests/golden/

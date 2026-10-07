@@ -1,0 +1,388 @@
+{
+    "doctype": "FF Kitchen Sink",
+    "docs": [
+        {
+            "name": "FF Kitchen Sink",
+            "module": "Custom",
+            "istable": 0,
+            "is_submittable": 1,
+            "autoname": "hash",
+            "description": "One field of every fieldtype, and every way a field can be optional.",
+            "fields": [
+                {
+                    "fieldname": "details_tab",
+                    "fieldtype": "Tab Break",
+                    "label": "Details"
+                },
+                {
+                    "fieldname": "title",
+                    "fieldtype": "Data",
+                    "label": "Title",
+                    "reqd": 1,
+                    "description": "Shown in lists and links."
+                },
+                {
+                    "fieldname": "display_title",
+                    "fieldtype": "Data",
+                    "label": "Display Title",
+                    "is_virtual": 1
+                },
+                {
+                    "fieldname": "column_break_main",
+                    "fieldtype": "Column Break"
+                },
+                {
+                    "fieldname": "status",
+                    "fieldtype": "Select",
+                    "label": "Status",
+                    "options": "\nOpen\nClosed"
+                },
+                {
+                    "fieldname": "kind",
+                    "fieldtype": "Select",
+                    "label": "Kind",
+                    "options": "Goods\nServices",
+                    "reqd": 1
+                },
+                {
+                    "fieldname": "resolution",
+                    "fieldtype": "Select",
+                    "label": "Resolution",
+                    "options": "Done\nWon't Fix"
+                },
+                {
+                    "fieldname": "phase",
+                    "fieldtype": "Select",
+                    "label": "Phase",
+                    "options": "Draft\nReview",
+                    "mask": 1
+                },
+                {
+                    "fieldname": "choice",
+                    "fieldtype": "Select",
+                    "label": "Choice"
+                },
+                {
+                    "fieldname": "amounts_section",
+                    "fieldtype": "Section Break",
+                    "label": "Amounts"
+                },
+                {
+                    "fieldname": "priority",
+                    "fieldtype": "Int",
+                    "label": "Priority",
+                    "reqd": 0,
+                    "permlevel": 0,
+                    "is_virtual": 0,
+                    "mask": 0
+                },
+                {
+                    "fieldname": "quantity",
+                    "fieldtype": "Float",
+                    "label": "Quantity"
+                },
+                {
+                    "fieldname": "amount",
+                    "fieldtype": "Currency",
+                    "label": "Amount"
+                },
+                {
+                    "fieldname": "discount",
+                    "fieldtype": "Percent",
+                    "label": "Discount",
+                    "mask": 1
+                },
+                {
+                    "fieldname": "cost",
+                    "fieldtype": "Currency",
+                    "label": "Cost",
+                    "permlevel": 1
+                },
+                {
+                    "fieldname": "total",
+                    "fieldtype": "Float",
+                    "label": "Total",
+                    "is_virtual": 1
+                },
+                {
+                    "fieldname": "approved",
+                    "fieldtype": "Check",
+                    "label": "Approved"
+                },
+                {
+                    "fieldname": "column_break_amounts",
+                    "fieldtype": "Column Break"
+                },
+                {
+                    "fieldname": "big_counter",
+                    "fieldtype": "Long Int",
+                    "label": "Big Counter"
+                },
+                {
+                    "fieldname": "rating",
+                    "fieldtype": "Rating",
+                    "label": "Rating"
+                },
+                {
+                    "fieldname": "duration",
+                    "fieldtype": "Duration",
+                    "label": "Duration"
+                },
+                {
+                    "fieldname": "dates_section",
+                    "fieldtype": "Section Break",
+                    "label": "Dates"
+                },
+                {
+                    "fieldname": "due_date",
+                    "fieldtype": "Date",
+                    "label": "Due Date"
+                },
+                {
+                    "fieldname": "starts_on",
+                    "fieldtype": "Datetime",
+                    "label": "Starts On"
+                },
+                {
+                    "fieldname": "start_time",
+                    "fieldtype": "Time",
+                    "label": "Start Time"
+                },
+                {
+                    "fieldname": "text_section",
+                    "fieldtype": "Section Break",
+                    "label": "Text"
+                },
+                {
+                    "fieldname": "summary",
+                    "fieldtype": "Small Text",
+                    "label": "Summary"
+                },
+                {
+                    "fieldname": "notes",
+                    "fieldtype": "Text",
+                    "label": "Notes"
+                },
+                {
+                    "fieldname": "long_notes",
+                    "fieldtype": "Long Text",
+                    "label": "Long Notes"
+                },
+                {
+                    "fieldname": "body",
+                    "fieldtype": "Text Editor",
+                    "label": "Body"
+                },
+                {
+                    "fieldname": "html_body",
+                    "fieldtype": "HTML Editor",
+                    "label": "HTML Body"
+                },
+                {
+                    "fieldname": "markdown_body",
+                    "fieldtype": "Markdown Editor",
+                    "label": "Markdown Body"
+                },
+                {
+                    "fieldname": "snippet",
+                    "fieldtype": "Code",
+                    "label": "Snippet",
+                    "options": "Python"
+                },
+                {
+                    "fieldname": "assigned_to_full_name",
+                    "fieldtype": "Read Only",
+                    "label": "Assigned To Full Name",
+                    "fetch_from": "assigned_to.full_name"
+                },
+                {
+                    "fieldname": "secret",
+                    "fieldtype": "Password",
+                    "label": "Secret"
+                },
+                {
+                    "fieldname": "phone",
+                    "fieldtype": "Phone",
+                    "label": "Phone"
+                },
+                {
+                    "fieldname": "email",
+                    "fieldtype": "Data",
+                    "label": "Email",
+                    "options": "Email"
+                },
+                {
+                    "fieldname": "category",
+                    "fieldtype": "Autocomplete",
+                    "label": "Category"
+                },
+                {
+                    "fieldname": "color",
+                    "fieldtype": "Color",
+                    "label": "Color"
+                },
+                {
+                    "fieldname": "barcode",
+                    "fieldtype": "Barcode",
+                    "label": "Barcode"
+                },
+                {
+                    "fieldname": "icon",
+                    "fieldtype": "Icon",
+                    "label": "Icon"
+                },
+                {
+                    "fieldname": "signature",
+                    "fieldtype": "Signature",
+                    "label": "Signature"
+                },
+                {
+                    "fieldname": "attachment",
+                    "fieldtype": "Attach",
+                    "label": "Attachment"
+                },
+                {
+                    "fieldname": "image",
+                    "fieldtype": "Attach Image",
+                    "label": "Image"
+                },
+                {
+                    "fieldname": "preview",
+                    "fieldtype": "Image",
+                    "label": "Preview",
+                    "options": "image"
+                },
+                {
+                    "fieldname": "location",
+                    "fieldtype": "Geolocation",
+                    "label": "Location"
+                },
+                {
+                    "fieldname": "payload",
+                    "fieldtype": "JSON",
+                    "label": "Payload"
+                },
+                {
+                    "fieldname": "links_section",
+                    "fieldtype": "Section Break",
+                    "label": "Links"
+                },
+                {
+                    "fieldname": "assigned_to",
+                    "fieldtype": "Link",
+                    "label": "Assigned To",
+                    "options": "User"
+                },
+                {
+                    "fieldname": "reference_type",
+                    "fieldtype": "Link",
+                    "label": "Reference Type",
+                    "options": "DocType"
+                },
+                {
+                    "fieldname": "reference_name",
+                    "fieldtype": "Dynamic Link",
+                    "label": "Reference Name",
+                    "options": "reference_type"
+                },
+                {
+                    "fieldname": "approval_code",
+                    "fieldtype": "Data",
+                    "label": "Approval Code",
+                    "reqd": 1,
+                    "permlevel": 1
+                },
+                {
+                    "fieldname": "help",
+                    "fieldtype": "HTML",
+                    "label": "Help",
+                    "options": "<p>Layout fields hold no value, so the generated interface leaves them out.</p>"
+                },
+                {
+                    "fieldname": "refresh",
+                    "fieldtype": "Button",
+                    "label": "Refresh"
+                },
+                {
+                    "fieldname": "more",
+                    "fieldtype": "Fold"
+                },
+                {
+                    "fieldname": "extras_heading",
+                    "fieldtype": "Heading",
+                    "label": "Extras"
+                },
+                {
+                    "fieldname": "gallery",
+                    "fieldtype": "Attachment Gallery",
+                    "label": "Gallery"
+                },
+                {
+                    "fieldname": "future_value",
+                    "fieldtype": "Future Type",
+                    "label": "Future Value"
+                },
+                {
+                    "fieldname": "items_tab",
+                    "fieldtype": "Tab Break",
+                    "label": "Items"
+                },
+                {
+                    "fieldname": "items",
+                    "fieldtype": "Table",
+                    "label": "Items",
+                    "options": "FF Kitchen Sink Item"
+                },
+                {
+                    "fieldname": "tags",
+                    "fieldtype": "Table MultiSelect",
+                    "label": "Tags",
+                    "options": "FF Kitchen Sink Tag"
+                },
+                {
+                    "fieldname": "external_items",
+                    "fieldtype": "Table",
+                    "label": "External Items",
+                    "options": "FF External Item"
+                }
+            ]
+        },
+        {
+            "name": "FF Kitchen Sink Item",
+            "module": "Custom",
+            "istable": 1,
+            "fields": [
+                {
+                    "fieldname": "label",
+                    "fieldtype": "Data",
+                    "label": "Label"
+                },
+                {
+                    "fieldname": "qty",
+                    "fieldtype": "Float",
+                    "label": "Qty",
+                    "reqd": 1
+                },
+                {
+                    "fieldname": "done",
+                    "fieldtype": "Check",
+                    "label": "Done"
+                }
+            ]
+        },
+        {
+            "name": "FF Kitchen Sink Tag",
+            "module": "Custom",
+            "istable": 1,
+            "fields": [
+                {
+                    "fieldname": "tag",
+                    "fieldtype": "Link",
+                    "label": "Tag",
+                    "options": "Tag",
+                    "reqd": 1
+                }
+            ]
+        }
+    ]
+}

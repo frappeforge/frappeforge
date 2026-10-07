@@ -5,6 +5,49 @@
 ```ts
 
 // @public
+export interface DocTypeMeta {
+    autoname?: string;
+    description?: string;
+    fields: readonly FieldMeta[];
+    is_submittable: boolean;
+    issingle: boolean;
+    istable: boolean;
+    module: string;
+    name: string;
+}
+
+// @public
+export interface FieldMeta {
+    description?: string;
+    fieldname: string;
+    fieldtype: string;
+    is_virtual: boolean;
+    label?: string;
+    mask: boolean;
+    options?: string;
+    permlevel: number;
+    reqd: boolean;
+}
+
+// @public
+export function generate(docTypes: readonly DocTypeMeta[], options?: GenerateOptions): GenerateResult;
+
+// @public
+export interface GenerateOptions {
+    register?: boolean;
+    rename?: Readonly<Record<string, string>>;
+}
+
+// @public
+export interface GenerateResult {
+    code: string;
+    warnings: readonly string[];
+}
+
+// @public
+export function normalizeDocType(raw: unknown): DocTypeMeta;
+
+// @public
 export const VERSION: string;
 
 ```
