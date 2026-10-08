@@ -55,6 +55,9 @@
         "api:check": "api-extractor run",
         "publint": "publint"
     },
+    "devDependencies": {
+        "@frappeforge/client": "workspace:*"
+    },
     "publishConfig": {
         "access": "public"
     }

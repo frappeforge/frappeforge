@@ -8,6 +8,10 @@
         "packages/*": {
             "entry": ["src/index.ts", "scripts/*.mjs", "tests/**/*.test-d.ts"],
             "project": ["src/**", "tests/**", "scripts/**"]
+        },
+        "packages/codegen": {
+            "entry": ["src/index.ts", "scripts/*.mjs", "tests/**/*.test-d.ts", "tests/golden/*.generated.ts"],
+            "project": ["src/**", "tests/**", "scripts/**"]
         }
     }
 }

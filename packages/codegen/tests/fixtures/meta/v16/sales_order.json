@@ -1,0 +1,3677 @@
+{
+    "recordedFrom": "Frappe 16.35.0, ERPNext 16.35.0",
+    "doctype": "Sales Order",
+    "docs": [
+        {
+            "name": "Sales Order",
+            "module": "Selling",
+            "istable": 0,
+            "issingle": 0,
+            "is_submittable": 1,
+            "autoname": "naming_series:",
+            "fields": [
+                {
+                    "fieldname": "customer_section",
+                    "fieldtype": "Section Break",
+                    "options": "fa fa-user",
+                    "reqd": 0,
+                    "permlevel": 0,
+                    "is_virtual": 0,
+                    "mask": 0
+                },
+                {
+                    "fieldname": "column_break0",
+                    "fieldtype": "Column Break",
+                    "reqd": 0,
+                    "permlevel": 0,
+                    "is_virtual": 0,
+                    "mask": 0
+                },
+                {
+                    "fieldname": "company",
+                    "fieldtype": "Link",
+                    "label": "Company",
+                    "options": "Company",
+                    "reqd": 1,
+                    "permlevel": 0,
+                    "is_virtual": 0,
+                    "mask": 0
+                },
+                {
+                    "fieldname": "naming_series",
+                    "fieldtype": "Select",
+                    "label": "Series",
+                    "options": "SAL-ORD-.YYYY.-",
+                    "reqd": 1,
+                    "permlevel": 0,
+                    "is_virtual": 0,
+                    "mask": 0
+                },
+                {
+                    "fieldname": "customer",
+                    "fieldtype": "Link",
+                    "label": "Customer",
+                    "options": "Customer",
+                    "reqd": 1,
+                    "permlevel": 0,
+                    "is_virtual": 0,
+                    "mask": 0
+                },
+                {
+                    "fieldname": "customer_name",
+                    "fieldtype": "Data",
+                    "label": "Customer Name",
+                    "reqd": 0,
+                    "permlevel": 0,
+                    "is_virtual": 0,
+                    "mask": 0
+                },
+                {
+                    "fieldname": "column_break_7",
+                    "fieldtype": "Column Break",
+                    "reqd": 0,
+                    "permlevel": 0,
+                    "is_virtual": 0,
+                    "mask": 0
+                },
+                {
+                    "fieldname": "order_type",
+                    "fieldtype": "Select",
+                    "label": "Order Type",
+                    "options": "\nSales\nMaintenance\nShopping Cart",
+                    "reqd": 1,
+                    "permlevel": 0,
+                    "is_virtual": 0,
+                    "mask": 0
+                },
+                {
+                    "fieldname": "transaction_date",
+                    "fieldtype": "Date",
+                    "label": "Date",
+                    "reqd": 1,
+                    "permlevel": 0,
+                    "is_virtual": 0,
+                    "mask": 0
+                },
+                {
+                    "fieldname": "transaction_time",
+                    "fieldtype": "Time",
+                    "label": "Time",
+                    "reqd": 0,
+                    "permlevel": 0,
+                    "is_virtual": 0,
+                    "mask": 0
+                },
+                {
+                    "fieldname": "delivery_date",
+                    "fieldtype": "Date",
+                    "label": "Delivery Date",
+                    "reqd": 0,
+                    "permlevel": 0,
+                    "is_virtual": 0,
+                    "mask": 0
+                },
+                {
+                    "fieldname": "column_break1",
+                    "fieldtype": "Column Break",
+                    "reqd": 0,
+                    "permlevel": 0,
+                    "is_virtual": 0,
+                    "mask": 0
+                },
+                {
+                    "fieldname": "tax_id",
+                    "fieldtype": "Data",
+                    "label": "Tax Id",
+                    "reqd": 0,
+                    "permlevel": 0,
+                    "is_virtual": 0,
+                    "mask": 0
+                },
+                {
+                    "fieldname": "skip_delivery_note",
+                    "fieldtype": "Check",
+                    "label": "Skip Delivery Note",
+                    "reqd": 0,
+                    "permlevel": 0,
+                    "is_virtual": 0,
+                    "mask": 0
+                },
+                {
+                    "fieldname": "has_unit_price_items",
+                    "fieldtype": "Check",
+                    "label": "Has Unit Price Items",
+                    "reqd": 0,
+                    "permlevel": 0,
+                    "is_virtual": 0,
+                    "mask": 0
+                },
+                {
+                    "fieldname": "is_subcontracted",
+                    "fieldtype": "Check",
+                    "label": "Is Subcontracted",
+                    "reqd": 0,
+                    "permlevel": 0,
+                    "is_virtual": 0,
+                    "mask": 0
+                },
+                {
+                    "fieldname": "amended_from",
+                    "fieldtype": "Link",
+                    "label": "Amended From",
+                    "options": "Sales Order",
+                    "reqd": 0,
+                    "permlevel": 0,
+                    "is_virtual": 0,
+                    "mask": 0
+                },
+                {
+                    "fieldname": "accounting_dimensions_section",
+                    "fieldtype": "Section Break",
+                    "label": "Accounting Dimensions",
+                    "reqd": 0,
+                    "permlevel": 0,
+                    "is_virtual": 0,
+                    "mask": 0
+                },
+                {
+                    "fieldname": "cost_center",
+                    "fieldtype": "Link",
+                    "label": "Cost Center",
+                    "options": "Cost Center",
+                    "reqd": 0,
+                    "permlevel": 0,
+                    "is_virtual": 0,
+                    "mask": 0
+                },
+                {
+                    "fieldname": "dimension_col_break",
+                    "fieldtype": "Column Break",
+                    "reqd": 0,
+                    "permlevel": 0,
+                    "is_virtual": 0,
+                    "mask": 0
+                },
+                {
+                    "fieldname": "project",
+                    "fieldtype": "Link",
+                    "label": "Project",
+                    "options": "Project",
+                    "reqd": 0,
+                    "permlevel": 0,
+                    "is_virtual": 0,
+                    "mask": 0
+                },
+                {
+                    "fieldname": "currency_and_price_list",
+                    "fieldtype": "Section Break",
+                    "label": "Currency and Price List",
+                    "options": "fa fa-tag",
+                    "reqd": 0,
+                    "permlevel": 0,
+                    "is_virtual": 0,
+                    "mask": 0
+                },
+                {
+                    "fieldname": "currency",
+                    "fieldtype": "Link",
+                    "label": "Currency",
+                    "options": "Currency",
+                    "reqd": 1,
+                    "permlevel": 0,
+                    "is_virtual": 0,
+                    "mask": 0
+                },
+                {
+                    "fieldname": "conversion_rate",
+                    "fieldtype": "Float",
+                    "label": "Exchange Rate",
+                    "reqd": 1,
+                    "permlevel": 0,
+                    "is_virtual": 0,
+                    "mask": 0,
+                    "description": "Rate at which customer's currency is converted to company's base currency"
+                },
+                {
+                    "fieldname": "column_break2",
+                    "fieldtype": "Column Break",
+                    "reqd": 0,
+                    "permlevel": 0,
+                    "is_virtual": 0,
+                    "mask": 0
+                },
+                {
+                    "fieldname": "selling_price_list",
+                    "fieldtype": "Link",
+                    "label": "Price List",
+                    "options": "Price List",
+                    "reqd": 1,
+                    "permlevel": 0,
+                    "is_virtual": 0,
+                    "mask": 0
+                },
+                {
+                    "fieldname": "price_list_currency",
+                    "fieldtype": "Link",
+                    "label": "Price List Currency",
+                    "options": "Currency",
+                    "reqd": 1,
+                    "permlevel": 0,
+                    "is_virtual": 0,
+                    "mask": 0
+                },
+                {
+                    "fieldname": "plc_conversion_rate",
+                    "fieldtype": "Float",
+                    "label": "Price List Exchange Rate",
+                    "reqd": 1,
+                    "permlevel": 0,
+                    "is_virtual": 0,
+                    "mask": 0,
+                    "description": "Rate at which Price list currency is converted to company's base currency"
+                },
+                {
+                    "fieldname": "ignore_pricing_rule",
+                    "fieldtype": "Check",
+                    "label": "Ignore Pricing Rule",
+                    "reqd": 0,
+                    "permlevel": 1,
+                    "is_virtual": 0,
+                    "mask": 0
+                },
+                {
+                    "fieldname": "sec_warehouse",
+                    "fieldtype": "Section Break",
+                    "label": "Items",
+                    "reqd": 0,
+                    "permlevel": 0,
+                    "is_virtual": 0,
+                    "mask": 0
+                },
+                {
+                    "fieldname": "scan_barcode",
+                    "fieldtype": "Data",
+                    "label": "Scan Barcode",
+                    "options": "Barcode",
+                    "reqd": 0,
+                    "permlevel": 0,
+                    "is_virtual": 0,
+                    "mask": 0
+                },
+                {
+                    "fieldname": "last_scanned_warehouse",
+                    "fieldtype": "Data",
+                    "label": "Last Scanned Warehouse",
+                    "reqd": 0,
+                    "permlevel": 0,
+                    "is_virtual": 1,
+                    "mask": 0
+                },
+                {
+                    "fieldname": "column_break_28",
+                    "fieldtype": "Column Break",
+                    "reqd": 0,
+                    "permlevel": 0,
+                    "is_virtual": 0,
+                    "mask": 0
+                },
+                {
+                    "fieldname": "set_warehouse",
+                    "fieldtype": "Link",
+                    "label": "Set Source Warehouse",
+                    "options": "Warehouse",
+                    "reqd": 0,
+                    "permlevel": 0,
+                    "is_virtual": 0,
+                    "mask": 0
+                },
+                {
+                    "fieldname": "reserve_stock",
+                    "fieldtype": "Check",
+                    "label": "Reserve Stock",
+                    "reqd": 0,
+                    "permlevel": 0,
+                    "is_virtual": 0,
+                    "mask": 0,
+                    "description": "If checked, Stock will be reserved on <b>Submit</b>"
+                },
+                {
+                    "fieldname": "items_section",
+                    "fieldtype": "Section Break",
+                    "options": "fa fa-shopping-cart",
+                    "reqd": 0,
+                    "permlevel": 0,
+                    "is_virtual": 0,
+                    "mask": 0
+                },
+                {
+                    "fieldname": "items",
+                    "fieldtype": "Table",
+                    "label": "Items",
+                    "options": "Sales Order Item",
+                    "reqd": 1,
+                    "permlevel": 0,
+                    "is_virtual": 0,
+                    "mask": 0
+                },
+                {
+                    "fieldname": "section_break_31",
+                    "fieldtype": "Section Break",
+                    "reqd": 0,
+                    "permlevel": 0,
+                    "is_virtual": 0,
+                    "mask": 0
+                },
+                {
+                    "fieldname": "total_qty",
+                    "fieldtype": "Float",
+                    "label": "Total Quantity",
+                    "reqd": 0,
+                    "permlevel": 0,
+                    "is_virtual": 0,
+                    "mask": 0
+                },
+                {
+                    "fieldname": "total_net_weight",
+                    "fieldtype": "Float",
+                    "label": "Total Net Weight",
+                    "reqd": 0,
+                    "permlevel": 0,
+                    "is_virtual": 0,
+                    "mask": 0
+                },
+                {
+                    "fieldname": "column_break_33",
+                    "fieldtype": "Column Break",
+                    "reqd": 0,
+                    "permlevel": 0,
+                    "is_virtual": 0,
+                    "mask": 0
+                },
+                {
+                    "fieldname": "base_total",
+                    "fieldtype": "Currency",
+                    "label": "Total (Company Currency)",
+                    "options": "Company:company:default_currency",
+                    "reqd": 0,
+                    "permlevel": 0,
+                    "is_virtual": 0,
+                    "mask": 0
+                },
+                {
+                    "fieldname": "base_net_total",
+                    "fieldtype": "Currency",
+                    "label": "Net Total (Company Currency)",
+                    "options": "Company:company:default_currency",
+                    "reqd": 0,
+                    "permlevel": 0,
+                    "is_virtual": 0,
+                    "mask": 0
+                },
+                {
+                    "fieldname": "column_break_33a",
+                    "fieldtype": "Column Break",
+                    "reqd": 0,
+                    "permlevel": 0,
+                    "is_virtual": 0,
+                    "mask": 0
+                },
+                {
+                    "fieldname": "total",
+                    "fieldtype": "Currency",
+                    "label": "Total",
+                    "options": "currency",
+                    "reqd": 0,
+                    "permlevel": 0,
+                    "is_virtual": 0,
+                    "mask": 0
+                },
+                {
+                    "fieldname": "net_total",
+                    "fieldtype": "Currency",
+                    "label": "Net Total",
+                    "options": "currency",
+                    "reqd": 0,
+                    "permlevel": 0,
+                    "is_virtual": 0,
+                    "mask": 0
+                },
+                {
+                    "fieldname": "taxes_section",
+                    "fieldtype": "Section Break",
+                    "label": "Taxes",
+                    "options": "fa fa-money",
+                    "reqd": 0,
+                    "permlevel": 0,
+                    "is_virtual": 0,
+                    "mask": 0
+                },
+                {
+                    "fieldname": "tax_category",
+                    "fieldtype": "Link",
+                    "label": "Tax Category",
+                    "options": "Tax Category",
+                    "reqd": 0,
+                    "permlevel": 0,
+                    "is_virtual": 0,
+                    "mask": 0
+                },
+                {
+                    "fieldname": "taxes_and_charges",
+                    "fieldtype": "Link",
+                    "label": "Sales Taxes and Charges Template",
+                    "options": "Sales Taxes and Charges Template",
+                    "reqd": 0,
+                    "permlevel": 0,
+                    "is_virtual": 0,
+                    "mask": 0
+                },
+                {
+                    "fieldname": "column_break_38",
+                    "fieldtype": "Column Break",
+                    "reqd": 0,
+                    "permlevel": 0,
+                    "is_virtual": 0,
+                    "mask": 0
+                },
+                {
+                    "fieldname": "shipping_rule",
+                    "fieldtype": "Link",
+                    "label": "Shipping Rule",
+                    "options": "Shipping Rule",
+                    "reqd": 0,
+                    "permlevel": 0,
+                    "is_virtual": 0,
+                    "mask": 0
+                },
+                {
+                    "fieldname": "column_break_49",
+                    "fieldtype": "Column Break",
+                    "reqd": 0,
+                    "permlevel": 0,
+                    "is_virtual": 0,
+                    "mask": 0
+                },
+                {
+                    "fieldname": "incoterm",
+                    "fieldtype": "Link",
+                    "label": "Incoterm",
+                    "options": "Incoterm",
+                    "reqd": 0,
+                    "permlevel": 0,
+                    "is_virtual": 0,
+                    "mask": 0
+                },
+                {
+                    "fieldname": "named_place",
+                    "fieldtype": "Data",
+                    "label": "Named Place",
+                    "reqd": 0,
+                    "permlevel": 0,
+                    "is_virtual": 0,
+                    "mask": 0
+                },
+                {
+                    "fieldname": "section_break_40",
+                    "fieldtype": "Section Break",
+                    "reqd": 0,
+                    "permlevel": 0,
+                    "is_virtual": 0,
+                    "mask": 0
+                },
+                {
+                    "fieldname": "taxes",
+                    "fieldtype": "Table",
+                    "label": "Sales Taxes and Charges",
+                    "options": "Sales Taxes and Charges",
+                    "reqd": 0,
+                    "permlevel": 0,
+                    "is_virtual": 0,
+                    "mask": 0
+                },
+                {
+                    "fieldname": "section_break_43",
+                    "fieldtype": "Section Break",
+                    "reqd": 0,
+                    "permlevel": 0,
+                    "is_virtual": 0,
+                    "mask": 0
+                },
+                {
+                    "fieldname": "base_total_taxes_and_charges",
+                    "fieldtype": "Currency",
+                    "label": "Total Taxes and Charges (Company Currency)",
+                    "options": "Company:company:default_currency",
+                    "reqd": 0,
+                    "permlevel": 0,
+                    "is_virtual": 0,
+                    "mask": 0
+                },
+                {
+                    "fieldname": "column_break_46",
+                    "fieldtype": "Column Break",
+                    "reqd": 0,
+                    "permlevel": 0,
+                    "is_virtual": 0,
+                    "mask": 0
+                },
+                {
+                    "fieldname": "total_taxes_and_charges",
+                    "fieldtype": "Currency",
+                    "label": "Total Taxes and Charges",
+                    "options": "currency",
+                    "reqd": 0,
+                    "permlevel": 0,
+                    "is_virtual": 0,
+                    "mask": 0
+                },
+                {
+                    "fieldname": "totals_section",
+                    "fieldtype": "Section Break",
+                    "label": "Totals",
+                    "options": "fa fa-money",
+                    "reqd": 0,
+                    "permlevel": 0,
+                    "is_virtual": 0,
+                    "mask": 0
+                },
+                {
+                    "fieldname": "grand_total",
+                    "fieldtype": "Currency",
+                    "label": "Grand Total",
+                    "options": "currency",
+                    "reqd": 0,
+                    "permlevel": 0,
+                    "is_virtual": 0,
+                    "mask": 0
+                },
+                {
+                    "fieldname": "in_words",
+                    "fieldtype": "Data",
+                    "label": "In Words",
+                    "reqd": 0,
+                    "permlevel": 0,
+                    "is_virtual": 0,
+                    "mask": 0
+                },
+                {
+                    "fieldname": "disable_rounded_total",
+                    "fieldtype": "Check",
+                    "label": "Disable Rounded Total",
+                    "reqd": 0,
+                    "permlevel": 0,
+                    "is_virtual": 0,
+                    "mask": 0
+                },
+                {
+                    "fieldname": "column_break_nuxg",
+                    "fieldtype": "Column Break",
+                    "reqd": 0,
+                    "permlevel": 0,
+                    "is_virtual": 0,
+                    "mask": 0
+                },
+                {
+                    "fieldname": "rounding_adjustment",
+                    "fieldtype": "Currency",
+                    "label": "Rounding Adjustment",
+                    "options": "currency",
+                    "reqd": 0,
+                    "permlevel": 0,
+                    "is_virtual": 0,
+                    "mask": 0
+                },
+                {
+                    "fieldname": "rounded_total",
+                    "fieldtype": "Currency",
+                    "label": "Rounded Total",
+                    "options": "currency",
+                    "reqd": 0,
+                    "permlevel": 0,
+                    "is_virtual": 0,
+                    "mask": 0
+                },
+                {
+                    "fieldname": "base_totals_section",
+                    "fieldtype": "Section Break",
+                    "label": "Totals (Company Currency)",
+                    "reqd": 0,
+                    "permlevel": 0,
+                    "is_virtual": 0,
+                    "mask": 0
+                },
+                {
+                    "fieldname": "base_grand_total",
+                    "fieldtype": "Currency",
+                    "label": "Grand Total",
+                    "options": "Company:company:default_currency",
+                    "reqd": 0,
+                    "permlevel": 0,
+                    "is_virtual": 0,
+                    "mask": 0
+                },
+                {
+                    "fieldname": "base_in_words",
+                    "fieldtype": "Data",
+                    "label": "In Words",
+                    "reqd": 0,
+                    "permlevel": 0,
+                    "is_virtual": 0,
+                    "mask": 0,
+                    "description": "In Words will be visible once you save the Sales Order."
+                },
+                {
+                    "fieldname": "column_break_bgfw",
+                    "fieldtype": "Column Break",
+                    "reqd": 0,
+                    "permlevel": 0,
+                    "is_virtual": 0,
+                    "mask": 0
+                },
+                {
+                    "fieldname": "base_rounding_adjustment",
+                    "fieldtype": "Currency",
+                    "label": "Rounding Adjustment",
+                    "options": "Company:company:default_currency",
+                    "reqd": 0,
+                    "permlevel": 0,
+                    "is_virtual": 0,
+                    "mask": 0
+                },
+                {
+                    "fieldname": "base_rounded_total",
+                    "fieldtype": "Currency",
+                    "label": "Rounded Total",
+                    "options": "Company:company:default_currency",
+                    "reqd": 0,
+                    "permlevel": 0,
+                    "is_virtual": 0,
+                    "mask": 0
+                },
+                {
+                    "fieldname": "section_break_efew",
+                    "fieldtype": "Section Break",
+                    "reqd": 0,
+                    "permlevel": 0,
+                    "is_virtual": 0,
+                    "mask": 0
+                },
+                {
+                    "fieldname": "advance_paid",
+                    "fieldtype": "Currency",
+                    "label": "Advance Paid",
+                    "options": "party_account_currency",
+                    "reqd": 0,
+                    "permlevel": 0,
+                    "is_virtual": 0,
+                    "mask": 0
+                },
+                {
+                    "fieldname": "additional_discount_section",
+                    "fieldtype": "Section Break",
+                    "label": "Additional Discount",
+                    "reqd": 0,
+                    "permlevel": 0,
+                    "is_virtual": 0,
+                    "mask": 0
+                },
+                {
+                    "fieldname": "apply_discount_on",
+                    "fieldtype": "Select",
+                    "label": "Apply Additional Discount On",
+                    "options": "\nGrand Total\nNet Total",
+                    "reqd": 0,
+                    "permlevel": 0,
+                    "is_virtual": 0,
+                    "mask": 0
+                },
+                {
+                    "fieldname": "base_discount_amount",
+                    "fieldtype": "Currency",
+                    "label": "Additional Discount Amount",
+                    "options": "Company:company:default_currency",
+                    "reqd": 0,
+                    "permlevel": 0,
+                    "is_virtual": 0,
+                    "mask": 0
+                },
+                {
+                    "fieldname": "coupon_code",
+                    "fieldtype": "Link",
+                    "label": "Coupon Code",
+                    "options": "Coupon Code",
+                    "reqd": 0,
+                    "permlevel": 0,
+                    "is_virtual": 0,
+                    "mask": 0
+                },
+                {
+                    "fieldname": "column_break_50",
+                    "fieldtype": "Column Break",
+                    "reqd": 0,
+                    "permlevel": 0,
+                    "is_virtual": 0,
+                    "mask": 0
+                },
+                {
+                    "fieldname": "additional_discount_percentage",
+                    "fieldtype": "Float",
+                    "label": "Additional Discount Percentage",
+                    "reqd": 0,
+                    "permlevel": 0,
+                    "is_virtual": 0,
+                    "mask": 0
+                },
+                {
+                    "fieldname": "discount_amount",
+                    "fieldtype": "Currency",
+                    "label": "Additional Discount Amount",
+                    "options": "currency",
+                    "reqd": 0,
+                    "permlevel": 0,
+                    "is_virtual": 0,
+                    "mask": 0,
+                    "description": "Applying a Discount Amount? When this Sales Order is partially fulfilled through multiple Delivery Notes and Sales Invoices, the Discount Amount is allocated on a FIFO basis. The earlier transactions receive a larger share of the discount. To spread the discount proportionally across item prices, use Additional Discount Percentage instead."
+                },
+                {
+                    "fieldname": "sec_tax_breakup",
+                    "fieldtype": "Section Break",
+                    "label": "Tax Breakup",
+                    "reqd": 0,
+                    "permlevel": 0,
+                    "is_virtual": 0,
+                    "mask": 0
+                },
+                {
+                    "fieldname": "other_charges_calculation",
+                    "fieldtype": "Text Editor",
+                    "label": "Taxes and Charges Calculation",
+                    "reqd": 0,
+                    "permlevel": 0,
+                    "is_virtual": 0,
+                    "mask": 0
+                },
+                {
+                    "fieldname": "item_wise_tax_details",
+                    "fieldtype": "Table",
+                    "label": "Item Wise Tax Details",
+                    "options": "Item Wise Tax Detail",
+                    "reqd": 0,
+                    "permlevel": 0,
+                    "is_virtual": 0,
+                    "mask": 0
+                },
+                {
+                    "fieldname": "packing_list",
+                    "fieldtype": "Section Break",
+                    "label": "Packing List",
+                    "options": "fa fa-suitcase",
+                    "reqd": 0,
+                    "permlevel": 0,
+                    "is_virtual": 0,
+                    "mask": 0
+                },
+                {
+                    "fieldname": "packed_items",
+                    "fieldtype": "Table",
+                    "label": "Packed Items",
+                    "options": "Packed Item",
+                    "reqd": 0,
+                    "permlevel": 0,
+                    "is_virtual": 0,
+                    "mask": 0
+                },
+                {
+                    "fieldname": "pricing_rule_details",
+                    "fieldtype": "Section Break",
+                    "label": "Pricing Rules",
+                    "reqd": 0,
+                    "permlevel": 0,
+                    "is_virtual": 0,
+                    "mask": 0
+                },
+                {
+                    "fieldname": "pricing_rules",
+                    "fieldtype": "Table",
+                    "label": "Pricing Rule Detail",
+                    "options": "Pricing Rule Detail",
+                    "reqd": 0,
+                    "permlevel": 0,
+                    "is_virtual": 0,
+                    "mask": 0
+                },
+                {
+                    "fieldname": "contact_info",
+                    "fieldtype": "Tab Break",
+                    "label": "Address & Contact",
+                    "options": "fa fa-bullhorn",
+                    "reqd": 0,
+                    "permlevel": 0,
+                    "is_virtual": 0,
+                    "mask": 0
+                },
+                {
+                    "fieldname": "billing_address_column",
+                    "fieldtype": "Section Break",
+                    "label": "Billing Address",
+                    "reqd": 0,
+                    "permlevel": 0,
+                    "is_virtual": 0,
+                    "mask": 0
+                },
+                {
+                    "fieldname": "customer_address",
+                    "fieldtype": "Link",
+                    "label": "Customer Address",
+                    "options": "Address",
+                    "reqd": 0,
+                    "permlevel": 0,
+                    "is_virtual": 0,
+                    "mask": 0
+                },
+                {
+                    "fieldname": "address_display",
+                    "fieldtype": "Text Editor",
+                    "label": "Address",
+                    "reqd": 0,
+                    "permlevel": 0,
+                    "is_virtual": 0,
+                    "mask": 0
+                },
+                {
+                    "fieldname": "customer_group",
+                    "fieldtype": "Link",
+                    "label": "Customer Group",
+                    "options": "Customer Group",
+                    "reqd": 0,
+                    "permlevel": 0,
+                    "is_virtual": 0,
+                    "mask": 0
+                },
+                {
+                    "fieldname": "territory",
+                    "fieldtype": "Link",
+                    "label": "Territory",
+                    "options": "Territory",
+                    "reqd": 0,
+                    "permlevel": 0,
+                    "is_virtual": 0,
+                    "mask": 0
+                },
+                {
+                    "fieldname": "column_break_84",
+                    "fieldtype": "Column Break",
+                    "reqd": 0,
+                    "permlevel": 0,
+                    "is_virtual": 0,
+                    "mask": 0
+                },
+                {
+                    "fieldname": "contact_person",
+                    "fieldtype": "Link",
+                    "label": "Contact Person",
+                    "options": "Contact",
+                    "reqd": 0,
+                    "permlevel": 0,
+                    "is_virtual": 0,
+                    "mask": 0
+                },
+                {
+                    "fieldname": "contact_display",
+                    "fieldtype": "Small Text",
+                    "label": "Contact",
+                    "reqd": 0,
+                    "permlevel": 0,
+                    "is_virtual": 0,
+                    "mask": 0
+                },
+                {
+                    "fieldname": "contact_phone",
+                    "fieldtype": "Data",
+                    "label": "Phone",
+                    "options": "Phone",
+                    "reqd": 0,
+                    "permlevel": 0,
+                    "is_virtual": 0,
+                    "mask": 0
+                },
+                {
+                    "fieldname": "contact_mobile",
+                    "fieldtype": "Small Text",
+                    "label": "Mobile No",
+                    "options": "Phone",
+                    "reqd": 0,
+                    "permlevel": 0,
+                    "is_virtual": 0,
+                    "mask": 0
+                },
+                {
+                    "fieldname": "contact_email",
+                    "fieldtype": "Data",
+                    "label": "Contact Email",
+                    "options": "Email",
+                    "reqd": 0,
+                    "permlevel": 0,
+                    "is_virtual": 0,
+                    "mask": 0
+                },
+                {
+                    "fieldname": "shipping_address_column",
+                    "fieldtype": "Section Break",
+                    "label": "Shipping Address",
+                    "reqd": 0,
+                    "permlevel": 0,
+                    "is_virtual": 0,
+                    "mask": 0
+                },
+                {
+                    "fieldname": "shipping_address_name",
+                    "fieldtype": "Link",
+                    "label": "Shipping Address Name",
+                    "options": "Address",
+                    "reqd": 0,
+                    "permlevel": 0,
+                    "is_virtual": 0,
+                    "mask": 0
+                },
+                {
+                    "fieldname": "shipping_address",
+                    "fieldtype": "Text Editor",
+                    "label": "Shipping Address",
+                    "reqd": 0,
+                    "permlevel": 0,
+                    "is_virtual": 0,
+                    "mask": 0
+                },
+                {
+                    "fieldname": "column_break_93",
+                    "fieldtype": "Column Break",
+                    "reqd": 0,
+                    "permlevel": 0,
+                    "is_virtual": 0,
+                    "mask": 0
+                },
+                {
+                    "fieldname": "dispatch_address_name",
+                    "fieldtype": "Link",
+                    "label": "Dispatch Address Name",
+                    "options": "Address",
+                    "reqd": 0,
+                    "permlevel": 0,
+                    "is_virtual": 0,
+                    "mask": 0
+                },
+                {
+                    "fieldname": "dispatch_address",
+                    "fieldtype": "Text Editor",
+                    "label": "Dispatch Address",
+                    "reqd": 0,
+                    "permlevel": 0,
+                    "is_virtual": 0,
+                    "mask": 0
+                },
+                {
+                    "fieldname": "col_break46",
+                    "fieldtype": "Section Break",
+                    "label": "Company Address",
+                    "reqd": 0,
+                    "permlevel": 0,
+                    "is_virtual": 0,
+                    "mask": 0
+                },
+                {
+                    "fieldname": "company_address",
+                    "fieldtype": "Link",
+                    "label": "Company Address Name",
+                    "options": "Address",
+                    "reqd": 0,
+                    "permlevel": 0,
+                    "is_virtual": 0,
+                    "mask": 0
+                },
+                {
+                    "fieldname": "company_address_display",
+                    "fieldtype": "Text Editor",
+                    "label": "Company Address",
+                    "reqd": 0,
+                    "permlevel": 0,
+                    "is_virtual": 0,
+                    "mask": 0
+                },
+                {
+                    "fieldname": "column_break_92",
+                    "fieldtype": "Column Break",
+                    "reqd": 0,
+                    "permlevel": 0,
+                    "is_virtual": 0,
+                    "mask": 0
+                },
+                {
+                    "fieldname": "company_contact_person",
+                    "fieldtype": "Link",
+                    "label": "Company Contact Person",
+                    "options": "Contact",
+                    "reqd": 0,
+                    "permlevel": 0,
+                    "is_virtual": 0,
+                    "mask": 0
+                },
+                {
+                    "fieldname": "payment_schedule_section",
+                    "fieldtype": "Tab Break",
+                    "label": "Terms",
+                    "reqd": 0,
+                    "permlevel": 0,
+                    "is_virtual": 0,
+                    "mask": 0
+                },
+                {
+                    "fieldname": "payment_terms_section",
+                    "fieldtype": "Section Break",
+                    "label": "Payment Terms",
+                    "reqd": 0,
+                    "permlevel": 0,
+                    "is_virtual": 0,
+                    "mask": 0
+                },
+                {
+                    "fieldname": "ignore_default_payment_terms_template",
+                    "fieldtype": "Check",
+                    "label": "Ignore Default Payment Terms Template",
+                    "reqd": 0,
+                    "permlevel": 0,
+                    "is_virtual": 0,
+                    "mask": 0
+                },
+                {
+                    "fieldname": "payment_terms_template",
+                    "fieldtype": "Link",
+                    "label": "Payment Terms Template",
+                    "options": "Payment Terms Template",
+                    "reqd": 0,
+                    "permlevel": 0,
+                    "is_virtual": 0,
+                    "mask": 0
+                },
+                {
+                    "fieldname": "payment_schedule",
+                    "fieldtype": "Table",
+                    "label": "Payment Schedule",
+                    "options": "Payment Schedule",
+                    "reqd": 0,
+                    "permlevel": 0,
+                    "is_virtual": 0,
+                    "mask": 0
+                },
+                {
+                    "fieldname": "terms_section_break",
+                    "fieldtype": "Section Break",
+                    "label": "Terms & Conditions",
+                    "options": "fa fa-legal",
+                    "reqd": 0,
+                    "permlevel": 0,
+                    "is_virtual": 0,
+                    "mask": 0
+                },
+                {
+                    "fieldname": "tc_name",
+                    "fieldtype": "Link",
+                    "label": "Terms",
+                    "options": "Terms and Conditions",
+                    "reqd": 0,
+                    "permlevel": 0,
+                    "is_virtual": 0,
+                    "mask": 0
+                },
+                {
+                    "fieldname": "terms",
+                    "fieldtype": "Text Editor",
+                    "label": "Terms and Conditions Details",
+                    "reqd": 0,
+                    "permlevel": 0,
+                    "is_virtual": 0,
+                    "mask": 0
+                },
+                {
+                    "fieldname": "more_info",
+                    "fieldtype": "Tab Break",
+                    "label": "More Info",
+                    "options": "fa fa-file-text",
+                    "reqd": 0,
+                    "permlevel": 0,
+                    "is_virtual": 0,
+                    "mask": 0
+                },
+                {
+                    "fieldname": "section_break_78",
+                    "fieldtype": "Section Break",
+                    "label": "Status",
+                    "reqd": 0,
+                    "permlevel": 0,
+                    "is_virtual": 0,
+                    "mask": 0
+                },
+                {
+                    "fieldname": "status",
+                    "fieldtype": "Select",
+                    "label": "Status",
+                    "options": "\nDraft\nOn Hold\nTo Pay\nTo Deliver and Bill\nTo Bill\nTo Deliver\nCompleted\nCancelled\nClosed",
+                    "reqd": 1,
+                    "permlevel": 0,
+                    "is_virtual": 0,
+                    "mask": 0
+                },
+                {
+                    "fieldname": "delivery_status",
+                    "fieldtype": "Select",
+                    "label": "Delivery Status",
+                    "options": "Not Delivered\nFully Delivered\nPartly Delivered\nClosed\nNot Applicable",
+                    "reqd": 0,
+                    "permlevel": 0,
+                    "is_virtual": 0,
+                    "mask": 0
+                },
+                {
+                    "fieldname": "per_delivered",
+                    "fieldtype": "Percent",
+                    "label": "%  Delivered",
+                    "reqd": 0,
+                    "permlevel": 0,
+                    "is_virtual": 0,
+                    "mask": 0,
+                    "description": "% of materials delivered against this Sales Order"
+                },
+                {
+                    "fieldname": "column_break_81",
+                    "fieldtype": "Column Break",
+                    "reqd": 0,
+                    "permlevel": 0,
+                    "is_virtual": 0,
+                    "mask": 0
+                },
+                {
+                    "fieldname": "per_billed",
+                    "fieldtype": "Percent",
+                    "label": "% Amount Billed",
+                    "reqd": 0,
+                    "permlevel": 0,
+                    "is_virtual": 0,
+                    "mask": 0,
+                    "description": "% of materials billed against this Sales Order"
+                },
+                {
+                    "fieldname": "per_picked",
+                    "fieldtype": "Percent",
+                    "label": "% Picked",
+                    "reqd": 0,
+                    "permlevel": 0,
+                    "is_virtual": 0,
+                    "mask": 0
+                },
+                {
+                    "fieldname": "billing_status",
+                    "fieldtype": "Select",
+                    "label": "Billing Status",
+                    "options": "Not Billed\nFully Billed\nPartly Billed\nClosed",
+                    "reqd": 0,
+                    "permlevel": 0,
+                    "is_virtual": 0,
+                    "mask": 0
+                },
+                {
+                    "fieldname": "advance_payment_status",
+                    "fieldtype": "Select",
+                    "label": "Advance Payment Status",
+                    "options": "Not Requested\nRequested\nPartially Paid\nFully Paid",
+                    "reqd": 0,
+                    "permlevel": 0,
+                    "is_virtual": 0,
+                    "mask": 0
+                },
+                {
+                    "fieldname": "sales_team_section_break",
+                    "fieldtype": "Section Break",
+                    "label": "Commission",
+                    "options": "fa fa-group",
+                    "reqd": 0,
+                    "permlevel": 0,
+                    "is_virtual": 0,
+                    "mask": 0
+                },
+                {
+                    "fieldname": "sales_partner",
+                    "fieldtype": "Link",
+                    "label": "Sales Partner",
+                    "options": "Sales Partner",
+                    "reqd": 0,
+                    "permlevel": 0,
+                    "is_virtual": 0,
+                    "mask": 0
+                },
+                {
+                    "fieldname": "column_break7",
+                    "fieldtype": "Column Break",
+                    "reqd": 0,
+                    "permlevel": 0,
+                    "is_virtual": 0,
+                    "mask": 0
+                },
+                {
+                    "fieldname": "amount_eligible_for_commission",
+                    "fieldtype": "Currency",
+                    "label": "Amount Eligible for Commission",
+                    "options": "Company:company:default_currency",
+                    "reqd": 0,
+                    "permlevel": 0,
+                    "is_virtual": 0,
+                    "mask": 0
+                },
+                {
+                    "fieldname": "commission_rate",
+                    "fieldtype": "Float",
+                    "label": "Commission Rate",
+                    "reqd": 0,
+                    "permlevel": 0,
+                    "is_virtual": 0,
+                    "mask": 0
+                },
+                {
+                    "fieldname": "total_commission",
+                    "fieldtype": "Currency",
+                    "label": "Total Commission",
+                    "options": "Company:company:default_currency",
+                    "reqd": 0,
+                    "permlevel": 0,
+                    "is_virtual": 0,
+                    "mask": 0
+                },
+                {
+                    "fieldname": "section_break1",
+                    "fieldtype": "Section Break",
+                    "label": "Sales Team",
+                    "reqd": 0,
+                    "permlevel": 0,
+                    "is_virtual": 0,
+                    "mask": 0
+                },
+                {
+                    "fieldname": "sales_team",
+                    "fieldtype": "Table",
+                    "label": "Sales Team",
+                    "options": "Sales Team",
+                    "reqd": 0,
+                    "permlevel": 0,
+                    "is_virtual": 0,
+                    "mask": 0
+                },
+                {
+                    "fieldname": "loyalty_points_redemption",
+                    "fieldtype": "Section Break",
+                    "label": "Loyalty Points",
+                    "reqd": 0,
+                    "permlevel": 0,
+                    "is_virtual": 0,
+                    "mask": 0
+                },
+                {
+                    "fieldname": "loyalty_points",
+                    "fieldtype": "Int",
+                    "label": "Loyalty Points",
+                    "reqd": 0,
+                    "permlevel": 0,
+                    "is_virtual": 0,
+                    "mask": 0
+                },
+                {
+                    "fieldname": "column_break_116",
+                    "fieldtype": "Column Break",
+                    "reqd": 0,
+                    "permlevel": 0,
+                    "is_virtual": 0,
+                    "mask": 0
+                },
+                {
+                    "fieldname": "loyalty_amount",
+                    "fieldtype": "Currency",
+                    "label": "Loyalty Amount",
+                    "options": "Company:company:default_currency",
+                    "reqd": 0,
+                    "permlevel": 0,
+                    "is_virtual": 0,
+                    "mask": 0
+                },
+                {
+                    "fieldname": "auto_repeat_section",
+                    "fieldtype": "Section Break",
+                    "label": "Auto Repeat",
+                    "reqd": 0,
+                    "permlevel": 0,
+                    "is_virtual": 0,
+                    "mask": 0
+                },
+                {
+                    "fieldname": "from_date",
+                    "fieldtype": "Date",
+                    "label": "From Date",
+                    "reqd": 0,
+                    "permlevel": 0,
+                    "is_virtual": 0,
+                    "mask": 0
+                },
+                {
+                    "fieldname": "to_date",
+                    "fieldtype": "Date",
+                    "label": "To Date",
+                    "reqd": 0,
+                    "permlevel": 0,
+                    "is_virtual": 0,
+                    "mask": 0
+                },
+                {
+                    "fieldname": "column_break_108",
+                    "fieldtype": "Column Break",
+                    "reqd": 0,
+                    "permlevel": 0,
+                    "is_virtual": 0,
+                    "mask": 0
+                },
+                {
+                    "fieldname": "auto_repeat",
+                    "fieldtype": "Link",
+                    "label": "Auto Repeat",
+                    "options": "Auto Repeat",
+                    "reqd": 0,
+                    "permlevel": 0,
+                    "is_virtual": 0,
+                    "mask": 0
+                },
+                {
+                    "fieldname": "update_auto_repeat_reference",
+                    "fieldtype": "Button",
+                    "label": "Update Auto Repeat Reference",
+                    "reqd": 0,
+                    "permlevel": 0,
+                    "is_virtual": 0,
+                    "mask": 0
+                },
+                {
+                    "fieldname": "printing_details",
+                    "fieldtype": "Section Break",
+                    "label": "Print Settings",
+                    "reqd": 0,
+                    "permlevel": 0,
+                    "is_virtual": 0,
+                    "mask": 0
+                },
+                {
+                    "fieldname": "letter_head",
+                    "fieldtype": "Link",
+                    "label": "Letter Head",
+                    "options": "Letter Head",
+                    "reqd": 0,
+                    "permlevel": 0,
+                    "is_virtual": 0,
+                    "mask": 0
+                },
+                {
+                    "fieldname": "group_same_items",
+                    "fieldtype": "Check",
+                    "label": "Group same items",
+                    "reqd": 0,
+                    "permlevel": 0,
+                    "is_virtual": 0,
+                    "mask": 0
+                },
+                {
+                    "fieldname": "column_break4",
+                    "fieldtype": "Column Break",
+                    "reqd": 0,
+                    "permlevel": 0,
+                    "is_virtual": 0,
+                    "mask": 0
+                },
+                {
+                    "fieldname": "select_print_heading",
+                    "fieldtype": "Link",
+                    "label": "Print Heading",
+                    "options": "Print Heading",
+                    "reqd": 0,
+                    "permlevel": 0,
+                    "is_virtual": 0,
+                    "mask": 0
+                },
+                {
+                    "fieldname": "language",
+                    "fieldtype": "Link",
+                    "label": "Print Language",
+                    "options": "Language",
+                    "reqd": 0,
+                    "permlevel": 0,
+                    "is_virtual": 0,
+                    "mask": 0
+                },
+                {
+                    "fieldname": "utm_analytics_section",
+                    "fieldtype": "Section Break",
+                    "label": "UTM Analytics",
+                    "reqd": 0,
+                    "permlevel": 0,
+                    "is_virtual": 0,
+                    "mask": 0
+                },
+                {
+                    "fieldname": "utm_source",
+                    "fieldtype": "Link",
+                    "label": "Source",
+                    "options": "UTM Source",
+                    "reqd": 0,
+                    "permlevel": 0,
+                    "is_virtual": 0,
+                    "mask": 0
+                },
+                {
+                    "fieldname": "utm_medium",
+                    "fieldtype": "Link",
+                    "label": "Medium",
+                    "options": "UTM Medium",
+                    "reqd": 0,
+                    "permlevel": 0,
+                    "is_virtual": 0,
+                    "mask": 0
+                },
+                {
+                    "fieldname": "column_break_ijxt",
+                    "fieldtype": "Column Break",
+                    "reqd": 0,
+                    "permlevel": 0,
+                    "is_virtual": 0,
+                    "mask": 0
+                },
+                {
+                    "fieldname": "utm_campaign",
+                    "fieldtype": "Link",
+                    "label": "Campaign",
+                    "options": "UTM Campaign",
+                    "reqd": 0,
+                    "permlevel": 0,
+                    "is_virtual": 0,
+                    "mask": 0
+                },
+                {
+                    "fieldname": "utm_content",
+                    "fieldtype": "Data",
+                    "label": "Content",
+                    "reqd": 0,
+                    "permlevel": 0,
+                    "is_virtual": 0,
+                    "mask": 0
+                },
+                {
+                    "fieldname": "additional_info_section",
+                    "fieldtype": "Section Break",
+                    "label": "Additional Info",
+                    "reqd": 0,
+                    "permlevel": 0,
+                    "is_virtual": 0,
+                    "mask": 0
+                },
+                {
+                    "fieldname": "is_internal_customer",
+                    "fieldtype": "Check",
+                    "label": "Is Internal Customer",
+                    "reqd": 0,
+                    "permlevel": 0,
+                    "is_virtual": 0,
+                    "mask": 0
+                },
+                {
+                    "fieldname": "po_no",
+                    "fieldtype": "Data",
+                    "label": "Customer's Purchase Order",
+                    "reqd": 0,
+                    "permlevel": 0,
+                    "is_virtual": 0,
+                    "mask": 0
+                },
+                {
+                    "fieldname": "po_date",
+                    "fieldtype": "Date",
+                    "label": "Customer's Purchase Order Date",
+                    "reqd": 0,
+                    "permlevel": 0,
+                    "is_virtual": 0,
+                    "mask": 0
+                },
+                {
+                    "fieldname": "represents_company",
+                    "fieldtype": "Link",
+                    "label": "Represents Company",
+                    "options": "Company",
+                    "reqd": 0,
+                    "permlevel": 0,
+                    "is_virtual": 0,
+                    "mask": 0
+                },
+                {
+                    "fieldname": "title",
+                    "fieldtype": "Data",
+                    "label": "Title",
+                    "reqd": 0,
+                    "permlevel": 0,
+                    "is_virtual": 0,
+                    "mask": 0
+                },
+                {
+                    "fieldname": "column_break_yvzv",
+                    "fieldtype": "Column Break",
+                    "reqd": 0,
+                    "permlevel": 0,
+                    "is_virtual": 0,
+                    "mask": 0
+                },
+                {
+                    "fieldname": "inter_company_order_reference",
+                    "fieldtype": "Link",
+                    "label": "Inter Company Order Reference",
+                    "options": "Purchase Order",
+                    "reqd": 0,
+                    "permlevel": 0,
+                    "is_virtual": 0,
+                    "mask": 0
+                },
+                {
+                    "fieldname": "party_account_currency",
+                    "fieldtype": "Link",
+                    "label": "Party Account Currency",
+                    "options": "Currency",
+                    "reqd": 0,
+                    "permlevel": 0,
+                    "is_virtual": 0,
+                    "mask": 0
+                },
+                {
+                    "fieldname": "connections_tab",
+                    "fieldtype": "Tab Break",
+                    "label": "Connections",
+                    "reqd": 0,
+                    "permlevel": 0,
+                    "is_virtual": 0,
+                    "mask": 0
+                }
+            ]
+        },
+        {
+            "name": "Sales Order Item",
+            "module": "Selling",
+            "istable": 1,
+            "issingle": 0,
+            "is_submittable": 0,
+            "autoname": "hash",
+            "fields": [
+                {
+                    "fieldname": "fg_item",
+                    "fieldtype": "Link",
+                    "label": "Finished Good",
+                    "options": "Item",
+                    "reqd": 0,
+                    "permlevel": 0,
+                    "is_virtual": 0,
+                    "mask": 0
+                },
+                {
+                    "fieldname": "fg_item_qty",
+                    "fieldtype": "Float",
+                    "label": "Finished Good Qty",
+                    "reqd": 0,
+                    "permlevel": 0,
+                    "is_virtual": 0,
+                    "mask": 0
+                },
+                {
+                    "fieldname": "item_code",
+                    "fieldtype": "Link",
+                    "label": "Item Code",
+                    "options": "Item",
+                    "reqd": 1,
+                    "permlevel": 0,
+                    "is_virtual": 0,
+                    "mask": 0
+                },
+                {
+                    "fieldname": "customer_item_code",
+                    "fieldtype": "Data",
+                    "label": "Customer's Item Code",
+                    "reqd": 0,
+                    "permlevel": 0,
+                    "is_virtual": 0,
+                    "mask": 0
+                },
+                {
+                    "fieldname": "ensure_delivery_based_on_produced_serial_no",
+                    "fieldtype": "Check",
+                    "label": "Ensure Delivery Based on Produced Serial No",
+                    "reqd": 0,
+                    "permlevel": 0,
+                    "is_virtual": 0,
+                    "mask": 0
+                },
+                {
+                    "fieldname": "is_stock_item",
+                    "fieldtype": "Check",
+                    "label": "Is Stock Item",
+                    "reqd": 0,
+                    "permlevel": 0,
+                    "is_virtual": 0,
+                    "mask": 0
+                },
+                {
+                    "fieldname": "reserve_stock",
+                    "fieldtype": "Check",
+                    "label": "Reserve Stock",
+                    "reqd": 0,
+                    "permlevel": 0,
+                    "is_virtual": 0,
+                    "mask": 0
+                },
+                {
+                    "fieldname": "col_break1",
+                    "fieldtype": "Column Break",
+                    "reqd": 0,
+                    "permlevel": 0,
+                    "is_virtual": 0,
+                    "mask": 0
+                },
+                {
+                    "fieldname": "delivery_date",
+                    "fieldtype": "Date",
+                    "label": "Delivery Date",
+                    "reqd": 0,
+                    "permlevel": 0,
+                    "is_virtual": 0,
+                    "mask": 0
+                },
+                {
+                    "fieldname": "item_name",
+                    "fieldtype": "Data",
+                    "label": "Item Name",
+                    "reqd": 1,
+                    "permlevel": 0,
+                    "is_virtual": 0,
+                    "mask": 0
+                },
+                {
+                    "fieldname": "section_break_5",
+                    "fieldtype": "Section Break",
+                    "label": "Description",
+                    "reqd": 0,
+                    "permlevel": 0,
+                    "is_virtual": 0,
+                    "mask": 0
+                },
+                {
+                    "fieldname": "description",
+                    "fieldtype": "Text Editor",
+                    "label": "Description",
+                    "reqd": 0,
+                    "permlevel": 0,
+                    "is_virtual": 0,
+                    "mask": 0
+                },
+                {
+                    "fieldname": "item_group",
+                    "fieldtype": "Link",
+                    "label": "Item Group",
+                    "options": "Item Group",
+                    "reqd": 0,
+                    "permlevel": 0,
+                    "is_virtual": 0,
+                    "mask": 0
+                },
+                {
+                    "fieldname": "brand",
+                    "fieldtype": "Link",
+                    "label": "Brand Name",
+                    "options": "Brand",
+                    "reqd": 0,
+                    "permlevel": 0,
+                    "is_virtual": 0,
+                    "mask": 0
+                },
+                {
+                    "fieldname": "image_section",
+                    "fieldtype": "Section Break",
+                    "label": "Image",
+                    "reqd": 0,
+                    "permlevel": 0,
+                    "is_virtual": 0,
+                    "mask": 0
+                },
+                {
+                    "fieldname": "image",
+                    "fieldtype": "Attach",
+                    "label": "Image",
+                    "reqd": 0,
+                    "permlevel": 0,
+                    "is_virtual": 0,
+                    "mask": 0
+                },
+                {
+                    "fieldname": "image_view",
+                    "fieldtype": "Image",
+                    "label": "Image View",
+                    "options": "image",
+                    "reqd": 0,
+                    "permlevel": 0,
+                    "is_virtual": 0,
+                    "mask": 0
+                },
+                {
+                    "fieldname": "quantity_and_rate",
+                    "fieldtype": "Section Break",
+                    "label": "Quantity and Rate",
+                    "reqd": 0,
+                    "permlevel": 0,
+                    "is_virtual": 0,
+                    "mask": 0
+                },
+                {
+                    "fieldname": "qty",
+                    "fieldtype": "Float",
+                    "label": "Quantity",
+                    "reqd": 1,
+                    "permlevel": 0,
+                    "is_virtual": 0,
+                    "mask": 0
+                },
+                {
+                    "fieldname": "stock_uom",
+                    "fieldtype": "Link",
+                    "label": "Stock UOM",
+                    "options": "UOM",
+                    "reqd": 0,
+                    "permlevel": 0,
+                    "is_virtual": 0,
+                    "mask": 0
+                },
+                {
+                    "fieldname": "subcontracted_qty",
+                    "fieldtype": "Float",
+                    "label": "Subcontracted Quantity",
+                    "reqd": 0,
+                    "permlevel": 0,
+                    "is_virtual": 0,
+                    "mask": 0
+                },
+                {
+                    "fieldname": "col_break2",
+                    "fieldtype": "Column Break",
+                    "reqd": 0,
+                    "permlevel": 0,
+                    "is_virtual": 0,
+                    "mask": 0
+                },
+                {
+                    "fieldname": "uom",
+                    "fieldtype": "Link",
+                    "label": "UOM",
+                    "options": "UOM",
+                    "reqd": 1,
+                    "permlevel": 0,
+                    "is_virtual": 0,
+                    "mask": 0
+                },
+                {
+                    "fieldname": "conversion_factor",
+                    "fieldtype": "Float",
+                    "label": "UOM Conversion Factor",
+                    "reqd": 1,
+                    "permlevel": 0,
+                    "is_virtual": 0,
+                    "mask": 0
+                },
+                {
+                    "fieldname": "stock_qty",
+                    "fieldtype": "Float",
+                    "label": "Qty as per Stock UOM",
+                    "reqd": 0,
+                    "permlevel": 0,
+                    "is_virtual": 0,
+                    "mask": 0
+                },
+                {
+                    "fieldname": "stock_reserved_qty",
+                    "fieldtype": "Float",
+                    "label": "Stock Reserved Qty (in Stock UOM)",
+                    "reqd": 0,
+                    "permlevel": 0,
+                    "is_virtual": 0,
+                    "mask": 0
+                },
+                {
+                    "fieldname": "section_break_16",
+                    "fieldtype": "Section Break",
+                    "reqd": 0,
+                    "permlevel": 0,
+                    "is_virtual": 0,
+                    "mask": 0
+                },
+                {
+                    "fieldname": "price_list_rate",
+                    "fieldtype": "Currency",
+                    "label": "Price List Rate",
+                    "options": "currency",
+                    "reqd": 0,
+                    "permlevel": 0,
+                    "is_virtual": 0,
+                    "mask": 0
+                },
+                {
+                    "fieldname": "base_price_list_rate",
+                    "fieldtype": "Currency",
+                    "label": "Price List Rate (Company Currency)",
+                    "options": "Company:company:default_currency",
+                    "reqd": 0,
+                    "permlevel": 0,
+                    "is_virtual": 0,
+                    "mask": 0
+                },
+                {
+                    "fieldname": "discount_and_margin",
+                    "fieldtype": "Section Break",
+                    "label": "Discount and Margin",
+                    "reqd": 0,
+                    "permlevel": 0,
+                    "is_virtual": 0,
+                    "mask": 0
+                },
+                {
+                    "fieldname": "margin_type",
+                    "fieldtype": "Select",
+                    "label": "Margin Type",
+                    "options": "\nPercentage\nAmount",
+                    "reqd": 0,
+                    "permlevel": 0,
+                    "is_virtual": 0,
+                    "mask": 0
+                },
+                {
+                    "fieldname": "margin_rate_or_amount",
+                    "fieldtype": "Float",
+                    "label": "Margin Rate or Amount",
+                    "reqd": 0,
+                    "permlevel": 0,
+                    "is_virtual": 0,
+                    "mask": 0
+                },
+                {
+                    "fieldname": "rate_with_margin",
+                    "fieldtype": "Currency",
+                    "label": "Rate With Margin",
+                    "options": "currency",
+                    "reqd": 0,
+                    "permlevel": 0,
+                    "is_virtual": 0,
+                    "mask": 0
+                },
+                {
+                    "fieldname": "column_break_19",
+                    "fieldtype": "Column Break",
+                    "reqd": 0,
+                    "permlevel": 0,
+                    "is_virtual": 0,
+                    "mask": 0
+                },
+                {
+                    "fieldname": "discount_percentage",
+                    "fieldtype": "Percent",
+                    "label": "Discount (%) on Price List Rate with Margin",
+                    "reqd": 0,
+                    "permlevel": 0,
+                    "is_virtual": 0,
+                    "mask": 0
+                },
+                {
+                    "fieldname": "discount_amount",
+                    "fieldtype": "Currency",
+                    "label": "Discount Amount",
+                    "options": "currency",
+                    "reqd": 0,
+                    "permlevel": 0,
+                    "is_virtual": 0,
+                    "mask": 0
+                },
+                {
+                    "fieldname": "distributed_discount_amount",
+                    "fieldtype": "Currency",
+                    "label": "Distributed Discount Amount",
+                    "options": "currency",
+                    "reqd": 0,
+                    "permlevel": 0,
+                    "is_virtual": 0,
+                    "mask": 0
+                },
+                {
+                    "fieldname": "base_rate_with_margin",
+                    "fieldtype": "Currency",
+                    "label": "Rate With Margin (Company Currency)",
+                    "options": "Company:company:default_currency",
+                    "reqd": 0,
+                    "permlevel": 0,
+                    "is_virtual": 0,
+                    "mask": 0
+                },
+                {
+                    "fieldname": "section_break_simple1",
+                    "fieldtype": "Section Break",
+                    "reqd": 0,
+                    "permlevel": 0,
+                    "is_virtual": 0,
+                    "mask": 0
+                },
+                {
+                    "fieldname": "rate",
+                    "fieldtype": "Currency",
+                    "label": "Rate",
+                    "options": "currency",
+                    "reqd": 0,
+                    "permlevel": 0,
+                    "is_virtual": 0,
+                    "mask": 0
+                },
+                {
+                    "fieldname": "amount",
+                    "fieldtype": "Currency",
+                    "label": "Amount",
+                    "options": "currency",
+                    "reqd": 0,
+                    "permlevel": 0,
+                    "is_virtual": 0,
+                    "mask": 0
+                },
+                {
+                    "fieldname": "item_tax_template",
+                    "fieldtype": "Link",
+                    "label": "Item Tax Template",
+                    "options": "Item Tax Template",
+                    "reqd": 0,
+                    "permlevel": 0,
+                    "is_virtual": 0,
+                    "mask": 0
+                },
+                {
+                    "fieldname": "col_break3",
+                    "fieldtype": "Column Break",
+                    "reqd": 0,
+                    "permlevel": 0,
+                    "is_virtual": 0,
+                    "mask": 0
+                },
+                {
+                    "fieldname": "base_rate",
+                    "fieldtype": "Currency",
+                    "label": "Basic Rate (Company Currency)",
+                    "options": "Company:company:default_currency",
+                    "reqd": 0,
+                    "permlevel": 0,
+                    "is_virtual": 0,
+                    "mask": 0
+                },
+                {
+                    "fieldname": "base_amount",
+                    "fieldtype": "Currency",
+                    "label": "Amount (Company Currency)",
+                    "options": "Company:company:default_currency",
+                    "reqd": 0,
+                    "permlevel": 0,
+                    "is_virtual": 0,
+                    "mask": 0
+                },
+                {
+                    "fieldname": "pricing_rules",
+                    "fieldtype": "Small Text",
+                    "label": "Pricing Rules",
+                    "reqd": 0,
+                    "permlevel": 0,
+                    "is_virtual": 0,
+                    "mask": 0
+                },
+                {
+                    "fieldname": "stock_uom_rate",
+                    "fieldtype": "Currency",
+                    "label": "Rate of Stock UOM",
+                    "options": "currency",
+                    "reqd": 0,
+                    "permlevel": 0,
+                    "is_virtual": 0,
+                    "mask": 0
+                },
+                {
+                    "fieldname": "is_free_item",
+                    "fieldtype": "Check",
+                    "label": "Is Free Item",
+                    "reqd": 0,
+                    "permlevel": 0,
+                    "is_virtual": 0,
+                    "mask": 0
+                },
+                {
+                    "fieldname": "grant_commission",
+                    "fieldtype": "Check",
+                    "label": "Grant Commission",
+                    "reqd": 0,
+                    "permlevel": 0,
+                    "is_virtual": 0,
+                    "mask": 0
+                },
+                {
+                    "fieldname": "section_break_24",
+                    "fieldtype": "Section Break",
+                    "reqd": 0,
+                    "permlevel": 0,
+                    "is_virtual": 0,
+                    "mask": 0
+                },
+                {
+                    "fieldname": "net_rate",
+                    "fieldtype": "Currency",
+                    "label": "Net Rate",
+                    "options": "currency",
+                    "reqd": 0,
+                    "permlevel": 0,
+                    "is_virtual": 0,
+                    "mask": 0
+                },
+                {
+                    "fieldname": "net_amount",
+                    "fieldtype": "Currency",
+                    "label": "Net Amount",
+                    "options": "currency",
+                    "reqd": 0,
+                    "permlevel": 0,
+                    "is_virtual": 0,
+                    "mask": 0
+                },
+                {
+                    "fieldname": "column_break_27",
+                    "fieldtype": "Column Break",
+                    "reqd": 0,
+                    "permlevel": 0,
+                    "is_virtual": 0,
+                    "mask": 0
+                },
+                {
+                    "fieldname": "base_net_rate",
+                    "fieldtype": "Currency",
+                    "label": "Net Rate (Company Currency)",
+                    "options": "Company:company:default_currency",
+                    "reqd": 0,
+                    "permlevel": 0,
+                    "is_virtual": 0,
+                    "mask": 0
+                },
+                {
+                    "fieldname": "base_net_amount",
+                    "fieldtype": "Currency",
+                    "label": "Net Amount (Company Currency)",
+                    "options": "Company:company:default_currency",
+                    "reqd": 0,
+                    "permlevel": 0,
+                    "is_virtual": 0,
+                    "mask": 0
+                },
+                {
+                    "fieldname": "billed_amt",
+                    "fieldtype": "Currency",
+                    "label": "Billed Amt",
+                    "options": "currency",
+                    "reqd": 0,
+                    "permlevel": 0,
+                    "is_virtual": 0,
+                    "mask": 0
+                },
+                {
+                    "fieldname": "valuation_rate",
+                    "fieldtype": "Currency",
+                    "label": "Valuation Rate",
+                    "options": "Company:company:default_currency",
+                    "reqd": 0,
+                    "permlevel": 0,
+                    "is_virtual": 0,
+                    "mask": 0
+                },
+                {
+                    "fieldname": "gross_profit",
+                    "fieldtype": "Currency",
+                    "label": "Gross Profit",
+                    "options": "Company:company:default_currency",
+                    "reqd": 0,
+                    "permlevel": 0,
+                    "is_virtual": 0,
+                    "mask": 0
+                },
+                {
+                    "fieldname": "drop_ship_section",
+                    "fieldtype": "Section Break",
+                    "label": "Drop Ship",
+                    "reqd": 0,
+                    "permlevel": 0,
+                    "is_virtual": 0,
+                    "mask": 0
+                },
+                {
+                    "fieldname": "delivered_by_supplier",
+                    "fieldtype": "Check",
+                    "label": "Supplier delivers to Customer",
+                    "reqd": 0,
+                    "permlevel": 0,
+                    "is_virtual": 0,
+                    "mask": 0
+                },
+                {
+                    "fieldname": "supplier",
+                    "fieldtype": "Link",
+                    "label": "Supplier",
+                    "options": "Supplier",
+                    "reqd": 0,
+                    "permlevel": 0,
+                    "is_virtual": 0,
+                    "mask": 0
+                },
+                {
+                    "fieldname": "item_weight_details",
+                    "fieldtype": "Section Break",
+                    "label": "Item Weight Details",
+                    "reqd": 0,
+                    "permlevel": 0,
+                    "is_virtual": 0,
+                    "mask": 0
+                },
+                {
+                    "fieldname": "weight_per_unit",
+                    "fieldtype": "Float",
+                    "label": "Weight Per Unit",
+                    "reqd": 0,
+                    "permlevel": 0,
+                    "is_virtual": 0,
+                    "mask": 0
+                },
+                {
+                    "fieldname": "total_weight",
+                    "fieldtype": "Float",
+                    "label": "Total Weight",
+                    "reqd": 0,
+                    "permlevel": 0,
+                    "is_virtual": 0,
+                    "mask": 0
+                },
+                {
+                    "fieldname": "column_break_21",
+                    "fieldtype": "Column Break",
+                    "reqd": 0,
+                    "permlevel": 0,
+                    "is_virtual": 0,
+                    "mask": 0
+                },
+                {
+                    "fieldname": "weight_uom",
+                    "fieldtype": "Link",
+                    "label": "Weight UOM",
+                    "options": "UOM",
+                    "reqd": 0,
+                    "permlevel": 0,
+                    "is_virtual": 0,
+                    "mask": 0
+                },
+                {
+                    "fieldname": "warehouse_and_reference",
+                    "fieldtype": "Section Break",
+                    "label": "Warehouse and Reference",
+                    "reqd": 0,
+                    "permlevel": 0,
+                    "is_virtual": 0,
+                    "mask": 0
+                },
+                {
+                    "fieldname": "warehouse",
+                    "fieldtype": "Link",
+                    "label": "Source Warehouse",
+                    "options": "Warehouse",
+                    "reqd": 0,
+                    "permlevel": 0,
+                    "is_virtual": 0,
+                    "mask": 0
+                },
+                {
+                    "fieldname": "target_warehouse",
+                    "fieldtype": "Link",
+                    "label": "Customer Warehouse (Optional)",
+                    "options": "Warehouse",
+                    "reqd": 0,
+                    "permlevel": 0,
+                    "is_virtual": 0,
+                    "mask": 0
+                },
+                {
+                    "fieldname": "prevdoc_docname",
+                    "fieldtype": "Link",
+                    "label": "Quotation",
+                    "options": "Quotation",
+                    "reqd": 0,
+                    "permlevel": 0,
+                    "is_virtual": 0,
+                    "mask": 0
+                },
+                {
+                    "fieldname": "quotation_item",
+                    "fieldtype": "Data",
+                    "label": "quotation_item",
+                    "reqd": 0,
+                    "permlevel": 0,
+                    "is_virtual": 0,
+                    "mask": 0
+                },
+                {
+                    "fieldname": "col_break4",
+                    "fieldtype": "Column Break",
+                    "reqd": 0,
+                    "permlevel": 0,
+                    "is_virtual": 0,
+                    "mask": 0
+                },
+                {
+                    "fieldname": "against_blanket_order",
+                    "fieldtype": "Check",
+                    "label": "Against Blanket Order",
+                    "reqd": 0,
+                    "permlevel": 0,
+                    "is_virtual": 0,
+                    "mask": 0
+                },
+                {
+                    "fieldname": "blanket_order",
+                    "fieldtype": "Link",
+                    "label": "Blanket Order",
+                    "options": "Blanket Order",
+                    "reqd": 0,
+                    "permlevel": 0,
+                    "is_virtual": 0,
+                    "mask": 0
+                },
+                {
+                    "fieldname": "blanket_order_rate",
+                    "fieldtype": "Currency",
+                    "label": "Blanket Order Rate",
+                    "options": "currency",
+                    "reqd": 0,
+                    "permlevel": 0,
+                    "is_virtual": 0,
+                    "mask": 0
+                },
+                {
+                    "fieldname": "available_quantity_section",
+                    "fieldtype": "Section Break",
+                    "label": "Available Quantity",
+                    "reqd": 0,
+                    "permlevel": 0,
+                    "is_virtual": 0,
+                    "mask": 0
+                },
+                {
+                    "fieldname": "actual_qty",
+                    "fieldtype": "Float",
+                    "label": "Qty (Warehouse)",
+                    "reqd": 0,
+                    "permlevel": 0,
+                    "is_virtual": 0,
+                    "mask": 0
+                },
+                {
+                    "fieldname": "column_break_jpky",
+                    "fieldtype": "Column Break",
+                    "reqd": 0,
+                    "permlevel": 0,
+                    "is_virtual": 0,
+                    "mask": 0
+                },
+                {
+                    "fieldname": "company_total_stock",
+                    "fieldtype": "Float",
+                    "label": "Qty (Company)",
+                    "reqd": 0,
+                    "permlevel": 0,
+                    "is_virtual": 0,
+                    "mask": 0
+                },
+                {
+                    "fieldname": "sales_order_schedule_section",
+                    "fieldtype": "Section Break",
+                    "label": "Sales Order Schedule",
+                    "reqd": 0,
+                    "permlevel": 0,
+                    "is_virtual": 0,
+                    "mask": 0
+                },
+                {
+                    "fieldname": "add_schedule",
+                    "fieldtype": "Button",
+                    "label": "Add Schedule",
+                    "reqd": 0,
+                    "permlevel": 0,
+                    "is_virtual": 0,
+                    "mask": 0
+                },
+                {
+                    "fieldname": "manufacturing_section_section",
+                    "fieldtype": "Section Break",
+                    "label": "Manufacturing Section",
+                    "reqd": 0,
+                    "permlevel": 0,
+                    "is_virtual": 0,
+                    "mask": 0
+                },
+                {
+                    "fieldname": "bom_no",
+                    "fieldtype": "Link",
+                    "label": "BOM No",
+                    "options": "BOM",
+                    "reqd": 0,
+                    "permlevel": 0,
+                    "is_virtual": 0,
+                    "mask": 0
+                },
+                {
+                    "fieldname": "planning_section",
+                    "fieldtype": "Section Break",
+                    "label": "Planning",
+                    "reqd": 0,
+                    "permlevel": 0,
+                    "is_virtual": 0,
+                    "mask": 0
+                },
+                {
+                    "fieldname": "projected_qty",
+                    "fieldtype": "Float",
+                    "label": "Projected Qty",
+                    "reqd": 0,
+                    "permlevel": 0,
+                    "is_virtual": 0,
+                    "mask": 0
+                },
+                {
+                    "fieldname": "ordered_qty",
+                    "fieldtype": "Float",
+                    "label": "Ordered Qty",
+                    "reqd": 0,
+                    "permlevel": 0,
+                    "is_virtual": 0,
+                    "mask": 0
+                },
+                {
+                    "fieldname": "planned_qty",
+                    "fieldtype": "Float",
+                    "label": "Planned Quantity",
+                    "reqd": 0,
+                    "permlevel": 0,
+                    "is_virtual": 0,
+                    "mask": 0,
+                    "description": "For Production"
+                },
+                {
+                    "fieldname": "production_plan_qty",
+                    "fieldtype": "Float",
+                    "label": "Production Plan Qty",
+                    "reqd": 0,
+                    "permlevel": 0,
+                    "is_virtual": 0,
+                    "mask": 0
+                },
+                {
+                    "fieldname": "requested_qty",
+                    "fieldtype": "Float",
+                    "label": "Requested Qty",
+                    "reqd": 0,
+                    "permlevel": 0,
+                    "is_virtual": 0,
+                    "mask": 0
+                },
+                {
+                    "fieldname": "column_break_69",
+                    "fieldtype": "Column Break",
+                    "reqd": 0,
+                    "permlevel": 0,
+                    "is_virtual": 0,
+                    "mask": 0
+                },
+                {
+                    "fieldname": "work_order_qty",
+                    "fieldtype": "Float",
+                    "label": "Work Order Qty",
+                    "reqd": 0,
+                    "permlevel": 0,
+                    "is_virtual": 0,
+                    "mask": 0
+                },
+                {
+                    "fieldname": "delivered_qty",
+                    "fieldtype": "Float",
+                    "label": "Delivered Qty",
+                    "reqd": 0,
+                    "permlevel": 0,
+                    "is_virtual": 0,
+                    "mask": 0
+                },
+                {
+                    "fieldname": "produced_qty",
+                    "fieldtype": "Float",
+                    "label": "Produced Quantity",
+                    "reqd": 0,
+                    "permlevel": 0,
+                    "is_virtual": 0,
+                    "mask": 0,
+                    "description": "For Production"
+                },
+                {
+                    "fieldname": "returned_qty",
+                    "fieldtype": "Float",
+                    "label": "Returned Qty",
+                    "reqd": 0,
+                    "permlevel": 0,
+                    "is_virtual": 0,
+                    "mask": 0
+                },
+                {
+                    "fieldname": "picked_qty",
+                    "fieldtype": "Float",
+                    "label": "Picked Qty (in Stock UOM)",
+                    "reqd": 0,
+                    "permlevel": 0,
+                    "is_virtual": 0,
+                    "mask": 0
+                },
+                {
+                    "fieldname": "shopping_cart_section",
+                    "fieldtype": "Section Break",
+                    "label": "Shopping Cart",
+                    "reqd": 0,
+                    "permlevel": 0,
+                    "is_virtual": 0,
+                    "mask": 0
+                },
+                {
+                    "fieldname": "additional_notes",
+                    "fieldtype": "Text",
+                    "label": "Additional Notes",
+                    "reqd": 0,
+                    "permlevel": 0,
+                    "is_virtual": 0,
+                    "mask": 0
+                },
+                {
+                    "fieldname": "section_break_63",
+                    "fieldtype": "Section Break",
+                    "reqd": 0,
+                    "permlevel": 0,
+                    "is_virtual": 0,
+                    "mask": 0
+                },
+                {
+                    "fieldname": "page_break",
+                    "fieldtype": "Check",
+                    "label": "Page Break",
+                    "reqd": 0,
+                    "permlevel": 0,
+                    "is_virtual": 0,
+                    "mask": 0
+                },
+                {
+                    "fieldname": "item_tax_rate",
+                    "fieldtype": "Code",
+                    "label": "Item Tax Rate",
+                    "reqd": 0,
+                    "permlevel": 0,
+                    "is_virtual": 0,
+                    "mask": 0
+                },
+                {
+                    "fieldname": "transaction_date",
+                    "fieldtype": "Date",
+                    "label": "Sales Order Date",
+                    "reqd": 0,
+                    "permlevel": 0,
+                    "is_virtual": 0,
+                    "mask": 0,
+                    "description": "Used for Production Plan"
+                },
+                {
+                    "fieldname": "inter_transfer_reference_section",
+                    "fieldtype": "Section Break",
+                    "label": "Inter Transfer Reference",
+                    "reqd": 0,
+                    "permlevel": 0,
+                    "is_virtual": 0,
+                    "mask": 0
+                },
+                {
+                    "fieldname": "material_request",
+                    "fieldtype": "Link",
+                    "label": "Material Request",
+                    "options": "Material Request",
+                    "reqd": 0,
+                    "permlevel": 0,
+                    "is_virtual": 0,
+                    "mask": 0
+                },
+                {
+                    "fieldname": "purchase_order",
+                    "fieldtype": "Link",
+                    "label": "Purchase Order",
+                    "options": "Purchase Order",
+                    "reqd": 0,
+                    "permlevel": 0,
+                    "is_virtual": 0,
+                    "mask": 0
+                },
+                {
+                    "fieldname": "column_break_89",
+                    "fieldtype": "Column Break",
+                    "reqd": 0,
+                    "permlevel": 0,
+                    "is_virtual": 0,
+                    "mask": 0
+                },
+                {
+                    "fieldname": "material_request_item",
+                    "fieldtype": "Data",
+                    "label": "Material Request Item",
+                    "reqd": 0,
+                    "permlevel": 0,
+                    "is_virtual": 0,
+                    "mask": 0
+                },
+                {
+                    "fieldname": "purchase_order_item",
+                    "fieldtype": "Data",
+                    "label": "Purchase Order Item",
+                    "reqd": 0,
+                    "permlevel": 0,
+                    "is_virtual": 0,
+                    "mask": 0
+                },
+                {
+                    "fieldname": "accounting_dimensions_section",
+                    "fieldtype": "Section Break",
+                    "label": "Accounting Dimensions",
+                    "reqd": 0,
+                    "permlevel": 0,
+                    "is_virtual": 0,
+                    "mask": 0
+                },
+                {
+                    "fieldname": "cost_center",
+                    "fieldtype": "Link",
+                    "label": "Cost Center",
+                    "options": "Cost Center",
+                    "reqd": 0,
+                    "permlevel": 0,
+                    "is_virtual": 0,
+                    "mask": 0
+                },
+                {
+                    "fieldname": "column_break_ihdh",
+                    "fieldtype": "Column Break",
+                    "reqd": 0,
+                    "permlevel": 0,
+                    "is_virtual": 0,
+                    "mask": 0
+                },
+                {
+                    "fieldname": "project",
+                    "fieldtype": "Link",
+                    "label": "Project",
+                    "options": "Project",
+                    "reqd": 0,
+                    "permlevel": 0,
+                    "is_virtual": 0,
+                    "mask": 0
+                }
+            ]
+        },
+        {
+            "name": "Sales Taxes and Charges",
+            "module": "Accounts",
+            "istable": 1,
+            "issingle": 0,
+            "is_submittable": 0,
+            "fields": [
+                {
+                    "fieldname": "charge_type",
+                    "fieldtype": "Select",
+                    "label": "Type",
+                    "options": "\nActual\nOn Net Total\nOn Previous Row Amount\nOn Previous Row Total\nOn Item Quantity",
+                    "reqd": 1,
+                    "permlevel": 0,
+                    "is_virtual": 0,
+                    "mask": 0
+                },
+                {
+                    "fieldname": "row_id",
+                    "fieldtype": "Data",
+                    "label": "Reference Row #",
+                    "reqd": 0,
+                    "permlevel": 0,
+                    "is_virtual": 0,
+                    "mask": 0
+                },
+                {
+                    "fieldname": "account_head",
+                    "fieldtype": "Link",
+                    "label": "Account Head",
+                    "options": "Account",
+                    "reqd": 1,
+                    "permlevel": 0,
+                    "is_virtual": 0,
+                    "mask": 0
+                },
+                {
+                    "fieldname": "col_break_1",
+                    "fieldtype": "Column Break",
+                    "reqd": 0,
+                    "permlevel": 0,
+                    "is_virtual": 0,
+                    "mask": 0
+                },
+                {
+                    "fieldname": "description",
+                    "fieldtype": "Small Text",
+                    "label": "Description",
+                    "reqd": 1,
+                    "permlevel": 0,
+                    "is_virtual": 0,
+                    "mask": 0
+                },
+                {
+                    "fieldname": "included_in_print_rate",
+                    "fieldtype": "Check",
+                    "label": "Is this Tax included in Basic Rate?",
+                    "reqd": 0,
+                    "permlevel": 0,
+                    "is_virtual": 0,
+                    "mask": 0,
+                    "description": "If checked, the tax amount will be considered as already included in the Print Rate / Print Amount"
+                },
+                {
+                    "fieldname": "included_in_paid_amount",
+                    "fieldtype": "Check",
+                    "label": "Considered In Paid Amount",
+                    "reqd": 0,
+                    "permlevel": 0,
+                    "is_virtual": 0,
+                    "mask": 0,
+                    "description": "If checked, the tax amount will be considered as already included in the Paid Amount in Payment Entry"
+                },
+                {
+                    "fieldname": "set_by_item_tax_template",
+                    "fieldtype": "Check",
+                    "label": "Set by Item Tax Template",
+                    "reqd": 0,
+                    "permlevel": 0,
+                    "is_virtual": 0,
+                    "mask": 0
+                },
+                {
+                    "fieldname": "is_tax_withholding_account",
+                    "fieldtype": "Check",
+                    "label": "Is Tax Withholding Account",
+                    "reqd": 0,
+                    "permlevel": 0,
+                    "is_virtual": 0,
+                    "mask": 0
+                },
+                {
+                    "fieldname": "accounting_dimensions_section",
+                    "fieldtype": "Section Break",
+                    "label": "Accounting Dimensions",
+                    "reqd": 0,
+                    "permlevel": 0,
+                    "is_virtual": 0,
+                    "mask": 0
+                },
+                {
+                    "fieldname": "cost_center",
+                    "fieldtype": "Link",
+                    "label": "Cost Center",
+                    "options": "Cost Center",
+                    "reqd": 0,
+                    "permlevel": 0,
+                    "is_virtual": 0,
+                    "mask": 0
+                },
+                {
+                    "fieldname": "dimension_col_break",
+                    "fieldtype": "Column Break",
+                    "reqd": 0,
+                    "permlevel": 0,
+                    "is_virtual": 0,
+                    "mask": 0
+                },
+                {
+                    "fieldname": "project",
+                    "fieldtype": "Link",
+                    "label": "Project",
+                    "options": "Project",
+                    "reqd": 0,
+                    "permlevel": 0,
+                    "is_virtual": 0,
+                    "mask": 0
+                },
+                {
+                    "fieldname": "section_break_8",
+                    "fieldtype": "Section Break",
+                    "reqd": 0,
+                    "permlevel": 0,
+                    "is_virtual": 0,
+                    "mask": 0
+                },
+                {
+                    "fieldname": "rate",
+                    "fieldtype": "Float",
+                    "label": "Tax Rate",
+                    "reqd": 0,
+                    "permlevel": 0,
+                    "is_virtual": 0,
+                    "mask": 0
+                },
+                {
+                    "fieldname": "section_break_9",
+                    "fieldtype": "Section Break",
+                    "reqd": 0,
+                    "permlevel": 0,
+                    "is_virtual": 0,
+                    "mask": 0
+                },
+                {
+                    "fieldname": "account_currency",
+                    "fieldtype": "Link",
+                    "label": "Account Currency",
+                    "options": "Currency",
+                    "reqd": 0,
+                    "permlevel": 0,
+                    "is_virtual": 0,
+                    "mask": 0
+                },
+                {
+                    "fieldname": "net_amount",
+                    "fieldtype": "Currency",
+                    "label": "Net Amount",
+                    "options": "currency",
+                    "reqd": 0,
+                    "permlevel": 0,
+                    "is_virtual": 0,
+                    "mask": 0
+                },
+                {
+                    "fieldname": "tax_amount",
+                    "fieldtype": "Currency",
+                    "label": "Amount",
+                    "options": "currency",
+                    "reqd": 0,
+                    "permlevel": 0,
+                    "is_virtual": 0,
+                    "mask": 0
+                },
+                {
+                    "fieldname": "total",
+                    "fieldtype": "Currency",
+                    "label": "Total",
+                    "options": "currency",
+                    "reqd": 0,
+                    "permlevel": 0,
+                    "is_virtual": 0,
+                    "mask": 0
+                },
+                {
+                    "fieldname": "tax_amount_after_discount_amount",
+                    "fieldtype": "Currency",
+                    "label": "Tax Amount After Discount Amount",
+                    "options": "currency",
+                    "reqd": 0,
+                    "permlevel": 0,
+                    "is_virtual": 0,
+                    "mask": 0
+                },
+                {
+                    "fieldname": "column_break_13",
+                    "fieldtype": "Column Break",
+                    "reqd": 0,
+                    "permlevel": 0,
+                    "is_virtual": 0,
+                    "mask": 0
+                },
+                {
+                    "fieldname": "base_net_amount",
+                    "fieldtype": "Currency",
+                    "label": "Net Amount (Company Currency)",
+                    "options": "Company:company:default_currency",
+                    "reqd": 0,
+                    "permlevel": 0,
+                    "is_virtual": 0,
+                    "mask": 0
+                },
+                {
+                    "fieldname": "base_tax_amount",
+                    "fieldtype": "Currency",
+                    "label": "Amount (Company Currency)",
+                    "options": "Company:company:default_currency",
+                    "reqd": 0,
+                    "permlevel": 0,
+                    "is_virtual": 0,
+                    "mask": 0
+                },
+                {
+                    "fieldname": "base_total",
+                    "fieldtype": "Currency",
+                    "label": "Total (Company Currency)",
+                    "options": "Company:company:default_currency",
+                    "reqd": 0,
+                    "permlevel": 0,
+                    "is_virtual": 0,
+                    "mask": 0
+                },
+                {
+                    "fieldname": "base_tax_amount_after_discount_amount",
+                    "fieldtype": "Currency",
+                    "label": "Tax Amount After Discount Amount (Company Currency)",
+                    "options": "Company:company:default_currency",
+                    "reqd": 0,
+                    "permlevel": 0,
+                    "is_virtual": 0,
+                    "mask": 0
+                },
+                {
+                    "fieldname": "dont_recompute_tax",
+                    "fieldtype": "Check",
+                    "label": "Don't Recompute Tax",
+                    "reqd": 0,
+                    "permlevel": 0,
+                    "is_virtual": 0,
+                    "mask": 0
+                }
+            ]
+        },
+        {
+            "name": "Item Wise Tax Detail",
+            "module": "Accounts",
+            "istable": 1,
+            "issingle": 0,
+            "is_submittable": 0,
+            "fields": [
+                {
+                    "fieldname": "item_row",
+                    "fieldtype": "Data",
+                    "label": "Item Row",
+                    "reqd": 1,
+                    "permlevel": 0,
+                    "is_virtual": 0,
+                    "mask": 0
+                },
+                {
+                    "fieldname": "tax_row",
+                    "fieldtype": "Data",
+                    "label": "Tax Row",
+                    "reqd": 1,
+                    "permlevel": 0,
+                    "is_virtual": 0,
+                    "mask": 0
+                },
+                {
+                    "fieldname": "rate",
+                    "fieldtype": "Float",
+                    "label": "Tax Rate",
+                    "reqd": 0,
+                    "permlevel": 0,
+                    "is_virtual": 0,
+                    "mask": 0
+                },
+                {
+                    "fieldname": "amount",
+                    "fieldtype": "Currency",
+                    "label": "Tax Amount",
+                    "options": "Company:company:default_currency",
+                    "reqd": 0,
+                    "permlevel": 0,
+                    "is_virtual": 0,
+                    "mask": 0
+                },
+                {
+                    "fieldname": "taxable_amount",
+                    "fieldtype": "Currency",
+                    "label": "Taxable Amount",
+                    "options": "Company:company:default_currency",
+                    "reqd": 0,
+                    "permlevel": 0,
+                    "is_virtual": 0,
+                    "mask": 0
+                }
+            ]
+        },
+        {
+            "name": "Packed Item",
+            "module": "Stock",
+            "istable": 1,
+            "issingle": 0,
+            "is_submittable": 0,
+            "fields": [
+                {
+                    "fieldname": "parent_item",
+                    "fieldtype": "Link",
+                    "label": "Parent Item",
+                    "options": "Item",
+                    "reqd": 0,
+                    "permlevel": 0,
+                    "is_virtual": 0,
+                    "mask": 0
+                },
+                {
+                    "fieldname": "item_code",
+                    "fieldtype": "Link",
+                    "label": "Item Code",
+                    "options": "Item",
+                    "reqd": 0,
+                    "permlevel": 0,
+                    "is_virtual": 0,
+                    "mask": 0
+                },
+                {
+                    "fieldname": "item_name",
+                    "fieldtype": "Data",
+                    "label": "Item Name",
+                    "reqd": 0,
+                    "permlevel": 0,
+                    "is_virtual": 0,
+                    "mask": 0
+                },
+                {
+                    "fieldname": "delivered_by_supplier",
+                    "fieldtype": "Check",
+                    "label": "Supplier delivers to Customer",
+                    "reqd": 0,
+                    "permlevel": 0,
+                    "is_virtual": 0,
+                    "mask": 0
+                },
+                {
+                    "fieldname": "column_break_5",
+                    "fieldtype": "Column Break",
+                    "reqd": 0,
+                    "permlevel": 0,
+                    "is_virtual": 0,
+                    "mask": 0
+                },
+                {
+                    "fieldname": "description",
+                    "fieldtype": "Text Editor",
+                    "label": "Description",
+                    "reqd": 0,
+                    "permlevel": 0,
+                    "is_virtual": 0,
+                    "mask": 0
+                },
+                {
+                    "fieldname": "section_break_6",
+                    "fieldtype": "Section Break",
+                    "reqd": 0,
+                    "permlevel": 0,
+                    "is_virtual": 0,
+                    "mask": 0
+                },
+                {
+                    "fieldname": "warehouse",
+                    "fieldtype": "Link",
+                    "label": "From Warehouse",
+                    "options": "Warehouse",
+                    "reqd": 0,
+                    "permlevel": 0,
+                    "is_virtual": 0,
+                    "mask": 0
+                },
+                {
+                    "fieldname": "target_warehouse",
+                    "fieldtype": "Link",
+                    "label": "To Warehouse (Optional)",
+                    "options": "Warehouse",
+                    "reqd": 0,
+                    "permlevel": 0,
+                    "is_virtual": 0,
+                    "mask": 0
+                },
+                {
+                    "fieldname": "conversion_factor",
+                    "fieldtype": "Float",
+                    "label": "Conversion Factor",
+                    "reqd": 0,
+                    "permlevel": 0,
+                    "is_virtual": 0,
+                    "mask": 0
+                },
+                {
+                    "fieldname": "column_break_9",
+                    "fieldtype": "Column Break",
+                    "reqd": 0,
+                    "permlevel": 0,
+                    "is_virtual": 0,
+                    "mask": 0
+                },
+                {
+                    "fieldname": "qty",
+                    "fieldtype": "Float",
+                    "label": "Qty",
+                    "reqd": 0,
+                    "permlevel": 0,
+                    "is_virtual": 0,
+                    "mask": 0
+                },
+                {
+                    "fieldname": "rate",
+                    "fieldtype": "Currency",
+                    "label": "Rate",
+                    "options": "currency",
+                    "reqd": 0,
+                    "permlevel": 0,
+                    "is_virtual": 0,
+                    "mask": 0
+                },
+                {
+                    "fieldname": "uom",
+                    "fieldtype": "Link",
+                    "label": "UOM",
+                    "options": "UOM",
+                    "reqd": 0,
+                    "permlevel": 0,
+                    "is_virtual": 0,
+                    "mask": 0
+                },
+                {
+                    "fieldname": "section_break_9",
+                    "fieldtype": "Section Break",
+                    "reqd": 0,
+                    "permlevel": 0,
+                    "is_virtual": 0,
+                    "mask": 0
+                },
+                {
+                    "fieldname": "pick_serial_and_batch",
+                    "fieldtype": "Button",
+                    "label": "Pick Serial / Batch No",
+                    "reqd": 0,
+                    "permlevel": 0,
+                    "is_virtual": 0,
+                    "mask": 0
+                },
+                {
+                    "fieldname": "use_serial_batch_fields",
+                    "fieldtype": "Check",
+                    "label": "Use Serial No / Batch Fields",
+                    "reqd": 0,
+                    "permlevel": 0,
+                    "is_virtual": 0,
+                    "mask": 0
+                },
+                {
+                    "fieldname": "column_break_11",
+                    "fieldtype": "Column Break",
+                    "reqd": 0,
+                    "permlevel": 0,
+                    "is_virtual": 0,
+                    "mask": 0
+                },
+                {
+                    "fieldname": "serial_and_batch_bundle",
+                    "fieldtype": "Link",
+                    "label": "Serial and Batch Bundle",
+                    "options": "Serial and Batch Bundle",
+                    "reqd": 0,
+                    "permlevel": 0,
+                    "is_virtual": 0,
+                    "mask": 0
+                },
+                {
+                    "fieldname": "section_break_bgys",
+                    "fieldtype": "Section Break",
+                    "reqd": 0,
+                    "permlevel": 0,
+                    "is_virtual": 0,
+                    "mask": 0
+                },
+                {
+                    "fieldname": "serial_no",
+                    "fieldtype": "Text",
+                    "label": "Serial No",
+                    "reqd": 0,
+                    "permlevel": 0,
+                    "is_virtual": 0,
+                    "mask": 0
+                },
+                {
+                    "fieldname": "column_break_qlha",
+                    "fieldtype": "Column Break",
+                    "reqd": 0,
+                    "permlevel": 0,
+                    "is_virtual": 0,
+                    "mask": 0
+                },
+                {
+                    "fieldname": "batch_no",
+                    "fieldtype": "Link",
+                    "label": "Batch No",
+                    "options": "Batch",
+                    "reqd": 0,
+                    "permlevel": 0,
+                    "is_virtual": 0,
+                    "mask": 0
+                },
+                {
+                    "fieldname": "actual_batch_qty",
+                    "fieldtype": "Float",
+                    "label": "Actual Batch Quantity",
+                    "reqd": 0,
+                    "permlevel": 0,
+                    "is_virtual": 0,
+                    "mask": 0
+                },
+                {
+                    "fieldname": "section_break_13",
+                    "fieldtype": "Section Break",
+                    "reqd": 0,
+                    "permlevel": 0,
+                    "is_virtual": 0,
+                    "mask": 0
+                },
+                {
+                    "fieldname": "actual_qty",
+                    "fieldtype": "Float",
+                    "label": "Actual Qty",
+                    "reqd": 0,
+                    "permlevel": 0,
+                    "is_virtual": 0,
+                    "mask": 0
+                },
+                {
+                    "fieldname": "projected_qty",
+                    "fieldtype": "Float",
+                    "label": "Projected Qty",
+                    "reqd": 0,
+                    "permlevel": 0,
+                    "is_virtual": 0,
+                    "mask": 0
+                },
+                {
+                    "fieldname": "ordered_qty",
+                    "fieldtype": "Float",
+                    "label": "Ordered Qty",
+                    "reqd": 0,
+                    "permlevel": 0,
+                    "is_virtual": 0,
+                    "mask": 0
+                },
+                {
+                    "fieldname": "packed_qty",
+                    "fieldtype": "Float",
+                    "label": "Packed Qty",
+                    "reqd": 0,
+                    "permlevel": 0,
+                    "is_virtual": 0,
+                    "mask": 0
+                },
+                {
+                    "fieldname": "requested_qty",
+                    "fieldtype": "Float",
+                    "label": "Requested Qty",
+                    "reqd": 0,
+                    "permlevel": 0,
+                    "is_virtual": 0,
+                    "mask": 0
+                },
+                {
+                    "fieldname": "column_break_16",
+                    "fieldtype": "Column Break",
+                    "reqd": 0,
+                    "permlevel": 0,
+                    "is_virtual": 0,
+                    "mask": 0
+                },
+                {
+                    "fieldname": "incoming_rate",
+                    "fieldtype": "Currency",
+                    "label": "Incoming Rate",
+                    "reqd": 0,
+                    "permlevel": 0,
+                    "is_virtual": 0,
+                    "mask": 0
+                },
+                {
+                    "fieldname": "picked_qty",
+                    "fieldtype": "Float",
+                    "label": "Picked Qty",
+                    "reqd": 0,
+                    "permlevel": 0,
+                    "is_virtual": 0,
+                    "mask": 0
+                },
+                {
+                    "fieldname": "page_break",
+                    "fieldtype": "Check",
+                    "label": "Page Break",
+                    "reqd": 0,
+                    "permlevel": 0,
+                    "is_virtual": 0,
+                    "mask": 0
+                },
+                {
+                    "fieldname": "prevdoc_doctype",
+                    "fieldtype": "Data",
+                    "label": "Prevdoc DocType",
+                    "reqd": 0,
+                    "permlevel": 0,
+                    "is_virtual": 0,
+                    "mask": 0
+                },
+                {
+                    "fieldname": "parent_detail_docname",
+                    "fieldtype": "Data",
+                    "label": "Parent Detail docname",
+                    "reqd": 0,
+                    "permlevel": 0,
+                    "is_virtual": 0,
+                    "mask": 0
+                }
+            ]
+        },
+        {
+            "name": "Pricing Rule Detail",
+            "module": "Accounts",
+            "istable": 1,
+            "issingle": 0,
+            "is_submittable": 0,
+            "fields": [
+                {
+                    "fieldname": "pricing_rule",
+                    "fieldtype": "Link",
+                    "label": "Pricing Rule",
+                    "options": "Pricing Rule",
+                    "reqd": 0,
+                    "permlevel": 0,
+                    "is_virtual": 0,
+                    "mask": 0
+                },
+                {
+                    "fieldname": "item_code",
+                    "fieldtype": "Data",
+                    "label": "Item Code",
+                    "reqd": 0,
+                    "permlevel": 0,
+                    "is_virtual": 0,
+                    "mask": 0
+                },
+                {
+                    "fieldname": "margin_type",
+                    "fieldtype": "Data",
+                    "label": "Margin Type",
+                    "reqd": 0,
+                    "permlevel": 0,
+                    "is_virtual": 0,
+                    "mask": 0
+                },
+                {
+                    "fieldname": "rate_or_discount",
+                    "fieldtype": "Data",
+                    "label": "Rate or Discount",
+                    "reqd": 0,
+                    "permlevel": 0,
+                    "is_virtual": 0,
+                    "mask": 0
+                },
+                {
+                    "fieldname": "child_docname",
+                    "fieldtype": "Data",
+                    "label": "Child Docname",
+                    "reqd": 0,
+                    "permlevel": 0,
+                    "is_virtual": 0,
+                    "mask": 0
+                },
+                {
+                    "fieldname": "rule_applied",
+                    "fieldtype": "Check",
+                    "label": "Rule Applied",
+                    "reqd": 0,
+                    "permlevel": 0,
+                    "is_virtual": 0,
+                    "mask": 0
+                }
+            ]
+        },
+        {
+            "name": "Payment Schedule",
+            "module": "Accounts",
+            "istable": 1,
+            "issingle": 0,
+            "is_submittable": 0,
+            "fields": [
+                {
+                    "fieldname": "payment_term",
+                    "fieldtype": "Link",
+                    "label": "Payment Term",
+                    "options": "Payment Term",
+                    "reqd": 0,
+                    "permlevel": 0,
+                    "is_virtual": 0,
+                    "mask": 0
+                },
+                {
+                    "fieldname": "section_break_15",
+                    "fieldtype": "Section Break",
+                    "label": "Description",
+                    "reqd": 0,
+                    "permlevel": 0,
+                    "is_virtual": 0,
+                    "mask": 0
+                },
+                {
+                    "fieldname": "description",
+                    "fieldtype": "Small Text",
+                    "label": "Description",
+                    "reqd": 0,
+                    "permlevel": 0,
+                    "is_virtual": 0,
+                    "mask": 0
+                },
+                {
+                    "fieldname": "section_break_4",
+                    "fieldtype": "Section Break",
+                    "reqd": 0,
+                    "permlevel": 0,
+                    "is_virtual": 0,
+                    "mask": 0
+                },
+                {
+                    "fieldname": "due_date",
+                    "fieldtype": "Date",
+                    "label": "Due Date",
+                    "reqd": 1,
+                    "permlevel": 0,
+                    "is_virtual": 0,
+                    "mask": 0
+                },
+                {
+                    "fieldname": "invoice_portion",
+                    "fieldtype": "Percent",
+                    "label": "Invoice Portion",
+                    "reqd": 0,
+                    "permlevel": 0,
+                    "is_virtual": 0,
+                    "mask": 0
+                },
+                {
+                    "fieldname": "mode_of_payment",
+                    "fieldtype": "Link",
+                    "label": "Mode of Payment",
+                    "options": "Mode of Payment",
+                    "reqd": 0,
+                    "permlevel": 0,
+                    "is_virtual": 0,
+                    "mask": 0
+                },
+                {
+                    "fieldname": "column_break_5",
+                    "fieldtype": "Column Break",
+                    "reqd": 0,
+                    "permlevel": 0,
+                    "is_virtual": 0,
+                    "mask": 0
+                },
+                {
+                    "fieldname": "due_date_based_on",
+                    "fieldtype": "Select",
+                    "label": "Due Date Based On",
+                    "options": "\nDay(s) after invoice date\nDay(s) after the end of the invoice month\nMonth(s) after the end of the invoice month",
+                    "reqd": 0,
+                    "permlevel": 0,
+                    "is_virtual": 0,
+                    "mask": 0
+                },
+                {
+                    "fieldname": "credit_days",
+                    "fieldtype": "Int",
+                    "label": "Credit Days",
+                    "reqd": 0,
+                    "permlevel": 0,
+                    "is_virtual": 0,
+                    "mask": 0
+                },
+                {
+                    "fieldname": "credit_months",
+                    "fieldtype": "Int",
+                    "label": "Credit Months",
+                    "reqd": 0,
+                    "permlevel": 0,
+                    "is_virtual": 0,
+                    "mask": 0
+                },
+                {
+                    "fieldname": "section_break_6",
+                    "fieldtype": "Section Break",
+                    "reqd": 0,
+                    "permlevel": 0,
+                    "is_virtual": 0,
+                    "mask": 0
+                },
+                {
+                    "fieldname": "discount_date",
+                    "fieldtype": "Date",
+                    "label": "Discount Date",
+                    "reqd": 0,
+                    "permlevel": 0,
+                    "is_virtual": 0,
+                    "mask": 0
+                },
+                {
+                    "fieldname": "discount",
+                    "fieldtype": "Float",
+                    "label": "Discount",
+                    "reqd": 0,
+                    "permlevel": 0,
+                    "is_virtual": 0,
+                    "mask": 0
+                },
+                {
+                    "fieldname": "discount_type",
+                    "fieldtype": "Select",
+                    "label": "Discount Type",
+                    "options": "Percentage\nAmount",
+                    "reqd": 0,
+                    "permlevel": 0,
+                    "is_virtual": 0,
+                    "mask": 0
+                },
+                {
+                    "fieldname": "column_break_9",
+                    "fieldtype": "Column Break",
+                    "reqd": 0,
+                    "permlevel": 0,
+                    "is_virtual": 0,
+                    "mask": 0
+                },
+                {
+                    "fieldname": "discount_validity_based_on",
+                    "fieldtype": "Select",
+                    "label": "Discount Validity Based On",
+                    "options": "\nDay(s) after invoice date\nDay(s) after the end of the invoice month\nMonth(s) after the end of the invoice month",
+                    "reqd": 0,
+                    "permlevel": 0,
+                    "is_virtual": 0,
+                    "mask": 0
+                },
+                {
+                    "fieldname": "discount_validity",
+                    "fieldtype": "Int",
+                    "label": "Discount Validity",
+                    "reqd": 0,
+                    "permlevel": 0,
+                    "is_virtual": 0,
+                    "mask": 0
+                },
+                {
+                    "fieldname": "section_break_9",
+                    "fieldtype": "Section Break",
+                    "reqd": 0,
+                    "permlevel": 0,
+                    "is_virtual": 0,
+                    "mask": 0
+                },
+                {
+                    "fieldname": "payment_amount",
+                    "fieldtype": "Currency",
+                    "label": "Payment Amount",
+                    "options": "currency",
+                    "reqd": 1,
+                    "permlevel": 0,
+                    "is_virtual": 0,
+                    "mask": 0
+                },
+                {
+                    "fieldname": "outstanding",
+                    "fieldtype": "Currency",
+                    "label": "Outstanding",
+                    "options": "currency",
+                    "reqd": 0,
+                    "permlevel": 0,
+                    "is_virtual": 0,
+                    "mask": 0
+                },
+                {
+                    "fieldname": "paid_amount",
+                    "fieldtype": "Currency",
+                    "label": "Paid Amount",
+                    "options": "currency",
+                    "reqd": 0,
+                    "permlevel": 0,
+                    "is_virtual": 0,
+                    "mask": 0
+                },
+                {
+                    "fieldname": "discounted_amount",
+                    "fieldtype": "Currency",
+                    "label": "Discounted Amount",
+                    "reqd": 0,
+                    "permlevel": 0,
+                    "is_virtual": 0,
+                    "mask": 0
+                },
+                {
+                    "fieldname": "column_break_3",
+                    "fieldtype": "Column Break",
+                    "reqd": 0,
+                    "permlevel": 0,
+                    "is_virtual": 0,
+                    "mask": 0
+                },
+                {
+                    "fieldname": "base_payment_amount",
+                    "fieldtype": "Currency",
+                    "label": "Payment Amount (Company Currency)",
+                    "options": "Company:company:default_currency",
+                    "reqd": 0,
+                    "permlevel": 0,
+                    "is_virtual": 0,
+                    "mask": 0
+                },
+                {
+                    "fieldname": "base_outstanding",
+                    "fieldtype": "Currency",
+                    "label": "Outstanding (Company Currency)",
+                    "options": "Company:company:default_currency",
+                    "reqd": 0,
+                    "permlevel": 0,
+                    "is_virtual": 0,
+                    "mask": 0
+                },
+                {
+                    "fieldname": "base_paid_amount",
+                    "fieldtype": "Currency",
+                    "label": "Paid Amount (Company Currency)",
+                    "options": "Company:company:default_currency",
+                    "reqd": 0,
+                    "permlevel": 0,
+                    "is_virtual": 0,
+                    "mask": 0
+                }
+            ]
+        },
+        {
+            "name": "Sales Team",
+            "module": "Selling",
+            "istable": 1,
+            "issingle": 0,
+            "is_submittable": 0,
+            "fields": [
+                {
+                    "fieldname": "sales_person",
+                    "fieldtype": "Link",
+                    "label": "Sales Person",
+                    "options": "Sales Person",
+                    "reqd": 1,
+                    "permlevel": 0,
+                    "is_virtual": 0,
+                    "mask": 0
+                },
+                {
+                    "fieldname": "contact_no",
+                    "fieldtype": "Data",
+                    "label": "Contact No.",
+                    "reqd": 0,
+                    "permlevel": 0,
+                    "is_virtual": 0,
+                    "mask": 0
+                },
+                {
+                    "fieldname": "allocated_percentage",
+                    "fieldtype": "Float",
+                    "label": "Contribution (%)",
+                    "reqd": 0,
+                    "permlevel": 0,
+                    "is_virtual": 0,
+                    "mask": 0
+                },
+                {
+                    "fieldname": "allocated_amount",
+                    "fieldtype": "Currency",
+                    "label": "Contribution to Net Total",
+                    "options": "Company:company:default_currency",
+                    "reqd": 0,
+                    "permlevel": 0,
+                    "is_virtual": 0,
+                    "mask": 0
+                },
+                {
+                    "fieldname": "commission_rate",
+                    "fieldtype": "Data",
+                    "label": "Commission Rate",
+                    "reqd": 0,
+                    "permlevel": 0,
+                    "is_virtual": 0,
+                    "mask": 0
+                },
+                {
+                    "fieldname": "incentives",
+                    "fieldtype": "Currency",
+                    "label": "Incentives",
+                    "options": "Company:company:default_currency",
+                    "reqd": 0,
+                    "permlevel": 0,
+                    "is_virtual": 0,
+                    "mask": 0
+                }
+            ]
+        }
+    ]
+}
