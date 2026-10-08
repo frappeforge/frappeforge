@@ -1,6 +1,6 @@
 {
     "name": "@frappeforge/client",
-    "version": "0.5.0",
+    "version": "0.6.0",
     "description": "Zero-dependency, fetch-native TypeScript client for the Frappe Framework REST API.",
     "license": "MIT",
     "type": "module",
