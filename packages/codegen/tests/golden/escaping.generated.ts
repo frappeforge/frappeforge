@@ -35,8 +35,53 @@ export interface ForgeSettings extends FrappeDoc {
     enabled: 0 | 1
 }
 
+/** FF Standard Names — module Custom. */
+export interface FFStandardNames extends FrappeDoc {
+    doctype: 'FF Standard Names'
+    name: string
+    /** Reference Document Type (Link → DocType) */
+    parent?: string
+    /** Index (Int) */
+    idx: number
+    /** Tags (Data) */
+    _user_tags?: string | null
+    /** Owner (Data) */
+    owner: string
+    /** Data */
+    creation: string
+    /** Data */
+    modified: string
+    /** Data */
+    modified_by: string
+    /** Data */
+    parentfield?: string
+    /** Data */
+    parenttype?: string
+    /** Int */
+    docstatus: 0 | 1 | 2
+    /** Small Text */
+    _comments?: string | null
+    /** Small Text */
+    _assign?: string | null
+    /** Small Text */
+    _liked_by?: string | null
+}
+
+/** FF Standard Names Item — module Custom. Child table. */
+export interface FFStandardNamesItem extends FrappeDoc {
+    doctype: 'FF Standard Names Item'
+    name: string
+    parent: string
+    parentfield: string
+    parenttype: string
+    /** Item (Data) */
+    item?: string | null
+}
+
 /** Every generated DocType, by name. */
 export interface DocTypes {
     'FF Escaping': FFEscaping
     'FF Settings': ForgeSettings
+    'FF Standard Names': FFStandardNames
+    'FF Standard Names Item': FFStandardNamesItem
 }

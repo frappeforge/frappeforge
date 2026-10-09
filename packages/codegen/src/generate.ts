@@ -36,6 +36,29 @@ const header = [
     '// Exclude this file from formatters so `frappeforge-codegen --check` stays byte-exact.',
 ]
 
+/**
+ * `FrappeDoc`'s own fields, as it declares them. A DocType field of the same name, such as `parent`
+ * on core's `Custom DocPerm`, keeps this declaration, so that the interface still extends `FrappeDoc`.
+ */
+const frappeDocFields: ReadonlyMap<string, string> = new Map([
+    ['owner', 'owner: string'],
+    ['creation', 'creation: string'],
+    ['modified', 'modified: string'],
+    ['modified_by', 'modified_by: string'],
+    ['docstatus', 'docstatus: 0 | 1 | 2'],
+    ['idx', 'idx: number'],
+    ['parent', 'parent?: string'],
+    ['parentfield', 'parentfield?: string'],
+    ['parenttype', 'parenttype?: string'],
+    ['_user_tags', '_user_tags?: string | null'],
+    ['_comments', '_comments?: string | null'],
+    ['_assign', '_assign?: string | null'],
+    ['_liked_by', '_liked_by?: string | null'],
+])
+
+/** The fields every child table row has, declared once for each child table: Frappe's `child_table_fields`. */
+const childTableFields = ['parent', 'parentfield', 'parenttype']
+
 /** Comment text that cannot end the comment early, with every line break as `\n`. */
 function toDocText(text: string): string {
     return text
@@ -119,17 +142,19 @@ export function generate(docTypes: readonly DocTypeMeta[], options: GenerateOpti
             `export interface ${typeName} extends FrappeDoc {`,
             `    doctype: ${toStringLiteral(meta.name)}`,
             `    name: ${isAutoincremented(meta) ? 'number' : 'string'}`,
-            ...(meta.istable ? ['    parent: string', '    parentfield: string', '    parenttype: string'] : []),
+            ...(meta.istable ? childTableFields.map((fieldname) => `    ${fieldname}: string`) : []),
         ]
         for (const field of meta.fields) {
+            // Already declared, and always set in a row.
+            if (meta.istable && childTableFields.includes(field.fieldname)) continue
             const mappedField = mapField(meta.name, field, typeNames)
             if (mappedField === undefined) continue
             if (mappedField.warning !== undefined) warnings.push(mappedField.warning)
             if (mappedField.type === 'UnknownDoc[]') usesUnknownDoc = true
-            lines.push(
-                ...toDocComment(mappedField.summary, field.description, '    '),
-                `    ${toPropertyKey(field.fieldname)}${mappedField.optional ? '?' : ''}: ${mappedField.type}${mappedField.nullable ? ' | null' : ''}`,
-            )
+            const declaration =
+                frappeDocFields.get(field.fieldname) ??
+                `${toPropertyKey(field.fieldname)}${mappedField.optional ? '?' : ''}: ${mappedField.type}${mappedField.nullable ? ' | null' : ''}`
+            lines.push(...toDocComment(mappedField.summary, field.description, '    '), `    ${declaration}`)
         }
         lines.push('}')
         interfaces.push(lines.join('\n'))
