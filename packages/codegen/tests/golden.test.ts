@@ -36,6 +36,33 @@ const escapingDocTypes = [
         ],
     },
     {
+        // Fields named like standard ones, as core DocTypes have: `Custom DocPerm.parent`, `Web Page.idx`.
+        name: 'FF Standard Names',
+        module: 'Custom',
+        fields: [
+            { fieldname: 'parent', fieldtype: 'Link', label: 'Reference Document Type', options: 'DocType' },
+            { fieldname: 'idx', fieldtype: 'Int', label: 'Index' },
+            { fieldname: '_user_tags', fieldtype: 'Data', label: 'Tags' },
+            { fieldname: 'owner', fieldtype: 'Data', label: 'Owner' },
+            // The rest of `FrappeDoc`'s fields, so that the type check covers every declaration.
+            ...['creation', 'modified', 'modified_by', 'parentfield', 'parenttype'].map((fieldname) => ({
+                fieldname,
+                fieldtype: 'Data',
+            })),
+            { fieldname: 'docstatus', fieldtype: 'Int' },
+            ...['_comments', '_assign', '_liked_by'].map((fieldname) => ({ fieldname, fieldtype: 'Small Text' })),
+        ],
+    },
+    {
+        name: 'FF Standard Names Item',
+        module: 'Custom',
+        istable: 1,
+        fields: [
+            { fieldname: 'parent', fieldtype: 'Data', label: 'Parent' },
+            { fieldname: 'item', fieldtype: 'Data', label: 'Item' },
+        ],
+    },
+    {
         name: 'FF Settings',
         module: 'Custom',
         issingle: 1,

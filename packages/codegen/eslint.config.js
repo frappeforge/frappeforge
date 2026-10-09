@@ -10,9 +10,9 @@ const purityMessage =
 
 export default createConfig(import.meta.dirname, [
     {
-        // Published code imports only its own modules and Node built-ins. Every tool is installed at the
-        // workspace root, so nothing else would catch a stray bare import; list new runtime
-        // dependencies here and in package.json together.
+        // Published code imports only its own modules, Node built-ins and its dependencies. Every tool is
+        // installed at the workspace root, so nothing else would catch a stray bare import; list new
+        // runtime dependencies here and in package.json together.
         files: ['src/**/*.ts'],
         rules: {
             'no-restricted-imports': [
@@ -20,7 +20,7 @@ export default createConfig(import.meta.dirname, [
                 {
                     patterns: [
                         {
-                            regex: '^(?!\\.{1,2}/|node:)',
+                            regex: '^(?!\\.{1,2}/|node:|@frappeforge/client$)',
                             message: 'src/ imports only its own modules, node: built-ins and declared dependencies.',
                         },
                     ],

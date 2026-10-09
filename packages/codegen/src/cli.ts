@@ -1,16 +1,10 @@
 #!/usr/bin/env node
-/**
- * `frappeforge-codegen` command-line entry point. Commands are added with the generator;
- * for now it only reports its version so the packaged binary can be smoke-tested.
- */
-import { VERSION } from './index.js'
+// The `frappeforge-codegen` binary: runs `main` with the real process.
+import { main } from './main.js'
 
-const args = process.argv.slice(2)
-
-if (args.includes('--version') || args.includes('-v')) {
-    console.log(VERSION)
-} else {
-    console.log(
-        `frappeforge-codegen ${VERSION}\n\nNo commands are available yet. Run with --version to print the version.`,
-    )
-}
+process.exitCode = await main(process.argv.slice(2), {
+    env: process.env,
+    cwd: process.cwd(),
+    stdout: process.stdout,
+    stderr: process.stderr,
+})

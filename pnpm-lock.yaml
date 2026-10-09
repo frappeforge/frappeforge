@@ -230,9 +230,9 @@ importers:
   packages/client: {}
 
   packages/codegen:
-    devDependencies:
+    dependencies:
       '@frappeforge/client':
-        specifier: workspace:*
+        specifier: workspace:^
         version: link:../client
 
 packages:

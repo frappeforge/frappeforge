@@ -1,0 +1,54 @@
+{
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "title": "frappeforge-codegen config",
+    "description": "Settings for frappeforge-codegen, in frappeforge.json. Command-line flags win over environment variables, which win over this file; DocType, module and app lists are combined from this file and the flags. Credentials never go here: they are read only from FRAPPE_API_KEY and FRAPPE_API_SECRET.",
+    "type": "object",
+    "additionalProperties": false,
+    "properties": {
+        "$schema": {
+            "description": "This schema, for editors: \"./node_modules/@frappeforge/codegen/schema.json\".",
+            "type": "string"
+        },
+        "url": {
+            "description": "The site's URL, such as \"https://example.com\". Overridden by --url and FRAPPE_URL.",
+            "type": "string",
+            "minLength": 1
+        },
+        "siteName": {
+            "description": "The site's name, sent as X-Frappe-Site-Name, when the URL's host is not the site's name. Overridden by --site-name and FRAPPE_SITE_NAME.",
+            "type": "string",
+            "minLength": 1
+        },
+        "doctypes": {
+            "description": "DocTypes to generate, by name, such as \"Customer\". Their child tables are included.",
+            "type": "array",
+            "items": { "type": "string", "minLength": 1 }
+        },
+        "modules": {
+            "description": "Modules whose DocTypes are all generated, such as \"Selling\".",
+            "type": "array",
+            "items": { "type": "string", "minLength": 1 }
+        },
+        "apps": {
+            "description": "Installed apps whose DocTypes are all generated, such as \"erpnext\".",
+            "type": "array",
+            "items": { "type": "string", "minLength": 1 }
+        },
+        "out": {
+            "description": "The output file, relative to this file. Overridden by --out, which is relative to the current folder.",
+            "type": "string",
+            "minLength": 1,
+            "default": "src/frappe.generated.ts"
+        },
+        "register": {
+            "description": "Augment @frappeforge/client's Register with the generated DocTypes, so createClient() is typed without a type argument. --no-register turns it off.",
+            "type": "boolean",
+            "default": true
+        },
+        "rename": {
+            "description": "Interface names to use instead of the derived ones, by DocType, such as { \"Item\": \"ErpItem\" }.",
+            "type": "object",
+            "additionalProperties": { "type": "string", "minLength": 1 }
+        }
+    }
+}

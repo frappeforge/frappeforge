@@ -1,7 +1,6 @@
 {
     "name": "@frappeforge/codegen",
     "version": "0.6.0",
-    "private": true,
     "description": "Generates TypeScript types for your Frappe DocTypes from a live site.",
     "license": "MIT",
     "type": "module",
@@ -30,6 +29,7 @@
     },
     "files": [
         "dist",
+        "schema.json",
         "README.md",
         "CHANGELOG.md",
         "LICENSE"
@@ -42,6 +42,7 @@
             "types": "./dist/index.d.ts",
             "default": "./dist/index.js"
         },
+        "./schema.json": "./schema.json",
         "./package.json": "./package.json"
     },
     "scripts": {
@@ -55,8 +56,8 @@
         "api:check": "api-extractor run",
         "publint": "publint"
     },
-    "devDependencies": {
-        "@frappeforge/client": "workspace:*"
+    "dependencies": {
+        "@frappeforge/client": "workspace:^"
     },
     "publishConfig": {
         "access": "public"

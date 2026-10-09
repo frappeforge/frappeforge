@@ -4,6 +4,9 @@
 
 ```ts
 
+import { DocNamespace } from '@frappeforge/client';
+import { FrappeClient } from '@frappeforge/client';
+
 // @public
 export interface DocTypeMeta {
     autoname?: string;
@@ -41,6 +44,21 @@ export interface GenerateOptions {
 // @public
 export interface GenerateResult {
     code: string;
+    warnings: readonly string[];
+}
+
+// @public
+export function loadFromSite(frappe: Pick<FrappeClient<object>, "url" | "request"> & {
+    readonly doc: Pick<DocNamespace<object>, "paginate">;
+}, selection: {
+    readonly doctypes?: readonly string[];
+    readonly modules?: readonly string[];
+    readonly apps?: readonly string[];
+}): Promise<LoadFromSiteResult>;
+
+// @public
+export interface LoadFromSiteResult {
+    docTypes: DocTypeMeta[];
     warnings: readonly string[];
 }
 

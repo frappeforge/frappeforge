@@ -34,13 +34,16 @@ assert.equal(esm.VERSION, pkg.version, 'ESM: VERSION must equal package.json ver
 // One module instance for both loaders: no dual-package hazard, so `instanceof` works everywhere.
 assert.equal(required, esm, 'require(esm) must return the same module namespace as import()')
 
-// The CLI must be executable as `node dist/cli.js --version` (the `bin` entry) and print the version.
+// The CLI must be executable as `node dist/cli.js` (the `bin` entry): `--version` prints the version and
+// `--help` the usage, which also proves the bundled CLI loads its dependencies.
 for (const bin of Object.values(pkg.bin)) {
     const binPath = path.join(pkgDir, bin)
     assert.ok(existsSync(binPath), `bin target is missing after build: ${bin}`)
     assert.ok(readFileSync(binPath, 'utf8').startsWith('#!/usr/bin/env node'), `bin must keep its shebang: ${bin}`)
     const out = execFileSync(process.execPath, [binPath, '--version'], { encoding: 'utf8' }).trim()
     assert.equal(out, pkg.version, `CLI --version must print the package version, got: ${out}`)
+    const help = execFileSync(process.execPath, [binPath, '--help'], { encoding: 'utf8' })
+    assert.ok(help.startsWith('Usage: frappeforge-codegen'), `CLI --help must print the usage, got: ${help}`)
 }
 
 console.log(`verify-dist: ok (${pkg.name}@${pkg.version}, ESM + require(esm) + CLI)`)
