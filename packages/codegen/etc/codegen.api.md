@@ -48,6 +48,13 @@ export interface GenerateResult {
 }
 
 // @public
+export function loadFromBench(benchDir: string, selection: {
+    readonly doctypes?: readonly string[];
+    readonly modules?: readonly string[];
+    readonly apps?: readonly string[];
+}): Promise<DocTypeMeta[]>;
+
+// @public
 export function loadFromSite(frappe: Pick<FrappeClient<object>, "url" | "request"> & {
     readonly doc: Pick<DocNamespace<object>, "paginate">;
 }, selection: {

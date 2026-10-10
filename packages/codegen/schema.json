@@ -1,7 +1,7 @@
 {
     "$schema": "https://json-schema.org/draft/2020-12/schema",
     "title": "frappeforge-codegen config",
-    "description": "Settings for frappeforge-codegen, in frappeforge.json. Command-line flags win over environment variables, which win over this file; DocType, module and app lists are combined from this file and the flags. Credentials never go here: they are read only from FRAPPE_API_KEY and FRAPPE_API_SECRET.",
+    "description": "Settings for frappeforge-codegen, in frappeforge.json. Command-line flags win over environment variables, which win over this file; DocType, module and app lists are combined from this file and the flags. Without a site URL, the DocTypes are read from the Frappe bench this file is in. Credentials never go here: they are read only from FRAPPE_API_KEY and FRAPPE_API_SECRET.",
     "type": "object",
     "additionalProperties": false,
     "properties": {
@@ -10,7 +10,7 @@
             "type": "string"
         },
         "url": {
-            "description": "The site's URL, such as \"https://example.com\". Overridden by --url and FRAPPE_URL.",
+            "description": "The site's URL, such as \"https://example.com\". Overridden by --url and FRAPPE_URL. Without one, the DocTypes are read from the source of the apps of the Frappe bench this file is in.",
             "type": "string",
             "minLength": 1
         },
@@ -30,7 +30,7 @@
             "items": { "type": "string", "minLength": 1 }
         },
         "apps": {
-            "description": "Installed apps whose DocTypes are all generated, such as \"erpnext\".",
+            "description": "Apps whose DocTypes are all generated, such as \"erpnext\": apps installed on the site, or apps of the bench.",
             "type": "array",
             "items": { "type": "string", "minLength": 1 }
         },

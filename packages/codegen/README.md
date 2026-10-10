@@ -1,15 +1,17 @@
 # @frappeforge/codegen
 
-Generates TypeScript types for your Frappe DocTypes from a live site, so `@frappeforge/client` calls are
-typed end to end.
+Generates TypeScript types for your Frappe DocTypes from a live site or from your bench's app source, so
+`@frappeforge/client` calls are typed end to end.
 
 > **Status: pre-release.** The CLI and API may change before `1.0.0`. Supported Frappe versions: v15 and
 > v16.
 
 - **The types your forms see.** Metadata is read as the site's forms read it: custom fields and property
   setters included, child tables with their parents.
+- **Or straight from the source.** Inside a Frappe bench, the DocType files of its apps are read, with
+  the custom fields and property setters they export: no site, no credentials.
 - **Select by DocType, module or app.** One command writes one module with an interface per DocType.
-- **Made for CI.** `--check` fails when the committed module no longer matches the site.
+- **Made for CI.** `--check` fails when the committed module no longer matches the site or the bench.
 - **Credentials stay out of files and command lines.** They are read only from the environment.
 
 ## Install
@@ -50,17 +52,43 @@ const order = await frappe.doc.get('Sales Order', 'SO-0001') // SalesOrder
 Pass `--no-register` to type one client only instead: `createClient<DocTypes>({ url })`, with `DocTypes`
 imported from the generated module.
 
+## From the bench
+
+Without a site URL, the command reads the Frappe bench it runs in: the bench directory is found by going
+up from the current one (or from the config file's), as `bench` itself finds it. The DocTypes come from
+the JSON files of the apps in `apps/`, so no site has to run and no credentials are needed:
+
+```sh
+cd frappe-bench/apps/my_app/frontend
+pnpm exec frappeforge-codegen --app my_app --doctype User
+# Generated 9 DocTypes (3 child tables) → src/frappe.generated.ts
+```
+
+The metadata is what a site with these apps gives: each DocType's fields in the form's order, with the
+custom fields and property setters that every app on the bench exports — in its modules' `custom/`
+folders (**Customize Form → Export Customizations**) or in its `fixtures/`. Your app's custom fields on
+frappe's `User`, or on ERPNext's `Customer`, are part of those DocTypes.
+
+A site has more than the source, so read the site instead for:
+
+- custom fields an app creates in Python, such as with `create_custom_fields` in an install hook or a
+  patch;
+- Custom DocTypes, and changes made in the Desk but not exported.
+
+Every app on the bench counts, also one a given site does not have installed.
+
 ## Selecting DocTypes
 
-| Option             | Generates                                         | The API user needs  |
-| ------------------ | ------------------------------------------------- | ------------------- |
-| `--doctype <name>` | that DocType                                      | any logged-in user  |
-| `--module <name>`  | every DocType of the module, such as `Selling`    | System Manager role |
-| `--app <name>`     | every DocType of an installed app, such as `hrms` | System Manager role |
+| Option             | Generates                                      | On a site, the API user needs |
+| ------------------ | ---------------------------------------------- | ----------------------------- |
+| `--doctype <name>` | that DocType                                   | any logged-in user            |
+| `--module <name>`  | every DocType of the module, such as `Selling` | System Manager role           |
+| `--app <name>`     | every DocType of an app, such as `hrms`        | System Manager role           |
 
 Each option can be repeated, and they combine. Child tables always come with the DocTypes that use them.
-Selecting by module or app lists the site's DocTypes, which only a System Manager may do. At least one
-DocType, module or app is required: generating a whole site is never done by accident.
+On a site, selecting by module or app lists the site's DocTypes, which only a System Manager may do; an
+app is one installed on the site. On a bench, an app is one in its `apps/` folder. At least one
+DocType, module or app is required: generating a whole site or bench is never done by accident.
 
 A DocType reached through a module or an app whose metadata the site cannot load — one that links to,
 or has a child table from, an app that is not installed — is left out with a warning. A DocType you
@@ -83,11 +111,11 @@ Commit a `frappeforge.json` next to your `package.json`, and the command needs n
 
 | Key        | Meaning                                                                            | Default                   |
 | ---------- | ---------------------------------------------------------------------------------- | ------------------------- |
-| `url`      | The site's URL                                                                     | required                  |
+| `url`      | The site's URL; without one, the bench the file is in is read                      | —                         |
 | `siteName` | The site's name, when the URL's host is not the site's name (`X-Frappe-Site-Name`) | —                         |
 | `doctypes` | DocTypes to generate                                                               | —                         |
 | `modules`  | Modules whose DocTypes are all generated                                           | —                         |
-| `apps`     | Installed apps whose DocTypes are all generated                                    | —                         |
+| `apps`     | Apps whose DocTypes are all generated                                              | —                         |
 | `out`      | The output file, relative to the config file                                       | `src/frappe.generated.ts` |
 | `register` | Augment `@frappeforge/client`'s `Register`                                         | `true`                    |
 | `rename`   | Interface names to use instead of the derived ones, by DocType                     | —                         |
@@ -99,7 +127,8 @@ key is an error. A key whose name contains `key`, `secret`, `token`, `password`,
 ### Where settings come from
 
 Flags win over environment variables, which win over the config file. Lists combine instead: DocTypes,
-modules and apps from the file and from the flags are all generated.
+modules and apps from the file and from the flags are all generated. With a site URL from any of them,
+the site is read; without one, the bench. A site name without a site URL is a usage error.
 
 | Setting     | Flag                                     | Environment         | Config file |
 | ----------- | ---------------------------------------- | ------------------- | ----------- |
@@ -123,7 +152,23 @@ pnpm exec frappeforge-codegen --check
 ```
 
 `--check` writes nothing. It exits with `1` and says so when the committed module differs from what the
-site gives now, or does not exist. Set `FRAPPE_API_KEY` and `FRAPPE_API_SECRET` as CI secrets.
+site or the bench gives now, or does not exist. For a site, set `FRAPPE_API_KEY` and `FRAPPE_API_SECRET`
+as CI secrets. For a bench, no secret is needed: check your app out as `apps/<app>`, next to the apps it
+needs. With GitHub Actions:
+
+```yaml
+- uses: actions/checkout@v5
+  with:
+      path: apps/my_app
+# Only when you generate frappe's DocTypes, or your app customizes them.
+- uses: actions/checkout@v5
+  with:
+      repository: frappe/frappe
+      ref: version-15
+      path: apps/frappe
+- run: pnpm exec frappeforge-codegen --check
+  working-directory: apps/my_app/frontend
+```
 
 The check compares bytes, so **exclude the generated file from formatters**, for example in
 `.prettierignore`:
@@ -142,11 +187,11 @@ Usage: frappeforge-codegen [options]
 
 Options:
   -c, --config <file>     Config file (default: frappeforge.json, when it exists)
-  -u, --url <url>         Site URL (env FRAPPE_URL)
+  -u, --url <url>         Site URL (env FRAPPE_URL); without one, the bench is read
       --site-name <name>  Site name, when the URL's host is not the site's name (env FRAPPE_SITE_NAME)
   -d, --doctype <name>    Include a DocType; repeatable
   -m, --module <name>     Include every DocType of a module; repeatable
-      --app <name>        Include every DocType of an installed app; repeatable
+      --app <name>        Include every DocType of an app; repeatable
   -o, --out <file>        Output file (default: src/frappe.generated.ts)
       --no-register       Do not augment @frappeforge/client's Register
       --check             Write nothing; exit 1 when the output file is out of date
@@ -156,8 +201,9 @@ Options:
 ```
 
 Exit codes: `0` success, `1` failure or an out-of-date module with `--check`, `2` usage error (an
-unknown option, an invalid config file, a file that cannot be read, or a missing or malformed setting). Warnings, such as a field type the
-generator does not know, go to standard error and do not change the exit code.
+unknown option, an invalid config file, a file that cannot be read, no site and no bench, or a missing or
+malformed setting). Warnings, such as a field type the generator does not know, go to standard error and
+do not change the exit code.
 
 ## From code
 
@@ -167,7 +213,7 @@ The same steps are available as functions, with any client — an API key, a ses
 import { writeFile } from 'node:fs/promises'
 
 import { createClient, tokenAuth } from '@frappeforge/client'
-import { generate, loadFromSite } from '@frappeforge/codegen'
+import { generate, loadFromBench, loadFromSite } from '@frappeforge/codegen'
 
 const frappe = createClient({ url: 'https://example.com', auth: tokenAuth({ apiKey, apiSecret }) })
 const { docTypes, warnings: sourceWarnings } = await loadFromSite(frappe, { modules: ['Selling'] })
@@ -176,8 +222,14 @@ await writeFile('src/frappe.generated.ts', code)
 for (const warning of [...sourceWarnings, ...warnings]) console.warn(warning)
 ```
 
-`loadFromSite` reads up to four DocTypes at once. `generate` is pure: the same metadata always gives the
-same module.
+`loadFromSite` reads up to four DocTypes at once. `loadFromBench` reads a bench's source instead, with the
+same selection:
+
+```ts
+const docTypes = await loadFromBench('../frappe-bench', { apps: ['my_app'], doctypes: ['User'] })
+```
+
+`generate` is pure: the same metadata always gives the same module.
 
 ## Requirements
 
