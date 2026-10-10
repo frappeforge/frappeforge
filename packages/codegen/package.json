@@ -1,7 +1,7 @@
 {
     "name": "@frappeforge/codegen",
     "version": "0.7.0",
-    "description": "Generates TypeScript types for your Frappe DocTypes from a live site.",
+    "description": "Generates TypeScript types for your Frappe DocTypes from a live site or from your bench's app source.",
     "license": "MIT",
     "type": "module",
     "sideEffects": false,

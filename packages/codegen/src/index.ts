@@ -2,6 +2,7 @@
 
 export { generate, type GenerateOptions, type GenerateResult } from './generate.js'
 export { type DocTypeMeta, type FieldMeta, normalizeDocType } from './meta.js'
+export { loadFromBench } from './sources/bench.js'
 export { loadFromSite, type LoadFromSiteResult } from './sources/site.js'
 
 /** The published version of this package, injected at build time. */

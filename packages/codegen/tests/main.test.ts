@@ -1,5 +1,6 @@
 import { readFile, stat, utimes } from 'node:fs/promises'
 import path from 'node:path'
+import { fileURLToPath } from 'node:url'
 
 import { describe, expect, it, vi } from 'vitest'
 
@@ -234,10 +235,51 @@ describe('main', () => {
         })
     })
 
+    describe('from a bench', () => {
+        const v15Bench = fileURLToPath(new URL('fixtures/bench/v15/', import.meta.url))
+        const noNetwork = (): never => {
+            throw new Error('No request may be sent.')
+        }
+
+        it('reads the bench it runs in, with no site, credentials or network', async () => {
+            vi.stubGlobal('fetch', noNetwork)
+            const out = path.join(await tempDir(), 'frappe.ts')
+            const cwd = path.join(v15Bench, 'apps/frappe/frappe')
+            let stdout = ''
+            const io: IO = {
+                env: {},
+                cwd,
+                stdout: { write: (text: string) => (stdout += text) },
+                stderr: { write: noNetwork },
+                fetch: noNetwork,
+            }
+
+            const code = await main(['--doctype', 'ToDo', '--out', out], io)
+            const checked = await main(['--doctype', 'ToDo', '--out', out, '--check'], io)
+            vi.unstubAllGlobals()
+
+            expect([code, checked]).toStrictEqual([0, 0])
+            expect(stdout).toBe(
+                `Generated 1 DocType → ${path.relative(cwd, out)}\n${path.relative(cwd, out)} is up to date.\n`,
+            )
+            await expect(readFile(out, 'utf8')).resolves.toBe(expectedCode(['ToDo']))
+        })
+
+        it('fails for a DocType the bench does not have', async () => {
+            const result = await run(['--doctype', 'Customer', '--out', 'unused.ts'], v15Bench, { env: {} })
+
+            expect([result.code, result.stderr]).toStrictEqual([
+                1,
+                "Error: DocType 'Customer' is in none of the bench's apps (frappe): check its name.\n",
+            ])
+        })
+    })
+
     describe('errors', () => {
         it.each([
             [['--bogus'], "Unknown option '--bogus'"],
             [['--url', 'https://example.com'], 'Nothing to generate'],
+            [['--doctype', 'ToDo'], 'No site and no bench'],
             [['--url', 'ftp://example.com', '-d', 'ToDo'], '`url` must be an http(s) URL'],
         ])('answers %j with a usage error', async (argv, message) => {
             const cwd = await tempDir()

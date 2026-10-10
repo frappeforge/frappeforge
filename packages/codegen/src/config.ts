@@ -1,12 +1,14 @@
 // The settings of one run: the config file, the environment and the flags, merged and validated.
 // Flags win over the environment, which wins over the config file; DocType, module and app lists
-// are combined from the file and the flags. Credentials come only from the environment.
+// are combined from the file and the flags. Credentials come only from the environment. Without a
+// site URL, the DocTypes are read from the Frappe bench the command runs in.
 
 import { readFile } from 'node:fs/promises'
 import path from 'node:path'
 import { parseEnv } from 'node:util'
 
 import type { Flags } from './flags.js'
+import { findParentBench } from './sources/bench.js'
 
 /** A mistake in how the command was called, answered with exit code 2. */
 export class UsageError extends Error {
@@ -29,12 +31,8 @@ export const configFileKeys: readonly string[] = [
     'rename',
 ]
 
-/** Everything one run needs, validated. */
-export interface ResolvedConfig {
-    url: string
-    siteName: string | undefined
-    apiKey: string
-    apiSecret: string
+/** What a run needs whatever it reads: the selection and the output. */
+interface BaseConfig {
     doctypes: readonly string[]
     modules: readonly string[]
     apps: readonly string[]
@@ -44,8 +42,27 @@ export interface ResolvedConfig {
     rename: Readonly<Record<string, string>>
 }
 
-/** A validated config file. `out`, given or the default, is absolute: resolved against the file's folder. */
+/** A run that reads a site. */
+export interface SiteConfig extends BaseConfig {
+    url: string
+    siteName: string | undefined
+    apiKey: string
+    apiSecret: string
+}
+
+/** A run that reads the source of a bench's apps. */
+interface BenchConfig extends BaseConfig {
+    /** Absolute path of the bench. */
+    benchDir: string
+}
+
+/** Everything one run needs, validated. */
+export type ResolvedConfig = SiteConfig | BenchConfig
+
+/** A validated config file. `out`, given or the default, is absolute: resolved against the file's directory. */
 interface ConfigFile {
+    /** The file's directory. */
+    dir: string
     url: string | undefined
     siteName: string | undefined
     doctypes: readonly string[]
@@ -145,9 +162,9 @@ function readRename(raw: RawRecord, where: string): Readonly<Record<string, stri
 /**
  * Parses a config file's text into its settings. Credentials are looked for before anything else, so
  * they are never reported as a mere unknown key. `where` names the file in messages; `out` is resolved
- * against `folder`, the file's folder.
+ * against `dir`, the file's directory.
  */
-function parseConfigFile(text: string, where: string, folder: string): ConfigFile {
+function parseConfigFile(text: string, where: string, dir: string): ConfigFile {
     let raw: unknown
     try {
         raw = JSON.parse(text)
@@ -173,12 +190,13 @@ function parseConfigFile(text: string, where: string, folder: string): ConfigFil
         throw new UsageError(`${where}: \`register\` must be true or false.`)
     }
     return {
+        dir,
         url: readString(raw, 'url', where),
         siteName: readString(raw, 'siteName', where),
         doctypes: readStringList(raw, 'doctypes', where),
         modules: readStringList(raw, 'modules', where),
         apps: readStringList(raw, 'apps', where),
-        out: path.resolve(folder, readString(raw, 'out', where) ?? DEFAULT_OUT),
+        out: path.resolve(dir, readString(raw, 'out', where) ?? DEFAULT_OUT),
         register,
         rename: readRename(raw, where),
     }
@@ -204,7 +222,9 @@ function union(first: readonly string[], second: readonly string[]): readonly st
 
 /**
  * Merges the flags, the environment (with `--env-file`) and the config file into the settings of one
- * run, and checks that the site, the credentials and at least one DocType, module or app are given.
+ * run, and checks that at least one DocType, module or app is given. With a site URL the run reads
+ * that site, and needs the credentials; without one it reads the bench around the config file's
+ * directory, or around the current one when there is no config file.
  *
  * @throws `UsageError` for anything the caller has to fix: an unreadable or invalid file, credentials
  * in the config file, or a missing setting.
@@ -216,17 +236,6 @@ export async function resolveConfig(
     const env = await loadEnv(flags.envFile, io.env, io.cwd)
     const file = await loadConfigFile(flags.configFile, io.cwd)
 
-    const url = flags.url ?? env['FRAPPE_URL'] ?? file?.url
-    if (url === undefined) {
-        throw new UsageError('No site URL: pass --url, set FRAPPE_URL, or set `url` in the config file.')
-    }
-    const apiKey = env['FRAPPE_API_KEY']
-    const apiSecret = env['FRAPPE_API_SECRET']
-    if (apiKey === undefined || apiSecret === undefined) {
-        throw new UsageError(
-            'Set FRAPPE_API_KEY and FRAPPE_API_SECRET in the environment or in a file passed with --env-file.',
-        )
-    }
     const doctypes = union(file?.doctypes ?? [], flags.doctypes)
     const modules = union(file?.modules ?? [], flags.modules)
     const apps = union(file?.apps ?? [], flags.apps)
@@ -235,11 +244,7 @@ export async function resolveConfig(
             'Nothing to generate: select DocTypes with --doctype, --module or --app, or with `doctypes`, `modules` or `apps` in the config file.',
         )
     }
-    return {
-        url,
-        siteName: flags.siteName ?? env['FRAPPE_SITE_NAME'] ?? file?.siteName,
-        apiKey,
-        apiSecret,
+    const base: BaseConfig = {
         doctypes,
         modules,
         apps,
@@ -250,4 +255,30 @@ export async function resolveConfig(
         register: flags.register ?? file?.register ?? true,
         rename: file?.rename ?? {},
     }
+
+    const url = flags.url ?? env['FRAPPE_URL'] ?? file?.url
+    if (url === undefined) {
+        // The environment's FRAPPE_SITE_NAME may be meant for another tool; a flag or the file is not.
+        if ((flags.siteName ?? file?.siteName) !== undefined) {
+            throw new UsageError(
+                'A site name needs a site: pass --url, set FRAPPE_URL, or set `url` in the config file.',
+            )
+        }
+        const benchDir = await findParentBench(file?.dir ?? io.cwd)
+        if (benchDir === undefined) {
+            throw new UsageError(
+                'No site and no bench: pass --url, set FRAPPE_URL, or set `url` in the config file to read a site, ' +
+                    "or run inside a Frappe bench to read its apps' source.",
+            )
+        }
+        return { ...base, benchDir }
+    }
+    const apiKey = env['FRAPPE_API_KEY']
+    const apiSecret = env['FRAPPE_API_SECRET']
+    if (apiKey === undefined || apiSecret === undefined) {
+        throw new UsageError(
+            'Set FRAPPE_API_KEY and FRAPPE_API_SECRET in the environment or in a file passed with --env-file.',
+        )
+    }
+    return { ...base, url, siteName: flags.siteName ?? env['FRAPPE_SITE_NAME'] ?? file?.siteName, apiKey, apiSecret }
 }

@@ -1,5 +1,5 @@
-// `frappeforge-codegen` itself: parse the command line, resolve the settings, read the site, then
-// write the module or check it. Everything outside the process comes in through `io`, so tests run
+// `frappeforge-codegen` itself: parse the command line, resolve the settings, read the site or the
+// bench, then write the module or check it. Everything outside the process comes in through `io`, so tests run
 // it in-process.
 
 import { mkdir, writeFile } from 'node:fs/promises'
@@ -14,10 +14,12 @@ import {
     tokenAuth,
 } from '@frappeforge/client'
 
-import { readIfExists, resolveConfig, UsageError } from './config.js'
+import { readIfExists, resolveConfig, type SiteConfig, UsageError } from './config.js'
 import { parseFlags, usage } from './flags.js'
 import { generate } from './generate.js'
 import { VERSION } from './index.js'
+import type { DocTypeMeta } from './meta.js'
+import { loadFromBench } from './sources/bench.js'
 import { loadFromSite } from './sources/site.js'
 
 /** What a run reads and writes besides files: `process.env`, `process.cwd()`, the output streams, `fetch`. */
@@ -59,6 +61,28 @@ function formatError(error: Error): string {
     return `${lines.join('\n')}\n`
 }
 
+/** The site's DocTypes. Its warnings are printed first: when nothing is left to generate, they say why. */
+async function readSite(config: SiteConfig, io: IO): Promise<DocTypeMeta[]> {
+    const frappe = createClient({
+        url: config.url,
+        ...(config.siteName === undefined ? {} : { siteName: config.siteName }),
+        auth: envTokenAuth(config.apiKey, config.apiSecret),
+        // The client's default retries, so that a busy or restarting site does not fail the run.
+        retry: {},
+        ...(io.fetch === undefined ? {} : { fetch: io.fetch }),
+    })
+    const { docTypes, warnings } = await loadFromSite(frappe, config).catch((error: unknown) => {
+        if (!(error instanceof AuthenticationError)) throw error
+        throw new Error(
+            `${config.url} rejected FRAPPE_API_KEY and FRAPPE_API_SECRET. ` +
+                'Check both; generating new keys for a user replaces the secret.',
+            { cause: error },
+        )
+    })
+    for (const warning of warnings) io.stderr.write(`Warning: ${warning}\n`)
+    return docTypes
+}
+
 /**
  * Runs `frappeforge-codegen` with the arguments after the command name.
  *
@@ -76,24 +100,8 @@ export async function main(argv: readonly string[], io: IO): Promise<number> {
             return 0
         }
         const config = await resolveConfig(flags, io)
-        const frappe = createClient({
-            url: config.url,
-            ...(config.siteName === undefined ? {} : { siteName: config.siteName }),
-            auth: envTokenAuth(config.apiKey, config.apiSecret),
-            // The client's default retries, so that a busy or restarting site does not fail the run.
-            retry: {},
-            ...(io.fetch === undefined ? {} : { fetch: io.fetch }),
-        })
-        const { docTypes, warnings: sourceWarnings } = await loadFromSite(frappe, config).catch((error: unknown) => {
-            if (!(error instanceof AuthenticationError)) throw error
-            throw new Error(
-                `${config.url} rejected FRAPPE_API_KEY and FRAPPE_API_SECRET. ` +
-                    'Check both; generating new keys for a user replaces the secret.',
-                { cause: error },
-            )
-        })
-        // Before generating: when nothing is left to generate, they say why.
-        for (const warning of sourceWarnings) io.stderr.write(`Warning: ${warning}\n`)
+        const docTypes =
+            'benchDir' in config ? await loadFromBench(config.benchDir, config) : await readSite(config, io)
         const { code, warnings } = generate(docTypes, { register: config.register, rename: config.rename })
         for (const warning of warnings) io.stderr.write(`Warning: ${warning}\n`)
 

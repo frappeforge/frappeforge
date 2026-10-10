@@ -26,15 +26,16 @@ export const options = {
 /** The help text. */
 export const usage = `Usage: frappeforge-codegen [options]
 
-Generates TypeScript types for the DocTypes of a Frappe site.
+Generates TypeScript types for the DocTypes of a Frappe site, or of the apps of the
+Frappe bench it runs in.
 
 Options:
   -c, --config <file>     Config file (default: frappeforge.json, when it exists)
-  -u, --url <url>         Site URL (env FRAPPE_URL)
+  -u, --url <url>         Site URL (env FRAPPE_URL); without one, the bench is read
       --site-name <name>  Site name, when the URL's host is not the site's name (env FRAPPE_SITE_NAME)
   -d, --doctype <name>    Include a DocType; repeatable
   -m, --module <name>     Include every DocType of a module; repeatable
-      --app <name>        Include every DocType of an installed app; repeatable
+      --app <name>        Include every DocType of an app; repeatable
   -o, --out <file>        Output file (default: src/frappe.generated.ts)
       --no-register       Do not augment @frappeforge/client's Register
       --check             Write nothing; exit 1 when the output file is out of date
@@ -42,7 +43,7 @@ Options:
   -h, --help              Show this help
   -v, --version           Show the version
 
-Credentials are read only from FRAPPE_API_KEY and FRAPPE_API_SECRET.
+Credentials are read only from FRAPPE_API_KEY and FRAPPE_API_SECRET; a bench needs none.
 Exit codes: 0 success, 1 failure or out of date, 2 usage error.
 `
 
