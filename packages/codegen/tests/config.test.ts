@@ -8,6 +8,11 @@ import { tempDir } from './support/temp-dir.js'
 
 const credentials = { FRAPPE_API_KEY: 'key', FRAPPE_API_SECRET: 'secret' }
 
+/** A bench with one app, `frappe`, as the files of a temporary directory under `prefix`. */
+function benchFiles(prefix = ''): Record<string, string> {
+    return { [`${prefix}apps/frappe/frappe/modules.txt`]: 'Desk\n' }
+}
+
 /** Resolves a command line in `cwd`, with the credentials in the environment unless `env` says otherwise. */
 function resolveCommandLine(
     argv: readonly string[],
@@ -84,9 +89,9 @@ describe('resolveConfig', () => {
             env,
         )
 
-        expect([fromFile.url, fromFile.siteName]).toStrictEqual(['https://file.example.com', 'file.local'])
-        expect([fromEnv.url, fromEnv.siteName]).toStrictEqual(['https://env.example.com', 'env.local'])
-        expect([fromFlags.url, fromFlags.siteName]).toStrictEqual(['https://example.com', 'site1.local'])
+        expect(fromFile).toMatchObject({ url: 'https://file.example.com', siteName: 'file.local' })
+        expect(fromEnv).toMatchObject({ url: 'https://env.example.com', siteName: 'env.local' })
+        expect(fromFlags).toMatchObject({ url: 'https://example.com', siteName: 'site1.local' })
     })
 
     it('lets a flag turn registration back on', async () => {
@@ -282,15 +287,87 @@ describe('resolveConfig', () => {
         })
     })
 
-    describe('missing settings', () => {
-        it('needs a site URL', async () => {
+    describe('without a site URL', () => {
+        it('reads the bench the current directory is in, with no credentials', async () => {
+            const bench = await tempDir(benchFiles())
+            const cwd = path.join(bench, 'apps/frappe/frontend')
+
+            await expect(resolveCommandLine(['-d', 'ToDo'], cwd, {})).resolves.toStrictEqual({
+                benchDir: bench,
+                doctypes: ['ToDo'],
+                modules: [],
+                apps: [],
+                out: path.join(cwd, DEFAULT_OUT),
+                register: true,
+                rename: {},
+            })
+        })
+
+        it("looks for the bench from the config file's directory", async () => {
+            const cwd = await tempDir({
+                ...benchFiles('bench/'),
+                'bench/apps/frappe/frontend/frappeforge.json': JSON.stringify({ apps: ['frappe'] }),
+            })
+
+            await expect(
+                resolveCommandLine(['-c', 'bench/apps/frappe/frontend/frappeforge.json'], cwd, {}),
+            ).resolves.toMatchObject({ benchDir: path.join(cwd, 'bench'), apps: ['frappe'] })
+        })
+
+        it('ignores FRAPPE_SITE_NAME, which may be meant for another tool', async () => {
+            const cwd = await tempDir(benchFiles())
+
+            await expect(
+                resolveCommandLine(['-d', 'ToDo'], cwd, { FRAPPE_SITE_NAME: 'site1.local' }),
+            ).resolves.toMatchObject({ benchDir: cwd })
+        })
+
+        it('reads the site of FRAPPE_URL, also inside a bench', async () => {
+            const cwd = await tempDir(benchFiles())
+
+            await expect(
+                resolveCommandLine(['-d', 'ToDo'], cwd, { ...credentials, FRAPPE_URL: 'https://example.com' }),
+            ).resolves.toMatchObject({ url: 'https://example.com' })
+        })
+
+        it.each([[['--site-name', 'site1.local']], [['-c', 'frappeforge.json']]])(
+            'refuses a site name, given %j',
+            async (argv) => {
+                const cwd = await tempDir({
+                    ...benchFiles(),
+                    'frappeforge.json': JSON.stringify({ siteName: 'site1.local' }),
+                })
+
+                await expect(resolveCommandLine([...argv, '-d', 'ToDo'], cwd, {})).rejects.toThrow(
+                    new UsageError(
+                        'A site name needs a site: pass --url, set FRAPPE_URL, or set `url` in the config file.',
+                    ),
+                )
+            },
+        )
+
+        it('needs a bench', async () => {
             const cwd = await tempDir()
 
             await expect(resolveCommandLine(['-d', 'ToDo'], cwd)).rejects.toThrow(
-                new UsageError('No site URL: pass --url, set FRAPPE_URL, or set `url` in the config file.'),
+                new UsageError(
+                    'No site and no bench: pass --url, set FRAPPE_URL, or set `url` in the config file to read a site, ' +
+                        "or run inside a Frappe bench to read its apps' source.",
+                ),
             )
         })
 
+        it.each([
+            ['inside a bench', benchFiles()],
+            ['outside one', {}],
+        ])('needs something to generate, %s', async (_, files) => {
+            const cwd = await tempDir(files)
+
+            await expect(resolveCommandLine([], cwd, {})).rejects.toThrow(/^Nothing to generate/u)
+        })
+    })
+
+    describe('missing settings', () => {
         it.each([[{}], [{ FRAPPE_API_KEY: 'key' }], [{ FRAPPE_API_SECRET: 'secret' }]])(
             'needs both credentials, given %j',
             async (env) => {

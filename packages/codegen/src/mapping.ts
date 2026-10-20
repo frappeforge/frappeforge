@@ -59,7 +59,8 @@ const valueTypes: ReadonlyMap<string, ValueType> = new Map([
     ['JSON', { type: 'unknown', nullability: 'nullable' }],
 ])
 
-const tableFieldtypes: ReadonlySet<string> = new Set(['Table', 'Table MultiSelect'])
+/** Fieldtypes whose rows are documents of a child DocType, named in `options`: Frappe's `table_fields`. */
+export const tableFieldtypes: ReadonlySet<string> = new Set(['Table', 'Table MultiSelect'])
 
 /** Fieldtypes that only shape the form and hold no value. */
 const layoutFieldtypes: ReadonlySet<string> = new Set([

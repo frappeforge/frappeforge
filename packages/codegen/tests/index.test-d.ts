@@ -7,6 +7,7 @@ import {
     generate,
     type GenerateOptions,
     type GenerateResult,
+    loadFromBench,
     loadFromSite,
     type LoadFromSiteResult,
     normalizeDocType,
@@ -59,6 +60,14 @@ describe('@frappeforge/codegen types', () => {
         void loadFromSite(frappe, { doctype: ['ToDo'] })
         // @ts-expect-error names are strings
         void loadFromSite(frappe, { modules: [1] })
+    })
+
+    it('reads a bench by its directory, with the same selection as a site', () => {
+        expectTypeOf(loadFromBench).parameter(0).toEqualTypeOf<string>()
+        expectTypeOf(loadFromBench).returns.toEqualTypeOf<Promise<DocTypeMeta[]>>()
+        expectTypeOf(loadFromBench).parameter(1).toEqualTypeOf<Parameters<typeof loadFromSite>[1]>()
+        // @ts-expect-error the selection is required, as for a site
+        void loadFromBench('../frappe-bench')
     })
 
     it('keeps optional metadata absent rather than undefined', () => {
