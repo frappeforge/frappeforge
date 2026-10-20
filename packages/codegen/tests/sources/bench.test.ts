@@ -1,8 +1,8 @@
-import { chmod } from 'node:fs/promises'
+import { readdir, readFile } from 'node:fs/promises'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 
-import { describe, expect, it } from 'vitest'
+import { describe, expect, it, vi } from 'vitest'
 
 import { generate } from '../../src/generate.js'
 import { normalizeDocType } from '../../src/meta.js'
@@ -10,7 +10,13 @@ import { findParentBench, loadFromBench } from '../../src/sources/bench.js'
 import { recordedBundles } from '../support/site.js'
 import { tempDir } from '../support/temp-dir.js'
 
+// The real file system, with calls a test can make fail.
+vi.mock(import('node:fs/promises'), { spy: true })
+
 type JSONObject = Record<string, unknown>
+
+/** The error a read of a file or directory the user may not read fails with, which chmod cannot cause on Windows. */
+const denied = Object.assign(new Error('EACCES: permission denied'), { code: 'EACCES' })
 
 /** Frappe's `scrub`, for the paths of the files below. */
 function scrub(name: string): string {
@@ -113,15 +119,12 @@ describe('findParentBench', () => {
         await expect(findParentBench(dir)).resolves.toBeUndefined()
     })
 
-    it.runIf(process.getuid?.() !== 0)('passes over an apps folder it may not read, as bench does', async () => {
-        const dir = await tempDir({ 'apps/private/package.json': '{}', 'project/package.json': '{}' })
-        await chmod(path.join(dir, 'apps'), 0)
+    it('passes over an apps folder it may not read, as bench does', async () => {
+        const dir = await tempDir({ 'apps/frappe/frappe/modules.txt': 'Core' })
 
-        try {
-            await expect(findParentBench(path.join(dir, 'project'))).resolves.toBeUndefined()
-        } finally {
-            await chmod(path.join(dir, 'apps'), 0o755)
-        }
+        vi.mocked(readdir).mockRejectedValueOnce(denied)
+        await expect(findParentBench(dir)).resolves.toBeUndefined()
+        await expect(findParentBench(dir)).resolves.toBe(dir)
     })
 })
 
@@ -252,17 +255,13 @@ describe('loadFromBench', () => {
             )
         })
 
-        it.runIf(process.getuid?.() !== 0)('fails on a file or directory it may not read', async () => {
+        it('fails on a file or directory it may not read', async () => {
             const bench = await tempDir(appFiles('ff_app', [docType('FF Note', 'FF Module', [])]))
-            const doctypeDir = path.join(bench, 'apps/ff_app/ff_app/ff_module/doctype')
-            const file = path.join(doctypeDir, 'ff_note/ff_note.json')
 
-            await chmod(file, 0)
-            await expect(loadFromBench(bench, { apps: ['ff_app'] })).rejects.toThrow(/EACCES/u)
-            await chmod(file, 0o644)
-            await chmod(doctypeDir, 0)
-            await expect(loadFromBench(bench, { apps: ['ff_app'] })).rejects.toThrow(/EACCES/u)
-            await chmod(doctypeDir, 0o755)
+            vi.mocked(readFile).mockRejectedValueOnce(denied)
+            await expect(loadFromBench(bench, { apps: ['ff_app'] })).rejects.toBe(denied)
+            vi.mocked(readdir).mockRejectedValueOnce(denied)
+            await expect(loadFromBench(bench, { apps: ['ff_app'] })).rejects.toBe(denied)
         })
     })
 
